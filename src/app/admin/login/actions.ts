@@ -13,7 +13,7 @@ export type LoginState = { error?: string };
 
 const credentials = z.object({
   email: z.string().trim().min(1).max(254),
-  password: z.string().min(1).max(1024),
+  password: z.string().min(4).max(1024),
 });
 
 function sameText(a: string, b: string) {

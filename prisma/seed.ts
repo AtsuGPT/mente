@@ -15,30 +15,30 @@ const db = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
 const categories = [
   {
-    name: "Filosofia",
-    slug: "filosofia",
-    description: "Perguntas sem resposta definitiva e as tentativas de formulá-las melhor.",
-    color: "#7C8FA6",
+    name: "Amor",
+    slug: "amor",
+    description: "Afeto, vínculos e as formas como o amor transforma a vida.",
+    color: "#A83242",
     position: 1,
   },
   {
-    name: "Relacionamentos",
-    slug: "relacionamentos",
-    description: "Sobre vínculos, distâncias e o que se aprende na companhia dos outros.",
-    color: "#A83242",
+    name: "Aprendizado",
+    slug: "aprendizado",
+    description: "O que fica depois de errar, estudar e tentar de novo.",
+    color: "#8957D8",
     position: 2,
   },
   {
-    name: "Aprendizados",
-    slug: "aprendizados",
-    description: "O que ficou depois de errar, ler, tentar de novo.",
-    color: "#8957D8",
+    name: "Reflexões",
+    slug: "reflexoes",
+    description: "Perguntas, ideias e pensamentos que merecem tempo.",
+    color: "#7C8FA6",
     position: 3,
   },
   {
-    name: "Ideias",
-    slug: "ideias",
-    description: "Rascunhos de possibilidades. Algumas viram algo, outras só ficam registradas.",
+    name: "Visões de mundo",
+    slug: "visoes-de-mundo",
+    description: "Perspectivas sobre a sociedade, a cultura e o modo como vivemos.",
     color: "#C99A3B",
     position: 4,
   },
@@ -50,7 +50,7 @@ const samples = [
   {
     slug: "exemplo-o-silencio-tambem-pensa",
     title: "O silêncio também pensa",
-    categories: ["filosofia"],
+    categories: ["reflexoes"],
     publishedAt: daysAgo(2),
     content: `Este é um texto de exemplo, criado só para você ver como o site se comporta. Apague-o pelo painel quando quiser.
 
@@ -73,7 +73,7 @@ No fim, o silêncio não é ausência de pensamento. É o espaço onde ele respi
   {
     slug: "exemplo-escutar-antes-de-responder",
     title: "Escutar antes de responder",
-    categories: ["relacionamentos", "aprendizados"],
+    categories: ["amor", "aprendizado"],
     publishedAt: daysAgo(9),
     content: `Texto de exemplo. Substitua por algo seu.
 
@@ -86,7 +86,7 @@ Vale tentar uma pergunta antes de qualquer defesa: *o que, exatamente, você qui
   {
     slug: "exemplo-um-caderno-que-se-organiza-sozinho",
     title: "Um caderno que se organiza sozinho",
-    categories: ["ideias"],
+    categories: ["visoes-de-mundo"],
     publishedAt: daysAgo(21),
     content: `Texto de exemplo.
 
@@ -97,7 +97,7 @@ Ainda é só um rascunho. Registrar a ideia já é metade do caminho: ela deixa 
   {
     slug: "exemplo-errar-em-voz-alta",
     title: "Errar em voz alta",
-    categories: ["aprendizados", "filosofia"],
+    categories: ["aprendizado", "reflexoes"],
     publishedAt: daysAgo(40),
     content: `Texto de exemplo.
 

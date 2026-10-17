@@ -32,10 +32,10 @@ function promptHidden(question) {
 }
 
 const fromArg = process.argv[2];
-const password = fromArg ?? (await promptHidden("Nova senha (mín. 12 caracteres): "));
+const password = fromArg ?? (await promptHidden("Nova senha (mín. 4 caracteres): "));
 
-if (!password || password.length < 12) {
-  console.error("A senha precisa ter pelo menos 12 caracteres.");
+if (!password || password.length < 4) {
+  console.error("A senha precisa ter pelo menos 4 caracteres.");
   process.exit(1);
 }
 
