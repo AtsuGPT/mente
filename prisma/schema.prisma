@@ -1,0 +1,50 @@
+// Modelo de dados do Minha Mente.
+// Um pensamento (Post) pertence a uma ou mais categorias sem duplicar conteúdo.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  /// Numeração do arquivo ("nº 007"). Sequencial, gerada pelo banco.
+  number      Int        @unique @default(autoincrement())
+  title       String
+  slug        String     @unique
+  /// Markdown. Renderizado sem HTML bruto.
+  content     String
+  status      PostStatus @default(DRAFT)
+  /// Preenchida ao publicar. Uma data futura mantém o pensamento invisível até lá.
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  categories Category[]
+
+  @@index([status, publishedAt])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String   @default("")
+  /// Cor de destaque em hexadecimal (#RRGGBB).
+  color       String   @default("#929292")
+  /// Ordem de exibição na navegação.
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts Post[]
+}
