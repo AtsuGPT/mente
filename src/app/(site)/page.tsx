@@ -6,8 +6,8 @@ import { site } from "@/config/site";
 import { listCategoriesWithPublicCounts } from "@/server/categories";
 import { countPublishedPosts, listLatestPosts } from "@/server/posts";
 import { ProfileAvatar } from "@/components/profile-avatar";
-import { accentVars } from "@/lib/color";
 import { getProfileImage } from "@/server/site-settings";
+import { SearchForm } from "@/components/search-form";
 
 export const metadata: Metadata = {
   title: { absolute: `${site.name} — ${site.tagline}` },
@@ -37,23 +37,9 @@ export default async function HomePage() {
         <p className="label mt-4">{total} {total === 1 ? "publicação" : "publicações"}</p>
       </section>
 
-      {categories.length > 0 ? (
-        <nav id="categorias" aria-label="Filtrar por categoria" className="border-b border-line py-4">
-          <ul className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-            {categories.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/categoria/${c.slug}`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-(--site-chip) px-4 font-sans text-sm text-(--site-copy) transition-colors hover:border-(--accent) hover:text-fg"
-                  style={accentVars(c.color)}
-                >
-                  {c.name}<span className="text-xs text-muted">{c.count}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      ) : null}
+      <section aria-label="Buscar publicações" className="border-b border-line py-5">
+        <SearchForm categories={categories} compact />
+      </section>
 
       <section id="recentes" aria-labelledby="recentes-titulo">
         <div className="flex items-center justify-between border-b border-line px-1 py-4 sm:px-3">

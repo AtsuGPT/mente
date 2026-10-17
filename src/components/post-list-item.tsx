@@ -13,7 +13,7 @@ import { site } from "@/config/site";
 export function PostListItem({ post, profileImage }: { post: PostCard; profileImage?: string | null }) {
   return (
     <article
-      className="group relative border-b border-line px-1 py-5 transition-colors hover:bg-(--site-hover) sm:px-3 sm:py-6"
+      className="group relative mb-3 rounded-lg border border-line bg-(--site-post) px-4 py-5 transition-colors hover:border-(--site-post-edge) hover:bg-(--site-hover) sm:mb-4 sm:px-5 sm:py-6"
       style={accentVars(post.categories[0]?.color)}
     >
       <div className="flex items-center gap-3">

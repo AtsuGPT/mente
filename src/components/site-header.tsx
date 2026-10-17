@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { accentVars } from "@/lib/color";
-import type { CategorySummary } from "@/server/categories";
 import { site } from "@/config/site";
-import { NavLink } from "./nav-link";
 import { ProfileAvatar } from "./profile-avatar";
 
-export function SiteHeader({ categories, profileImage }: { categories: CategorySummary[]; profileImage: string | null }) {
+export function SiteHeader({ profileImage }: { profileImage: string | null }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-(--site-header) backdrop-blur-xl">
       <div className="mx-auto max-w-[44rem] px-4 sm:px-6">
@@ -17,19 +14,13 @@ export function SiteHeader({ categories, profileImage }: { categories: CategoryS
               <span className="block font-sans text-xs text-muted">{site.authorHandle}</span>
             </span>
           </Link>
-          <Link href="/sobre" className="label px-2 py-3 transition-colors hover:text-fg">
-            Sobre
-          </Link>
+          <nav aria-label="Navegação" className="hidden items-center gap-5 sm:flex">
+            <Link href="/" className="label transition-colors hover:text-fg">Início</Link>
+            <Link href="/arquivo" className="label transition-colors hover:text-fg">Arquivo</Link>
+            <Link href="/buscar" className="label transition-colors hover:text-fg">Buscar</Link>
+            <Link href="/sobre" className="label transition-colors hover:text-fg">Sobre</Link>
+          </nav>
         </div>
-
-        <nav aria-label="Categorias" className="scrollbar-none -mx-4 flex gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
-          <NavLink href="/pensamentos">Tudo</NavLink>
-          {categories.map((c) => (
-            <NavLink key={c.id} href={`/categoria/${c.slug}`} style={accentVars(c.color)}>
-              {c.name}
-            </NavLink>
-          ))}
-        </nav>
       </div>
     </header>
   );

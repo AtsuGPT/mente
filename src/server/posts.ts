@@ -65,12 +65,44 @@ function toFull(row: PostRow): PostFull {
 
 export const FEED_PAGE_SIZE = 10;
 
-export async function listPublishedPosts(options: { categorySlug?: string; page?: number; pageSize?: number } = {}) {
+function parseSearchDate(value: string | undefined, endOfDay = false): Date | undefined {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return undefined;
+
+  const dayValue = new Date(`${value}T00:00:00-03:00`);
+  if (endOfDay) dayValue.setTime(dayValue.getTime() + 24 * 60 * 60 * 1000);
+  return dayValue;
+}
+
+export async function listPublishedPosts(options: {
+  categorySlug?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+} = {}) {
   const pageSize = options.pageSize ?? FEED_PAGE_SIZE;
   const requested = Math.max(1, Math.floor(options.page ?? 1));
+  const query = options.q?.trim().slice(0, 100);
+  const from = parseSearchDate(options.from);
+  const toExclusive = parseSearchDate(options.to, true);
   const where: Prisma.PostWhereInput = {
     ...publiclyVisible(),
     ...(options.categorySlug ? { categories: { some: { slug: options.categorySlug } } } : {}),
+    ...(query
+      ? {
+          OR: [
+            { title: { contains: query, mode: "insensitive" } },
+            { content: { contains: query, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+    ...((from || toExclusive)
+      ? { publishedAt: { lte: new Date(), ...(from ? { gte: from } : {}), ...(toExclusive ? { lt: toExclusive } : {}) } }
+      : {}),
   };
 
   const total = await db.post.count({ where });

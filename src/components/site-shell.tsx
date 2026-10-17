@@ -1,27 +1,18 @@
-import { listCategories, type CategorySummary } from "@/server/categories";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 import { getProfileImage } from "@/server/site-settings";
-
-async function safeCategories(): Promise<CategorySummary[]> {
-  try {
-    return await listCategories();
-  } catch (error) {
-    // A navegação nunca deve derrubar uma página de erro ou 404.
-    console.error("Falha ao carregar categorias para o cabeçalho:", error);
-    return [];
-  }
-}
+import { SiteBottomNav } from "./site-bottom-nav";
 
 export async function SiteShell({ children }: { children: React.ReactNode }) {
-  const [categories, profileImage] = await Promise.all([safeCategories(), getProfileImage()]);
+  const profileImage = await getProfileImage();
   return (
     <div className="site-surface">
-      <SiteHeader categories={categories} profileImage={profileImage} />
-      <main id="conteudo" className="mx-auto w-full max-w-[44rem] px-4 sm:px-6">
+      <SiteHeader profileImage={profileImage} />
+      <main id="conteudo" className="mx-auto w-full max-w-[44rem] px-4 pb-28 sm:px-6 sm:pb-16">
         {children}
       </main>
       <SiteFooter />
+      <SiteBottomNav />
     </div>
   );
 }
