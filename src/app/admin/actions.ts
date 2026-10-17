@@ -15,6 +15,17 @@ function revalidateEverything() {
 
 const INVALID = "Revise os campos destacados.";
 
+function detectImageMime(bytes: Buffer): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    return "image/png";
+  }
+  if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") {
+    return "image/webp";
+  }
+  return null;
+}
+
 export async function saveProfileImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
 
@@ -34,14 +45,12 @@ export async function saveProfileImageAction(_prev: ActionState, formData: FormD
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const isJpeg = file.type === "image/jpeg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  const isPng = file.type === "image/png" && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  const isWebp = file.type === "image/webp" && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
-  if (!isJpeg && !isPng && !isWebp) {
+  const mime = detectImageMime(bytes);
+  if (!mime) {
     return { ok: false, message: "Envie uma imagem JPG, PNG ou WebP válida." };
   }
 
-  await setProfileImage(`data:${file.type};base64,${bytes.toString("base64")}`);
+  await setProfileImage(`data:${mime};base64,${bytes.toString("base64")}`);
   revalidateEverything();
   revalidatePath("/admin/configuracoes");
   return { ok: true, message: "Foto de perfil atualizada." };
