@@ -7,8 +7,6 @@ import { accentVars } from "@/lib/color";
 import { listCategoriesWithPublicCounts } from "@/server/categories";
 import { countPublishedPosts, listLatestPosts } from "@/server/posts";
 
-export const revalidate = 60;
-
 export const metadata: Metadata = {
   title: { absolute: `${site.name} — ${site.tagline}` },
   description: site.description,
