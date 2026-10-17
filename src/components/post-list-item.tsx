@@ -10,11 +10,21 @@ import { site } from "@/config/site";
  * Uma entrada do arquivo. A linha inteira é clicável (link "esticado" no
  * título); os rótulos de categoria ficam acima dele para continuarem clicáveis.
  */
-export function PostListItem({ post, profileImage }: { post: PostCard; profileImage?: string | null }) {
+export function PostListItem({
+  post,
+  profileImage,
+  accentColor,
+  showCategories = true,
+}: {
+  post: PostCard;
+  profileImage?: string | null;
+  accentColor?: string;
+  showCategories?: boolean;
+}) {
   return (
     <article
-      className="group relative mb-3 rounded-lg border border-line bg-(--site-post) px-4 py-5 transition-colors hover:border-(--site-post-edge) hover:bg-(--site-hover) sm:mb-4 sm:px-5 sm:py-6"
-      style={accentVars(post.categories[0]?.color)}
+      className="group relative mb-2 rounded-md border border-line bg-(--site-post) px-4 py-4 transition-colors hover:border-(--site-post-edge) hover:bg-(--site-hover) sm:px-5 sm:py-5"
+      style={accentVars(accentColor ?? post.categories[0]?.color)}
     >
       <div className="flex items-center gap-3">
         <ProfileAvatar size={42} src={profileImage} />
@@ -38,7 +48,7 @@ export function PostListItem({ post, profileImage }: { post: PostCard; profileIm
           <p className="mt-2 max-w-[58ch] whitespace-pre-line text-[1rem] leading-[1.7] text-(--site-copy) sm:text-[1.05rem]">{post.excerpt}</p>
         ) : null}
 
-        {post.categories.length > 0 ? (
+        {showCategories && post.categories.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             {post.categories.map((c) => (
               <CategoryLabel key={c.id} category={c} />

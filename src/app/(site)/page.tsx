@@ -5,9 +5,8 @@ import { PostListItem } from "@/components/post-list-item";
 import { site } from "@/config/site";
 import { listCategoriesWithPublicCounts } from "@/server/categories";
 import { countPublishedPosts, listLatestPosts } from "@/server/posts";
-import { ProfileAvatar } from "@/components/profile-avatar";
-import { getProfileImage } from "@/server/site-settings";
 import { SearchForm } from "@/components/search-form";
+import { accentVars } from "@/lib/color";
 
 export const metadata: Metadata = {
   title: { absolute: `${site.name} — ${site.tagline}` },
@@ -16,54 +15,61 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [categories, latest, total, profileImage] = await Promise.all([
-    listCategoriesWithPublicCounts(),
-    listLatestPosts(6),
+  const categories = await listCategoriesWithPublicCounts();
+  const activeCategories = categories.filter((category) => category.count > 0);
+  const [total, categoryFeeds] = await Promise.all([
     countPublishedPosts(),
-    getProfileImage(),
+    Promise.all(activeCategories.map(async (category) => ({
+      category,
+      posts: await listLatestPosts(6, category.slug),
+    }))),
   ]);
 
   return (
     <>
-      <section className="border-b border-line py-8 sm:py-10">
-        <div className="flex items-center gap-4">
-          <ProfileAvatar size={76} src={profileImage} />
-          <div>
-            <h1 className="font-sans text-2xl font-bold leading-tight sm:text-3xl">{site.author}</h1>
-            <p className="mt-1 font-sans text-sm text-muted">{site.authorHandle}</p>
-          </div>
-        </div>
-        <p className="mt-5 max-w-[44ch] text-[1.05rem] leading-relaxed text-(--site-copy)">{site.tagline}</p>
-        <p className="label mt-4">{total} {total === 1 ? "publicação" : "publicações"}</p>
-      </section>
-
       <section aria-label="Buscar publicações" className="border-b border-line py-5">
         <SearchForm categories={categories} compact />
       </section>
 
-      <section id="recentes" aria-labelledby="recentes-titulo">
-        <div className="flex items-center justify-between border-b border-line px-1 py-4 sm:px-3">
-          <h2 id="recentes-titulo" className="font-sans text-sm font-semibold tracking-wide">
-            Publicações
-          </h2>
-          {latest.length > 0 ? (
-            <Link href="/pensamentos" className="font-sans text-sm font-medium text-(--site-link) transition-colors hover:text-fg">
-              Ver arquivo <span aria-hidden>→</span>
-            </Link>
-          ) : null}
+      <header className="flex items-center justify-between border-b border-line py-5">
+        <div>
+          <p className="label">{site.author}</p>
+          <h1 className="mt-1 font-sans text-lg font-semibold">Feed de pensamentos</h1>
         </div>
+        <p className="label">{total} {total === 1 ? "post" : "posts"}</p>
+      </header>
 
-        {latest.length > 0 ? (
-          <div>
-            {latest.map((post) => (
-              <PostListItem key={post.id} post={post} profileImage={profileImage} />
+      <section id="feed" aria-label="Feed por categoria">
+        {categoryFeeds.length > 0 ? categoryFeeds.map(({ category, posts }) => (
+          <section key={category.id} aria-labelledby={`feed-${category.slug}`} className="border-b border-line py-5">
+            <header className="mb-3 flex items-center justify-between border-l-2 border-(--accent) pl-3" style={accentVars(category.color)}>
+              <div>
+                <h2 id={`feed-${category.slug}`} className="font-sans text-base font-semibold text-(--accent-text)">
+                  {category.name}
+                </h2>
+                <p className="mt-0.5 font-sans text-xs text-muted">{category.count} {category.count === 1 ? "publicação" : "publicações"}</p>
+              </div>
+              <Link href={`/categoria/${category.slug}`} className="label text-(--accent-text) transition-opacity hover:opacity-75">
+                Ver todas <span aria-hidden>→</span>
+              </Link>
+            </header>
+
+            {posts.map((post) => (
+              <PostListItem key={`${category.id}-${post.id}`} post={post} accentColor={category.color} showCategories={false} />
             ))}
-          </div>
-        ) : (
+          </section>
+        )) : (
           <EmptyState title="Ainda não há pensamentos publicados.">
             Quando o primeiro for publicado, ele aparece aqui.
           </EmptyState>
         )}
+
+        <div className="flex items-center justify-between border-b border-line px-1 py-4 sm:px-3">
+          <span className="label">Arquivo completo</span>
+          <Link href="/pensamentos" className="font-sans text-sm font-medium text-(--site-link) transition-colors hover:text-fg">
+            Ver todos <span aria-hidden>→</span>
+          </Link>
+        </div>
       </section>
     </>
   );

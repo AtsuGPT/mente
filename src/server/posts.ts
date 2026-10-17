@@ -120,9 +120,12 @@ export async function listPublishedPosts(options: {
   return { posts: rows.map(toCard), total, page, pageCount, pageSize };
 }
 
-export async function listLatestPosts(limit = 6): Promise<PostCard[]> {
+export async function listLatestPosts(limit = 6, categorySlug?: string): Promise<PostCard[]> {
   const rows = await db.post.findMany({
-    where: publiclyVisible(),
+    where: {
+      ...publiclyVisible(),
+      ...(categorySlug ? { categories: { some: { slug: categorySlug } } } : {}),
+    },
     select: postSelect,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     take: limit,
