@@ -65,7 +65,7 @@ function isUniqueViolation(error: unknown) {
 
 export async function createCategory(input: CategoryInput): Promise<MutationResult<CategorySummary>> {
   try {
-    const created = await db.category.create({ data: { ...input, postIDs: [] }, select: summarySelect });
+    const created = await db.category.create({ data: input, select: summarySelect });
     return { ok: true, data: created };
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -93,16 +93,7 @@ export async function updateCategory(id: string, input: CategoryInput): Promise<
 /** Remove a categoria; os pensamentos continuam existindo, apenas sem ela. */
 export async function deleteCategory(id: string): Promise<MutationResult> {
   try {
-    const category = await db.category.findUnique({ where: { id }, select: { id: true } });
-    if (!category) return { ok: false, message: "Categoria não encontrada." };
-    await db.$transaction(async (tx) => {
-      const posts = await tx.post.findMany({ where: { categoryIDs: { has: id } }, select: { id: true, categoryIDs: true } });
-      for (const post of posts) {
-        const categoryIDs = post.categoryIDs.filter((categoryId) => categoryId !== id);
-        await tx.post.update({ where: { id: post.id }, data: { categoryIDs } });
-      }
-      await tx.category.delete({ where: { id } });
-    });
+    await db.category.delete({ where: { id } });
     return { ok: true, data: undefined };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {

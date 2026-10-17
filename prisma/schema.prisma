@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -17,8 +17,8 @@ enum PostStatus {
 }
 
 model Post {
-  id          String     @id @default(cuid()) @map("_id")
-  /// Numeração sequencial do arquivo, alocada pelo contador do MongoDB.
+  id          String     @id @default(cuid())
+  /// Numeração sequencial do arquivo, alocada pelo contador PostCounter.
   number      Int        @unique
   title       String
   slug        String     @unique
@@ -30,14 +30,13 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  categoryIDs String[]
-  categories  Category[] @relation(fields: [categoryIDs], references: [id])
+  categories Category[]
 
   @@index([status, publishedAt])
 }
 
 model Category {
-  id          String   @id @default(cuid()) @map("_id")
+  id          String   @id @default(cuid())
   name        String
   slug        String   @unique
   description String   @default("")
@@ -48,17 +47,16 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  postIDs String[]
-  posts   Post[]   @relation(fields: [postIDs], references: [id])
+  posts Post[]
 }
 
 model SiteSettings {
-  id               String   @id @default("site") @map("_id")
+  id               String   @id @default("site")
   profileImageData String?
   updatedAt        DateTime @updatedAt
 }
 
 model PostCounter {
-  id    String @id @default("posts") @map("_id")
+  id    String @id @default("posts")
   value Int
 }

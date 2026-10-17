@@ -48,7 +48,7 @@ async function main() {
   }
 
   for (const category of backup.categories) {
-    const postIDs = backup.posts.filter((post) => post.categoryIds.includes(category.id)).map((post) => post.id);
+    const relatedPosts = backup.posts.filter((post) => post.categoryIds.includes(category.id)).map(({ id }) => ({ id }));
     await db.category.upsert({
       where: { id: category.id },
       update: {
@@ -59,7 +59,7 @@ async function main() {
         position: category.position,
         createdAt: new Date(category.createdAt),
         updatedAt: new Date(category.updatedAt),
-        postIDs,
+        posts: { set: relatedPosts },
       },
       create: {
         id: category.id,
@@ -70,7 +70,6 @@ async function main() {
         position: category.position,
         createdAt: new Date(category.createdAt),
         updatedAt: new Date(category.updatedAt),
-        postIDs,
       },
     });
   }
@@ -87,7 +86,7 @@ async function main() {
         publishedAt: parseDate(post.publishedAt),
         createdAt: new Date(post.createdAt),
         updatedAt: new Date(post.updatedAt),
-        categoryIDs: post.categoryIds,
+        categories: { set: post.categoryIds.map((id) => ({ id })) },
       },
       create: {
         id: post.id,
@@ -99,8 +98,16 @@ async function main() {
         publishedAt: parseDate(post.publishedAt),
         createdAt: new Date(post.createdAt),
         updatedAt: new Date(post.updatedAt),
-        categoryIDs: post.categoryIds,
+        categories: { connect: post.categoryIds.map((id) => ({ id })) },
       },
+    });
+  }
+
+  for (const category of backup.categories) {
+    const relatedPosts = backup.posts.filter((post) => post.categoryIds.includes(category.id)).map(({ id }) => ({ id }));
+    await db.category.update({
+      where: { id: category.id },
+      data: { posts: { set: relatedPosts } },
     });
   }
 
@@ -130,12 +137,12 @@ async function main() {
   if (categoryCount !== backup.categories.length || postCount !== backup.posts.length) {
     throw new Error(`Contagens divergentes após importação: ${categoryCount}/${backup.categories.length} categorias, ${postCount}/${backup.posts.length} posts.`);
   }
-  console.log(`Importação verificada: ${categoryCount} categorias e ${postCount} posts no MongoDB.`);
+  console.log(`Importação verificada: ${categoryCount} categorias e ${postCount} posts no SQLite.`);
 }
 
 main()
   .catch((error) => {
-    console.error("Importação MongoDB falhou:", error instanceof Error ? error.message : "Erro desconhecido");
+    console.error("Importação do backup falhou:", error instanceof Error ? error.message : "Erro desconhecido");
     process.exitCode = 1;
   })
   .finally(() => db.$disconnect());

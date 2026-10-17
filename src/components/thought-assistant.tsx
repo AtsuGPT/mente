@@ -20,6 +20,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
   const [cached, setCached] = useState<Partial<Record<Mode, string>>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     const saved: Partial<Record<Mode, string>> = {};
@@ -46,6 +47,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
 
     setInsight(null);
     setLoading(true);
+    setConnecting(true);
 
     try {
       const response = await fetch(`/api/thoughts/${encodeURIComponent(slug)}/insight`, {
@@ -71,7 +73,9 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
         if (!data) return;
         const event = JSON.parse(data) as { text?: string; error?: string; done?: boolean };
         if (event.error) throw new Error(event.error);
+        if ("status" in event) setConnecting(false);
         if (event.text) {
+          setConnecting(false);
           generatedText += event.text;
           setInsight({ mode, label, text: generatedText });
         }
@@ -97,6 +101,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha ao conectar com o assistente.");
     } finally {
+      setConnecting(false);
       setLoading(false);
     }
   }
@@ -128,7 +133,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
       </div>
 
       {error ? <p role="alert" className="mt-4 font-sans text-sm leading-relaxed text-muted">{error}</p> : null}
-      {loading ? <p role="status" className="mt-4 font-sans text-sm text-muted">Preparando uma leitura independente do texto original…</p> : null}
+      {loading ? <p role="status" className="mt-4 font-sans text-sm text-muted">{connecting ? "Conectando ao Gemini…" : "Lendo o pensamento…"}</p> : null}
       {insight ? (
         <div className="thought-assistant-result" aria-live="polite">
           <p className="label mb-3 text-(--accent-text)">{insight.label} · {loading ? "gerando" : "salvo neste navegador"}</p>

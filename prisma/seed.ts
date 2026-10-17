@@ -106,7 +106,7 @@ async function main() {
     await db.category.upsert({
       where: { slug: c.slug },
       update: { color: c.color },
-      create: { ...c, postIDs: [] },
+      create: c,
     });
   }
   console.log(`Categorias garantidas: ${categories.map((c) => c.name).join(", ")}`);
@@ -117,7 +117,7 @@ async function main() {
         where: { slug: { in: s.categories } },
         select: { id: true },
       });
-      const categoryIDs = linkedCategories.map(({ id }) => id);
+      const categories = linkedCategories.map(({ id }) => ({ id }));
       if (await db.post.findUnique({ where: { slug: s.slug }, select: { id: true } })) continue;
 
       const { value: number } = await db.postCounter.upsert({
@@ -125,7 +125,7 @@ async function main() {
         update: { value: { increment: 1 } },
         create: { id: "posts", value: 1 },
       });
-      const post = await db.post.create({
+      await db.post.create({
         data: {
           number,
           slug: s.slug,
@@ -133,12 +133,9 @@ async function main() {
           content: s.content,
           status: "PUBLISHED",
           publishedAt: s.publishedAt,
-          categoryIDs,
+          categories: { connect: categories },
         },
       });
-      for (const categoryId of categoryIDs) {
-        await db.category.update({ where: { id: categoryId }, data: { postIDs: { push: post.id } } });
-      }
     }
     console.log(`Pensamentos de exemplo garantidos: ${samples.length}`);
   }
