@@ -45,6 +45,8 @@ SESSION_SECRET="valor-secreto-com-32+caracteres"
 
 Gere o hash administrativo com `npm run admin:hash` e o segredo de sessão com `openssl rand -base64 48`.
 
+Para ativar o assistente de leitura Gemini, crie uma chave no [Google AI Studio](https://aistudio.google.com/apikey) e defina `GEMINI_API_KEY` no `.env` local (e no ambiente do servidor, se publicado). A chave é usada apenas no backend. Opcionalmente, ajuste o modelo com `GEMINI_MODEL`; o padrão é `gemini-2.5-flash`. Sem a chave, o site segue funcionando, mas a API de leitura responde que o recurso ainda não foi configurado.
+
 ## Schema
 
 MongoDB não usa Prisma Migrate. `npm run db:push` sincroniza schema e índices. O comando legado `npm run db:deploy` também executa `prisma db push`.
@@ -60,6 +62,16 @@ npx tsx scripts/import-mongodb.ts "C:\caminho\para\backup.json"
 ```
 
 O importador preserva IDs, numeração, status, datas, categorias, relações e foto de perfil. O banco PostgreSQL original não é apagado.
+
+## Leitura assistida com Gemini
+O detalhe dos pensamentos oferece ações de resumo, esclarecimento e aprofundamento. A resposta é gerada sob demanda, aparece separada e nunca modifica nem é salva junto ao texto original.
+Crie uma chave no [Google AI Studio](https://aistudio.google.com/apikey) e configure `GEMINI_API_KEY` no `.env` local e no ambiente do servidor. O modelo pode ser ajustado com `GEMINI_MODEL` (padrão: `gemini-3.8-flash`). A chave permanece somente no servidor; não use prefixo `NEXT_PUBLIC_`.
+
+O detalhe dos pensamentos oferece ações de resumo, esclarecimento e aprofundamento. A resposta é gerada sob demanda, aparece separada e nunca modifica nem é salva junto ao texto original.
+
+Crie uma chave no [Google AI Studio](https://aistudio.google.com/apikey) e configure `GEMINI_API_KEY` no `.env` local e no ambiente do servidor. O modelo pode ser ajustado com `GEMINI_MODEL` (padrão: `gemini-2.5-flash`). A chave permanece somente no servidor; não use prefixo `NEXT_PUBLIC_`.
+
+Sem `GEMINI_API_KEY`, o site continua funcionando e o painel informa que a leitura assistida não está configurada.
 
 ## Hospedagem
 

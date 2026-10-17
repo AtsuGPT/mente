@@ -39,6 +39,20 @@ export default async function HomePage() {
         <p className="label">{total} {total === 1 ? "post" : "posts"}</p>
       </header>
 
+      {activeCategories.length > 0 ? (
+        <nav aria-label="Pular para uma categoria" className="sticky top-[4.25rem] z-10 -mx-4 border-b border-line bg-(--site-header) px-4 py-3 backdrop-blur-xl sm:mx-0 sm:px-0">
+          <div className="scrollbar-none flex gap-2 overflow-x-auto">
+            <a href="#feed" className="category-feed-tab shrink-0">Todas</a>
+            {activeCategories.map(({ id, name, slug, color }) => (
+              <a key={id} href={`#feed-${slug}`} className="category-feed-tab shrink-0" style={accentVars(color)}>
+                <span className="size-1.5 rounded-full bg-(--accent)" aria-hidden="true" />
+                {name}
+              </a>
+            ))}
+          </div>
+        </nav>
+      ) : null}
+
       <section id="feed" aria-label="Feed por categoria">
         {categoryFeeds.length > 0 ? categoryFeeds.map(({ category, posts }) => (
           <section key={category.id} aria-labelledby={`feed-${category.slug}`} className="border-b border-line py-5">

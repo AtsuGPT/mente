@@ -41,7 +41,7 @@ export type PostCard = {
   categories: CategorySummary[];
 };
 
-export type PostFull = PostCard & { content: string };
+export type PostFull = PostCard & { content: string; updatedAt: Date };
 
 function toCard(row: PostRow): PostCard {
   return {
@@ -56,7 +56,7 @@ function toCard(row: PostRow): PostCard {
 }
 
 function toFull(row: PostRow): PostFull {
-  return { ...toCard(row), content: row.content };
+  return { ...toCard(row), content: row.content, updatedAt: row.updatedAt };
 }
 
 /* ------------------------------------------------------------------ */

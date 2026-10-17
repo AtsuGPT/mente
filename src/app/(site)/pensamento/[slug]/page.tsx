@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ThoughtArticle } from "@/components/thought-article";
+import { ThoughtAssistant } from "@/components/thought-assistant";
 import { site } from "@/config/site";
 import { accentVars } from "@/lib/color";
 import { siteUrl } from "@/lib/env";
 import { formatDateShort } from "@/lib/format";
 import { excerpt } from "@/lib/text";
+import { stripMarkdown } from "@/lib/text";
 import { getPublishedPostBySlug, listRelatedPosts } from "@/server/posts";
 
 export const revalidate = 60;
@@ -65,6 +67,9 @@ export default async function ThoughtPage({ params }: { params: Params }) {
       />
 
       <ThoughtArticle post={post} />
+      {stripMarkdown(post.content).length > 100 ? (
+        <ThoughtAssistant slug={post.slug} revision={post.updatedAt.toISOString()} accentColor={post.categories[0]?.color} />
+      ) : null}
 
       {related.length > 0 ? (
         <aside aria-labelledby="relacionados" className="mx-auto mt-20 max-w-[42rem] border-t border-line pt-8">
