@@ -18,28 +18,28 @@ const categories = [
     name: "Amor",
     slug: "amor",
     description: "Afeto, vínculos e as formas como o amor transforma a vida.",
-    color: "#A83242",
+    color: "#72C8D6",
     position: 1,
   },
   {
     name: "Aprendizado",
     slug: "aprendizado",
     description: "O que fica depois de errar, estudar e tentar de novo.",
-    color: "#8957D8",
+    color: "#78BFAF",
     position: 2,
   },
   {
     name: "Reflexões",
     slug: "reflexoes",
     description: "Perguntas, ideias e pensamentos que merecem tempo.",
-    color: "#7C8FA6",
+    color: "#8BAFDC",
     position: 3,
   },
   {
     name: "Visões de mundo",
     slug: "visoes-de-mundo",
     description: "Perspectivas sobre a sociedade, a cultura e o modo como vivemos.",
-    color: "#C99A3B",
+    color: "#A5C6D7",
     position: 4,
   },
 ];
@@ -109,7 +109,7 @@ Quando um erro vira texto, ele ganha contorno. Deixa de ser uma sensação difus
 
 async function main() {
   for (const c of categories) {
-    await db.category.upsert({ where: { slug: c.slug }, update: {}, create: c });
+    await db.category.upsert({ where: { slug: c.slug }, update: { color: c.color }, create: c });
   }
   console.log(`Categorias garantidas: ${categories.map((c) => c.name).join(", ")}`);
 

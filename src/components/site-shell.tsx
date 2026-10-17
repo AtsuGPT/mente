@@ -1,6 +1,7 @@
 import { listCategories, type CategorySummary } from "@/server/categories";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { getProfileImage } from "@/server/site-settings";
 
 async function safeCategories(): Promise<CategorySummary[]> {
   try {
@@ -13,14 +14,14 @@ async function safeCategories(): Promise<CategorySummary[]> {
 }
 
 export async function SiteShell({ children }: { children: React.ReactNode }) {
-  const categories = await safeCategories();
+  const [categories, profileImage] = await Promise.all([safeCategories(), getProfileImage()]);
   return (
-    <>
-      <SiteHeader categories={categories} />
-      <main id="conteudo" className="mx-auto max-w-[72rem] px-6 md:px-10">
+    <div className="site-surface">
+      <SiteHeader categories={categories} profileImage={profileImage} />
+      <main id="conteudo" className="mx-auto w-full max-w-[44rem] px-4 sm:px-6">
         {children}
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }

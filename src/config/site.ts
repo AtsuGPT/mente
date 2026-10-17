@@ -8,6 +8,8 @@
  */
 export const site = {
   name: "Minha Mente",
+  author: "kayk",
+  authorHandle: "@kayk",
   tagline: "Um arquivo de pensamentos, ideias e fragmentos de uma mente em construção.",
   description:
     "Um espaço pessoal para pensamentos, reflexões, ideias e aprendizados, organizados por categorias.",

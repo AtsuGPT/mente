@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/admin", label: "Pensamentos", isActive: (p: string) => p === "/admin" || p.startsWith("/admin/pensamentos") },
   { href: "/admin/categorias", label: "Categorias", isActive: (p: string) => p.startsWith("/admin/categorias") },
+  { href: "/admin/configuracoes", label: "Configurações", isActive: (p: string) => p.startsWith("/admin/configuracoes") },
 ];
 
 export function AdminNav() {

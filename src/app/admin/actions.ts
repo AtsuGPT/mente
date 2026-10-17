@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { createCategory, deleteCategory, updateCategory } from "@/server/categories";
 import { createPost, deletePost, updatePost } from "@/server/posts";
+import { setProfileImage } from "@/server/site-settings";
 import { parseCategoryForm, parsePostForm, type ActionState } from "@/server/validation";
 
 /** Tudo que é público depende de posts e categorias; invalida o conjunto. */
@@ -13,6 +14,38 @@ function revalidateEverything() {
 }
 
 const INVALID = "Revise os campos destacados.";
+
+export async function saveProfileImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+
+  if (formData.get("intent") === "remove") {
+    await setProfileImage(null);
+    revalidateEverything();
+    revalidatePath("/admin/configuracoes");
+    return { ok: true, message: "Foto removida." };
+  }
+
+  const file = formData.get("profileImage");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "Escolha uma imagem para enviar." };
+  }
+  if (file.size > 700 * 1024) {
+    return { ok: false, message: "A imagem deve ter no máximo 700 KB." };
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const isJpeg = file.type === "image/jpeg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng = file.type === "image/png" && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isWebp = file.type === "image/webp" && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
+  if (!isJpeg && !isPng && !isWebp) {
+    return { ok: false, message: "Envie uma imagem JPG, PNG ou WebP válida." };
+  }
+
+  await setProfileImage(`data:${file.type};base64,${bytes.toString("base64")}`);
+  revalidateEverything();
+  revalidatePath("/admin/configuracoes");
+  return { ok: true, message: "Foto de perfil atualizada." };
+}
 
 /* ------------------------------ Pensamentos ----------------------------- */
 

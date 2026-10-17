@@ -3,37 +3,43 @@ import { accentVars } from "@/lib/color";
 import { formatDateShort, formatNumber } from "@/lib/format";
 import type { PostCard } from "@/server/posts";
 import { CategoryLabel } from "./category-label";
+import { ProfileAvatar } from "./profile-avatar";
+import { site } from "@/config/site";
 
 /**
  * Uma entrada do arquivo. A linha inteira é clicável (link "esticado" no
  * título); os rótulos de categoria ficam acima dele para continuarem clicáveis.
  */
-export function PostListItem({ post }: { post: PostCard }) {
+export function PostListItem({ post, profileImage }: { post: PostCard; profileImage?: string | null }) {
   return (
     <article
-      className="group rule-sweep relative grid gap-3 border-t border-line py-8 md:grid-cols-12 md:gap-10 md:py-11"
+      className="group relative border-b border-line px-1 py-5 transition-colors hover:bg-(--site-hover) sm:px-3 sm:py-6"
       style={accentVars(post.categories[0]?.color)}
     >
-      <div className="md:col-span-3">
-        <p className="label">
-          <time dateTime={post.publishedAt.toISOString()}>{formatDateShort(post.publishedAt)}</time>
-        </p>
-        <p className="label mt-1 text-faint">Nº {formatNumber(post.number)}</p>
+      <div className="flex items-center gap-3">
+        <ProfileAvatar size={42} src={profileImage} />
+        <div className="min-w-0 flex-1 font-sans text-sm leading-snug">
+          <span className="font-semibold text-fg">{site.author}</span>
+          <span className="ml-1.5 text-muted">{site.authorHandle}</span>
+          <span className="mx-1.5 text-faint" aria-hidden>·</span>
+          <time className="text-muted" dateTime={post.publishedAt.toISOString()}>{formatDateShort(post.publishedAt)}</time>
+        </div>
+        <span className="label shrink-0 text-faint">Nº {formatNumber(post.number)}</span>
       </div>
 
-      <div className="md:col-span-9">
-        <h3 className="max-w-[24ch] text-balance text-[1.75rem] font-normal leading-[1.1] tracking-[-0.018em] md:text-[2.35rem]">
-          <Link href={`/pensamento/${post.slug}`} className="reveal-underline after:absolute after:inset-0">
+      <div className="pl-[3.45rem]">
+        <h2 className="mt-3 text-balance text-[1.35rem] font-medium leading-snug text-fg sm:text-[1.55rem]">
+          <Link href={`/pensamento/${post.slug}`} className="rounded-sm outline-offset-4 hover:text-(--accent-text)">
             {post.title}
           </Link>
-        </h3>
+        </h2>
 
         {post.excerpt ? (
-          <p className="mt-4 max-w-[58ch] text-[1.05rem] leading-relaxed text-muted md:text-[1.12rem]">{post.excerpt}</p>
+          <p className="mt-2 max-w-[58ch] whitespace-pre-line text-[1rem] leading-[1.7] text-(--site-copy) sm:text-[1.05rem]">{post.excerpt}</p>
         ) : null}
 
         {post.categories.length > 0 ? (
-          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             {post.categories.map((c) => (
               <CategoryLabel key={c.id} category={c} />
             ))}

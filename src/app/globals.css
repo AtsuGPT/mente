@@ -67,6 +67,36 @@
   }
 }
 
+.site-surface {
+  --color-bg: #050709;
+  --color-surface: #0b1014;
+  --color-surface-2: #11191f;
+  --color-line: #202b33;
+  --color-fg: #e8f0f4;
+  --color-muted: #91a2ad;
+  --color-faint: #667781;
+  --color-danger: #e0707e;
+  --site-copy: #bac7ce;
+  --site-link: #8ac8db;
+  --site-avatar: #14232d;
+  --site-chip: rgba(13, 21, 27, 0.82);
+  --site-hover: rgba(30, 48, 59, 0.32);
+  --site-header: rgba(5, 7, 9, 0.88);
+  min-height: 100dvh;
+  background-color: var(--color-bg);
+  background-image: radial-gradient(rgba(128, 177, 199, 0.1) 0.55px, transparent 0.55px);
+  background-size: 24px 24px;
+  color: var(--color-fg);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ------------------------------------------------------------------ */
 /* Componentes de identidade                                          */
 /* ------------------------------------------------------------------ */

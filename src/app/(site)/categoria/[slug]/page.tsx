@@ -6,6 +6,7 @@ import { PostListItem } from "@/components/post-list-item";
 import { accentVars } from "@/lib/color";
 import { getCategoryBySlug } from "@/server/categories";
 import { listPublishedPosts } from "@/server/posts";
+import { getProfileImage } from "@/server/site-settings";
 
 type Params = Promise<{ slug: string }>;
 
@@ -35,10 +36,10 @@ export default async function CategoryPage({
   const category = await getCategoryBySlug(slug);
   if (!category) notFound();
 
-  const { posts, page, pageCount, total } = await listPublishedPosts({
-    categorySlug: category.slug,
-    page: parsePage(pagina),
-  });
+  const [{ posts, page, pageCount, total }, profileImage] = await Promise.all([
+    listPublishedPosts({ categorySlug: category.slug, page: parsePage(pagina) }),
+    getProfileImage(),
+  ]);
 
   return (
     <div style={accentVars(category.color)}>
@@ -61,7 +62,7 @@ export default async function CategoryPage({
       {posts.length > 0 ? (
         <div className="border-b border-line">
           {posts.map((post) => (
-            <PostListItem key={post.id} post={post} />
+            <PostListItem key={post.id} post={post} profileImage={profileImage} />
           ))}
         </div>
       ) : (

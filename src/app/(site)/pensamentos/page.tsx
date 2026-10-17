@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Pagination, parsePage } from "@/components/pagination";
 import { PostListItem } from "@/components/post-list-item";
 import { listPublishedPosts } from "@/server/posts";
+import { getProfileImage } from "@/server/site-settings";
 
 export const metadata: Metadata = {
   title: "Todos os pensamentos",
@@ -16,7 +17,10 @@ export default async function AllThoughtsPage({
   searchParams: Promise<{ pagina?: string | string[] }>;
 }) {
   const { pagina } = await searchParams;
-  const { posts, page, pageCount, total } = await listPublishedPosts({ page: parsePage(pagina) });
+  const [{ posts, page, pageCount, total }, profileImage] = await Promise.all([
+    listPublishedPosts({ page: parsePage(pagina) }),
+    getProfileImage(),
+  ]);
 
   return (
     <>
@@ -31,7 +35,7 @@ export default async function AllThoughtsPage({
       {posts.length > 0 ? (
         <div className="border-b border-line">
           {posts.map((post) => (
-            <PostListItem key={post.id} post={post} />
+            <PostListItem key={post.id} post={post} profileImage={profileImage} />
           ))}
         </div>
       ) : (

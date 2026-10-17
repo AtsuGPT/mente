@@ -48,3 +48,9 @@ model Category {
 
   posts Post[]
 }
+
+model SiteSettings {
+  id               String   @id @default("site")
+  profileImageData String?  @db.Text
+  updatedAt        DateTime @updatedAt
+}
