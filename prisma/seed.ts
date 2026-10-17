@@ -1,17 +1,11 @@
-/**
- * Seed idempotente.
- *  - Sempre: cria/atualiza as categorias iniciais.
- *  - Com SEED_SAMPLES=1: cria também alguns pensamentos de EXEMPLO (slug "exemplo-…")
- *    para avaliar o design. Apague-os pelo painel quando quiser.
- */
+
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient } from "../src/generated/prisma";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL não definida.");
 
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+const db = new PrismaClient();
 
 const categories = [
   {
@@ -109,28 +103,42 @@ Quando um erro vira texto, ele ganha contorno. Deixa de ser uma sensação difus
 
 async function main() {
   for (const c of categories) {
-    await db.category.upsert({ where: { slug: c.slug }, update: { color: c.color }, create: c });
+    await db.category.upsert({
+      where: { slug: c.slug },
+      update: { color: c.color },
+      create: { ...c, postIDs: [] },
+    });
   }
   console.log(`Categorias garantidas: ${categories.map((c) => c.name).join(", ")}`);
 
   if (process.env.SEED_SAMPLES === "1") {
     for (const s of samples) {
-      const connect = await db.category.findMany({
+      const linkedCategories = await db.category.findMany({
         where: { slug: { in: s.categories } },
         select: { id: true },
       });
-      await db.post.upsert({
-        where: { slug: s.slug },
-        update: {},
-        create: {
+      const categoryIDs = linkedCategories.map(({ id }) => id);
+      if (await db.post.findUnique({ where: { slug: s.slug }, select: { id: true } })) continue;
+
+      const { value: number } = await db.postCounter.upsert({
+        where: { id: "posts" },
+        update: { value: { increment: 1 } },
+        create: { id: "posts", value: 1 },
+      });
+      const post = await db.post.create({
+        data: {
+          number,
           slug: s.slug,
           title: s.title,
           content: s.content,
           status: "PUBLISHED",
           publishedAt: s.publishedAt,
-          categories: { connect },
+          categoryIDs,
         },
       });
+      for (const categoryId of categoryIDs) {
+        await db.category.update({ where: { id: categoryId }, data: { postIDs: { push: post.id } } });
+      }
     }
     console.log(`Pensamentos de exemplo garantidos: ${samples.length}`);
   }

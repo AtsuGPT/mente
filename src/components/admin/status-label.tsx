@@ -1,4 +1,4 @@
-import type { PostStatus } from "@/generated/prisma/client";
+import type { PostStatus } from "@/generated/prisma";
 
 /** Rascunho / Publicado / Agendado (publicado com data futura). */
 export function statusOf(status: PostStatus, publishedAt: Date | null): "draft" | "published" | "scheduled" {

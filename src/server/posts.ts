@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { Prisma, type PostStatus } from "@/generated/prisma/client";
+import { Prisma, type PostStatus } from "@/generated/prisma";
 import { excerpt } from "@/lib/text";
 import { publiclyVisible, type CategorySummary, type MutationResult } from "./categories";
 import type { PostInput } from "./validation";
@@ -253,7 +253,17 @@ const SLUG_TAKEN = { slug: ["Já existe um pensamento com este endereço."] };
 async function existingCategoryIds(ids: string[]) {
   if (ids.length === 0) return [];
   const found = await db.category.findMany({ where: { id: { in: ids } }, select: { id: true } });
-  return found.map((c) => ({ id: c.id }));
+  return found.map((c) => c.id);
+}
+
+async function nextPostNumber(client: Prisma.TransactionClient): Promise<number> {
+  const counter = await client.postCounter.upsert({
+    where: { id: "posts" },
+    update: { value: { increment: 1 } },
+    create: { id: "posts", value: 1 },
+    select: { value: true },
+  });
+  return counter.value;
 }
 
 function resolveState(input: PostInput, existing?: { status: PostStatus; publishedAt: Date | null }) {
@@ -273,16 +283,24 @@ export async function createPost(input: PostInput): Promise<MutationResult<{ id:
   const categories = await existingCategoryIds(input.categoryIds);
   const { status, publishedAt } = resolveState(input);
   try {
-    const created = await db.post.create({
-      data: {
-        title: input.title,
-        slug: input.slug,
-        content: input.content,
-        status,
-        publishedAt,
-        categories: { connect: categories },
-      },
-      select: { id: true },
+    const created = await db.$transaction(async (tx) => {
+      const number = await nextPostNumber(tx);
+      const post = await tx.post.create({
+        data: {
+          number,
+          title: input.title,
+          slug: input.slug,
+          content: input.content,
+          status,
+          publishedAt,
+          categoryIDs: categories,
+        },
+        select: { id: true },
+      });
+      await Promise.all(categories.map(async (categoryId) => {
+        await tx.category.update({ where: { id: categoryId }, data: { postIDs: { push: post.id } } });
+      }));
+      return post;
     });
     return { ok: true, data: created };
   } catch (error) {
@@ -292,23 +310,41 @@ export async function createPost(input: PostInput): Promise<MutationResult<{ id:
 }
 
 export async function updatePost(id: string, input: PostInput): Promise<MutationResult<{ id: string }>> {
-  const existing = await db.post.findUnique({ where: { id }, select: { status: true, publishedAt: true } });
+  const existing = await db.post.findUnique({ where: { id }, select: { status: true, publishedAt: true, categoryIDs: true } });
   if (!existing) return { ok: false, message: "Pensamento não encontrado." };
 
   const categories = await existingCategoryIds(input.categoryIds);
   const { status, publishedAt } = resolveState(input, existing);
   try {
-    const updated = await db.post.update({
-      where: { id },
-      data: {
-        title: input.title,
-        slug: input.slug,
-        content: input.content,
-        status,
-        publishedAt,
-        categories: { set: categories },
-      },
-      select: { id: true },
+    const updated = await db.$transaction(async (tx) => {
+      const post = await tx.post.update({
+        where: { id },
+        data: {
+          title: input.title,
+          slug: input.slug,
+          content: input.content,
+          status,
+          publishedAt,
+          categoryIDs: categories,
+        },
+        select: { id: true },
+      });
+      const removedCategoryIds = existing.categoryIDs.filter((categoryId) => !categories.includes(categoryId));
+      const addedCategoryIds = categories.filter((categoryId) => !existing.categoryIDs.includes(categoryId));
+
+      for (const categoryId of removedCategoryIds) {
+        const category = await tx.category.findUnique({ where: { id: categoryId }, select: { postIDs: true } });
+        if (category) {
+          await tx.category.update({ where: { id: categoryId }, data: { postIDs: { set: category.postIDs.filter((postId) => postId !== id) } } });
+        }
+      }
+      for (const categoryId of addedCategoryIds) {
+        const category = await tx.category.findUnique({ where: { id: categoryId }, select: { postIDs: true } });
+        if (category && !category.postIDs.includes(id)) {
+          await tx.category.update({ where: { id: categoryId }, data: { postIDs: { push: id } } });
+        }
+      }
+      return post;
     });
     return { ok: true, data: updated };
   } catch (error) {
@@ -319,7 +355,17 @@ export async function updatePost(id: string, input: PostInput): Promise<Mutation
 
 export async function deletePost(id: string): Promise<MutationResult> {
   try {
-    await db.post.delete({ where: { id } });
+    await db.$transaction(async (tx) => {
+      const post = await tx.post.findUnique({ where: { id }, select: { categoryIDs: true } });
+      if (!post) return;
+      await tx.post.delete({ where: { id } });
+      for (const categoryId of post.categoryIDs) {
+        const category = await tx.category.findUnique({ where: { id: categoryId }, select: { postIDs: true } });
+        if (category) {
+          await tx.category.update({ where: { id: categoryId }, data: { postIDs: { set: category.postIDs.filter((postId) => postId !== id) } } });
+        }
+      }
+    });
     return { ok: true, data: undefined };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {

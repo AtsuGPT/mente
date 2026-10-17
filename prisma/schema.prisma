@@ -2,12 +2,13 @@
 // Um pensamento (Post) pertence a uma ou mais categorias sem duplicar conteúdo.
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 enum PostStatus {
@@ -16,9 +17,9 @@ enum PostStatus {
 }
 
 model Post {
-  id          String     @id @default(cuid())
-  /// Numeração do arquivo ("nº 007"). Sequencial, gerada pelo banco.
-  number      Int        @unique @default(autoincrement())
+  id          String     @id @default(cuid()) @map("_id")
+  /// Numeração sequencial do arquivo, alocada pelo contador do MongoDB.
+  number      Int        @unique
   title       String
   slug        String     @unique
   /// Markdown. Renderizado sem HTML bruto.
@@ -29,13 +30,14 @@ model Post {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  categories Category[]
+  categoryIDs String[]
+  categories  Category[] @relation(fields: [categoryIDs], references: [id])
 
   @@index([status, publishedAt])
 }
 
 model Category {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("_id")
   name        String
   slug        String   @unique
   description String   @default("")
@@ -46,11 +48,17 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  posts Post[]
+  postIDs String[]
+  posts   Post[]   @relation(fields: [postIDs], references: [id])
 }
 
 model SiteSettings {
-  id               String   @id @default("site")
-  profileImageData String?  @db.Text
+  id               String   @id @default("site") @map("_id")
+  profileImageData String?
   updatedAt        DateTime @updatedAt
+}
+
+model PostCounter {
+  id    String @id @default("posts") @map("_id")
+  value Int
 }

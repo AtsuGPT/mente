@@ -1,15 +1,13 @@
 import "server-only";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL não definida. Copie .env.example para .env e preencha.");
+  if (!process.env.DATABASE_URL?.startsWith("mongodb://") && !process.env.DATABASE_URL?.startsWith("mongodb+srv://")) {
+    throw new Error("DATABASE_URL deve ser uma conexão MongoDB. Configure mongodb:// ou mongodb+srv://.");
   }
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  return new PrismaClient();
 }
 
 export const db = globalForPrisma.prisma ?? createClient();
