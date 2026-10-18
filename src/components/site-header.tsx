@@ -13,6 +13,7 @@ export function SiteHeader() {
             <Link href="/" className="label transition-colors hover:text-fg">Início</Link>
             <Link href="/arquivo" className="label transition-colors hover:text-fg">Arquivo</Link>
             <Link href="/buscar" className="label transition-colors hover:text-fg">Buscar</Link>
+            <Link href="/conversar" className="label transition-colors hover:text-fg">Perguntar</Link>
             <Link href="/sobre" className="label transition-colors hover:text-fg">Sobre</Link>
           </nav>
         </div>

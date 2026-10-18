@@ -55,12 +55,14 @@ npx tsx scripts/import-mongodb.ts "C:\caminho\para\backup.json"
 
 O importador preserva IDs, numeração, status, datas, categorias, relações e foto de perfil. As bases de origem não são apagadas.
 
-## Leitura assistida com Gemini
+## Leitura assistida com Ollama
 O detalhe dos pensamentos oferece ações de resumo, esclarecimento e aprofundamento. A resposta é gerada em streaming, aparece separada, é guardada apenas no navegador de cada pessoa e nunca modifica o texto original.
 
-Crie uma chave no [Google AI Studio](https://aistudio.google.com/apikey) e configure `GEMINI_API_KEY` no `.env` local e no ambiente do servidor. O modelo padrão é `gemini-3.5-flash-lite`, ajustável via `GEMINI_MODEL`. A chave permanece somente no backend; não use prefixo `NEXT_PUBLIC_`. Para privacidade, chamadas usam `store: false`.
+A aba **Perguntar** permite conversar com o mesmo modelo. O servidor procura primeiro em pensamentos publicados, mostra os textos relacionados e usa apenas esse conteúdo para falar sobre o que Kayk escreveu. Se não encontrar relação, informa isso antes de oferecer uma resposta geral, sem atribuí-la a Kayk.
 
-Sem `GEMINI_API_KEY`, o site continua funcionando e o painel informa que a leitura assistida não está configurada.
+Instale o Ollama e baixe um modelo com suporte a chat, por exemplo `ollama pull llama3.2`. Inicie o serviço e configure `OLLAMA_BASE_URL` e `OLLAMA_MODEL` no `.env`; os padrões são `http://127.0.0.1:11434` e `llama3.2:latest`. A chamada acontece no backend, então o Ollama precisa estar acessível a partir do servidor Next.js.
+
+Se o Ollama não estiver acessível, o site continua funcionando e a leitura assistida informa que não conseguiu conectar.
 
 ## Hospedagem
 

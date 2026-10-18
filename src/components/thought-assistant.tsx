@@ -14,7 +14,7 @@ type Mode = (typeof actions)[number]["mode"];
 type Insight = { mode: Mode; label: string; text: string };
 
 export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string; revision: string; accentColor?: string }) {
-  const cachePrefix = `minha-mente:gemini:v1:${encodeURIComponent(slug)}:${encodeURIComponent(revision)}`;
+  const cachePrefix = `minha-mente:ollama:v1:${encodeURIComponent(slug)}:${encodeURIComponent(revision)}`;
   const [selected, setSelected] = useState<Mode | null>(null);
   const [insight, setInsight] = useState<Insight | null>(null);
   const [cached, setCached] = useState<Partial<Record<Mode, string>>>({});
@@ -90,7 +90,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
         if (done) break;
       }
       if (buffer.trim()) handleFrame(buffer);
-      if (!generatedText.trim()) throw new Error("O Gemini não retornou uma leitura desta vez.");
+      if (!generatedText.trim()) throw new Error("O Ollama não retornou uma leitura desta vez.");
 
       setCached((previous) => ({ ...previous, [mode]: generatedText }));
       try {
@@ -110,7 +110,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
     <section className="thought-assistant" style={accentVars(accentColor)} aria-labelledby="assistant-title">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className="label text-(--accent-text)">Leitura assistida · Gemini</p>
+          <p className="label text-(--accent-text)">Leitura assistida · Ollama</p>
           <h2 id="assistant-title" className="mt-1 font-sans text-sm font-semibold text-fg">Explore este pensamento</h2>
         </div>
         <span aria-hidden="true" className="mt-1 size-2 rounded-full bg-(--accent) shadow-[0_0_14px_var(--accent)]" />
@@ -133,7 +133,7 @@ export function ThoughtAssistant({ slug, revision, accentColor }: { slug: string
       </div>
 
       {error ? <p role="alert" className="mt-4 font-sans text-sm leading-relaxed text-muted">{error}</p> : null}
-      {loading ? <p role="status" className="mt-4 font-sans text-sm text-muted">{connecting ? "Conectando ao Gemini…" : "Lendo o pensamento…"}</p> : null}
+      {loading ? <p role="status" className="mt-4 font-sans text-sm text-muted">{connecting ? "Conectando ao Ollama…" : "Lendo o pensamento…"}</p> : null}
       {insight ? (
         <div className="thought-assistant-result" aria-live="polite">
           <p className="label mb-3 text-(--accent-text)">{insight.label} · {loading ? "gerando" : "salvo neste navegador"}</p>

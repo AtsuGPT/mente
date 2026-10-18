@@ -120,6 +120,25 @@ export async function listPublishedPosts(options: {
   return { posts: rows.map(toCard), total, page, pageCount, pageSize };
 }
 
+export async function searchPublishedPostsByTerms(terms: string[], limit = 100): Promise<PostFull[]> {
+  const normalizedTerms = [...new Set(terms.map((term) => term.trim()).filter(Boolean))].slice(0, 8);
+  if (!normalizedTerms.length) return [];
+
+  const rows = await db.post.findMany({
+    where: {
+      ...publiclyVisible(),
+      OR: normalizedTerms.flatMap((term) => [
+        { title: { contains: term } },
+        { content: { contains: term } },
+      ]),
+    },
+    select: postSelect,
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: Math.min(Math.max(1, limit), 100),
+  });
+  return rows.map(toFull);
+}
+
 export async function listLatestPosts(limit = 6, categorySlug?: string): Promise<PostCard[]> {
   const rows = await db.post.findMany({
     where: {
