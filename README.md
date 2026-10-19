@@ -2,6 +2,8 @@
 
 Blog pessoal em Next.js com painel administrativo e SQLite.
 
+Para uma explicação educativa da arquitetura e dos principais fluxos, consulte o [Guia de estudo do projeto](docs/guia-de-estudo.md).
+
 ## Stack
 
 - Next.js 16
