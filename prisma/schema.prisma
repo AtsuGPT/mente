@@ -24,6 +24,7 @@ model Post {
   slug        String     @unique
   /// Markdown. Renderizado sem HTML bruto.
   content     String
+  private Boolean @default(false)
   status      PostStatus @default(DRAFT)
   /// Preenchida ao publicar. Uma data futura mantém o pensamento invisível até lá.
   publishedAt DateTime?

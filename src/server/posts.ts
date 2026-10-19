@@ -1,9 +1,19 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { getAccessRole } from "@/lib/auth/session";
+import type { Role } from "@/lib/auth/role";
 import { Prisma, type PostStatus } from "@/generated/prisma";
 import { excerpt } from "@/lib/text";
 import { publiclyVisible, type CategorySummary, type MutationResult } from "./categories";
 import type { PostInput } from "./validation";
+
+const visibilityFilter = (role: Role) => {
+  if (role === "ADMIN" || role === "INTIMO") {
+    return {};
+  }
+  return { private: false };
+};
+
 
 const categorySelect = {
   id: true,
@@ -21,6 +31,7 @@ const postSelect = {
   number: true,
   title: true,
   slug: true,
+  private: true,
   content: true,
   status: true,
   publishedAt: true,
@@ -84,6 +95,7 @@ export async function listPublishedPosts(options: {
   page?: number;
   pageSize?: number;
 } = {}) {
+  const role = (await getAccessRole()) ?? "CONVIDADO";
   const pageSize = options.pageSize ?? FEED_PAGE_SIZE;
   const requested = Math.max(1, Math.floor(options.page ?? 1));
   const query = options.q?.trim().slice(0, 100);
@@ -91,6 +103,7 @@ export async function listPublishedPosts(options: {
   const toExclusive = parseSearchDate(options.to, true);
   const where: Prisma.PostWhereInput = {
     ...publiclyVisible(),
+    ...visibilityFilter(role),
     ...(options.categorySlug ? { categories: { some: { slug: options.categorySlug } } } : {}),
     ...(query
       ? {
@@ -121,12 +134,14 @@ export async function listPublishedPosts(options: {
 }
 
 export async function searchPublishedPostsByTerms(terms: string[], limit = 100): Promise<PostFull[]> {
+  const role = (await getAccessRole()) ?? "CONVIDADO";
   const normalizedTerms = [...new Set(terms.map((term) => term.trim()).filter(Boolean))].slice(0, 8);
   if (!normalizedTerms.length) return [];
 
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
+      ...visibilityFilter(role),
       OR: normalizedTerms.flatMap((term) => [
         { title: { contains: term } },
         { content: { contains: term } },
@@ -140,9 +155,11 @@ export async function searchPublishedPostsByTerms(terms: string[], limit = 100):
 }
 
 export async function listLatestPosts(limit = 6, categorySlug?: string): Promise<PostCard[]> {
+  const role = (await getAccessRole()) ?? "CONVIDADO";
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
+      ...visibilityFilter(role),
       ...(categorySlug ? { categories: { some: { slug: categorySlug } } } : {}),
     },
     select: postSelect,
@@ -153,20 +170,27 @@ export async function listLatestPosts(limit = 6, categorySlug?: string): Promise
 }
 
 export async function countPublishedPosts(): Promise<number> {
-  return db.post.count({ where: publiclyVisible() });
+  const role = (await getAccessRole()) ?? "CONVIDADO";
+  return db.post.count({ where: { ...publiclyVisible(), ...visibilityFilter(role) } });
 }
 
 export async function getPublishedPostBySlug(slug: string): Promise<PostFull | null> {
-  const row = await db.post.findFirst({ where: { slug, ...publiclyVisible() }, select: postSelect });
+  const role = (await getAccessRole()) ?? "CONVIDADO";
+  const row = await db.post.findFirst({
+    where: { slug, ...publiclyVisible(), ...visibilityFilter(role) },
+    select: postSelect,
+  });
   return row ? toFull(row) : null;
 }
 
 /** Outros pensamentos que compartilham categoria, do mais recente ao mais antigo. */
 export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">, limit = 3): Promise<PostCard[]> {
+  const role = (await getAccessRole()) ?? "CONVIDADO";
   if (post.categories.length === 0) return [];
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
+      ...visibilityFilter(role),
       id: { not: post.id },
       categories: { some: { id: { in: post.categories.map((c) => c.id) } } },
     },
@@ -179,7 +203,7 @@ export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">
 
 export async function listSitemapEntries() {
   return db.post.findMany({
-    where: publiclyVisible(),
+    where: { ...publiclyVisible(), ...visibilityFilter("CONVIDADO") },
     select: { slug: true, updatedAt: true, publishedAt: true },
     orderBy: { publishedAt: "desc" },
   });
@@ -198,6 +222,7 @@ export type AdminPostRow = {
   title: string;
   slug: string;
   status: PostStatus;
+  private: boolean;
   publishedAt: Date | null;
   updatedAt: Date;
   categories: CategorySummary[];
@@ -236,6 +261,7 @@ export async function listAdminPosts(options: {
       number: true,
       title: true,
       slug: true,
+      private: true,
       status: true,
       publishedAt: true,
       updatedAt: true,
@@ -255,6 +281,7 @@ export type AdminPost = {
   title: string;
   slug: string;
   content: string;
+  private: boolean;
   status: PostStatus;
   publishedAt: Date | null;
   createdAt: Date;
@@ -313,6 +340,7 @@ export async function createPost(input: PostInput): Promise<MutationResult<{ id:
           title: input.title,
           slug: input.slug,
           content: input.content,
+          private: input.private,
           status,
           publishedAt,
           categories: { connect: categories },
@@ -342,6 +370,7 @@ export async function updatePost(id: string, input: PostInput): Promise<Mutation
           title: input.title,
           slug: input.slug,
           content: input.content,
+          private: input.private,
           status,
           publishedAt,
           categories: { set: categories },

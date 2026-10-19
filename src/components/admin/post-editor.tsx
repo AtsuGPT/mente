@@ -17,6 +17,7 @@ export type EditorPost = {
   title: string;
   slug: string;
   content: string;
+  private: boolean;
   status: "DRAFT" | "PUBLISHED";
   /** Valor para <input type="datetime-local">, em horário de Brasília. */
   publishedAtLocal: string;
@@ -43,13 +44,22 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
   const [slug, setSlug] = useState(post?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(!isNew);
   const [content, setContent] = useState(post?.content ?? "");
+  const [isPrivate, setIsPrivate] = useState(post?.private ?? false);
   const [selected, setSelected] = useState<string[]>(selectedIds);
   const [publishedLocal, setPublishedLocal] = useState(post?.publishedAtLocal ?? "");
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [dirty, setDirty] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [audioError, setAudioError] = useState("");
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const fieldErrors = state.fieldErrors ?? {};
 
@@ -82,6 +92,113 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => {
+    if (!recording) return;
+    const timer = window.setInterval(() => setRecordingSeconds((seconds) => seconds + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  useEffect(() => () => {
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  async function uploadRecording(blob: Blob) {
+    if (!blob.size) {
+      setAudioError("A gravação ficou vazia. Tente novamente.");
+      setTranscribing(false);
+      return;
+    }
+
+    const extension = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+    const formData = new FormData();
+    formData.append("audio", blob, `gravacao.${extension}`);
+
+    try {
+      const response = await fetch("/api/admin/transcribe", { method: "POST", body: formData });
+      const result = await response.json() as { text?: string; error?: string };
+      if (!response.ok || !result.text?.trim()) {
+        throw new Error(result.error || "Não foi possível transcrever o áudio.");
+      }
+
+      const textarea = contentRef.current;
+      const selectionStart = textarea?.selectionStart ?? content.length;
+      const selectionEnd = textarea?.selectionEnd ?? content.length;
+      const before = content.slice(0, selectionStart);
+      const after = content.slice(selectionEnd);
+      const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+      const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
+      const insertedText = `${prefix}${result.text.trim()}${suffix}`;
+      const nextContent = `${before}${insertedText}${after}`;
+      const cursorPosition = before.length + insertedText.length - suffix.length;
+      setContent(nextContent);
+      touch();
+      setAudioError("");
+      requestAnimationFrame(() => {
+        textarea?.focus();
+        textarea?.setSelectionRange(cursorPosition, cursorPosition);
+      });
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Falha ao transcrever o áudio.");
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function startRecording() {
+    setAudioError("");
+    setRecordingSeconds(0);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setAudioError("Este navegador não oferece suporte à gravação de áudio.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const supportedTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+      const mimeType = supportedTypes.find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recordingStreamRef.current = stream;
+      recorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) audioChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setAudioError("A gravação foi interrompida. Tente novamente.");
+        setRecording(false);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      recorder.onstop = () => {
+        const audio = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        recorderRef.current = null;
+        setRecording(false);
+        setTranscribing(true);
+        void uploadRecording(audio);
+      };
+      recorder.start(1000);
+      setRecording(true);
+    } catch (error) {
+      setAudioError(error instanceof Error && error.name === "NotAllowedError"
+        ? "Permita o acesso ao microfone para gravar."
+        : "Não foi possível iniciar o microfone.");
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  function formatRecordingTime(seconds: number) {
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
 
   const touch = () => setDirty(true);
 
@@ -123,7 +240,7 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
             <FieldError id="title-error" errors={fieldErrors.title} />
           </div>
 
-          <div className="mt-8 flex items-baseline justify-between gap-6" role="tablist" aria-label="Modo do editor">
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4" role="tablist" aria-label="Modo do editor">
             <div className="flex gap-6">
               {(["write", "preview"] as const).map((t) => (
                 <button
@@ -140,16 +257,43 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
                 </button>
               ))}
             </div>
-            <p className="label text-faint" aria-live="off">
-              {words} {words === 1 ? "palavra" : "palavras"} · {readingMinutes(content)} min
-            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="label text-faint" aria-live="off">
+                {words} {words === 1 ? "palavra" : "palavras"} · {readingMinutes(content)} min
+              </p>
+              <button
+                type="button"
+                className={`post-audio-button ${recording ? "is-recording" : ""}`}
+                disabled={transcribing || tab === "preview"}
+                onClick={recording ? stopRecording : startRecording}
+                aria-label={recording ? "Parar gravação e transcrever" : "Gravar áudio para transcrever"}
+              >
+                {transcribing ? (
+                  <span className="post-audio-spinner" aria-hidden="true" />
+                ) : recording ? (
+                  <span className="post-audio-stop" aria-hidden="true" />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="8.2" y="3" width="7.6" height="12" rx="3.8" stroke="currentColor" strokeWidth="1.7" />
+                    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-3 0h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  </svg>
+                )}
+                <span>
+                  {transcribing ? "Transcrevendo…" : recording ? `Parar · ${formatRecordingTime(recordingSeconds)}` : "Gravar áudio"}
+                </span>
+              </button>
+            </div>
           </div>
+          {audioError ? <p className="post-audio-error" role="alert">{audioError}</p> : null}
+          {recording ? <p className="post-audio-status" role="status">Gravando. Pressione Parar para enviar ao Whisper.</p> : null}
+          {transcribing ? <p className="post-audio-status" role="status">Transcrevendo com Whisper e organizando o texto com Ollama…</p> : null}
 
           <div className="mt-6">
             <label htmlFor="content" className="sr-only">
               Texto
             </label>
             <textarea
+              ref={contentRef}
               id="content"
               name="content"
               value={content}
@@ -191,6 +335,22 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
 
         {/* ------------------------------ Metadados ----------------------------- */}
         <aside className="space-y-9 lg:pt-1" aria-label="Detalhes do pensamento">
+          <label className="admin-private-toggle">
+            <input
+              type="checkbox"
+              name="private"
+              checked={isPrivate}
+              onChange={(event) => {
+                setIsPrivate(event.target.checked);
+                touch();
+              }}
+            />
+            <span>
+              <strong>Post privado</strong>
+              <span>Visível apenas para usuários autenticados, não para convidados.</span>
+            </span>
+          </label>
+
           <div>
             <label htmlFor="slug" className="label">
               Endereço

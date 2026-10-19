@@ -7,7 +7,8 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { burnPasswordCheck, verifyPassword } from "@/lib/auth/password";
 import { checkLoginAllowed, clearLoginFailures, registerLoginFailure } from "@/lib/auth/rate-limit";
-import { createSession, destroySession } from "@/lib/auth/session";
+import { createAccessSession, createSession, destroyAccessSession, destroySession } from "@/lib/auth/session";
+import { ROLES } from "@/lib/auth/role";
 
 export type LoginState = { error?: string };
 
@@ -64,10 +65,12 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   clearLoginFailures(ip);
   await createSession(config.ADMIN_EMAIL);
+  await createAccessSession(ROLES.ADMIN);
   redirect(safeNext(formData.get("next")));
 }
 
 export async function logoutAction() {
   await destroySession();
+  await destroyAccessSession();
   redirect("/admin/login");
 }

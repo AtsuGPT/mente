@@ -36,7 +36,7 @@ export async function listCategoriesWithPublicCounts() {
   const rows = await db.category.findMany({
     select: {
       ...summarySelect,
-      _count: { select: { posts: { where: publiclyVisible() } } },
+      _count: { select: { posts: { where: { ...publiclyVisible(), private: false } } } },
     },
     orderBy: [...ordering],
   });

@@ -68,6 +68,7 @@ export default async function EditPostPage({
           title: post.title,
           slug: post.slug,
           content: post.content,
+          private: post.private,
           status: post.status,
           publishedAtLocal: toDatetimeLocal(post.publishedAt),
         }}

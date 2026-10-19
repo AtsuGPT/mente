@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { site } from "@/config/site";
+import { logoutAccessAction } from "@/lib/auth/login";
 
 export function SiteHeader() {
   return (
@@ -16,6 +17,9 @@ export function SiteHeader() {
             <Link href="/conversar" className="label transition-colors hover:text-fg">Perguntar</Link>
             <Link href="/sobre" className="label transition-colors hover:text-fg">Sobre</Link>
           </nav>
+          <form action={logoutAccessAction}>
+            <button type="submit" className="site-exit">Sair</button>
+          </form>
         </div>
       </div>
     </header>

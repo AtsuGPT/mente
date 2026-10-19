@@ -36,10 +36,14 @@ DATABASE_URL="file:./mente.db"
 SITE_URL="http://localhost:3000"
 ADMIN_EMAIL="admin@exemplo.com"
 ADMIN_PASSWORD_HASH="scrypt:16384:8:1:..."
+SITE_USERNAME="leitor"
+SITE_PASSWORD_HASH="scrypt:16384:8:1:..."
 SESSION_SECRET="valor-secreto-com-32+caracteres"
 ```
 
-Gere o hash administrativo com `npm run admin:hash` e o segredo de sessão com `openssl rand -base64 48`.
+`SITE_USERNAME` e `SITE_PASSWORD_HASH` são opcionais. Gere um hash com `npm run admin:hash` e use a parte `scrypt:...` como `SITE_PASSWORD_HASH`; o hash administrativo continua separado. Sem essas variáveis, o acesso por usuário/senha aceita apenas o administrador, e qualquer pessoa também pode entrar como convidado. Gere o segredo de sessão com `openssl rand -base64 48`.
+
+A primeira visita ao site abre a tela de acesso. Convidados veem posts públicos; o usuário configurado e o administrador também podem ver posts marcados como privados.
 
 ## Schema
 
@@ -63,6 +67,10 @@ A aba **Perguntar** permite conversar com o mesmo modelo. O servidor procura pri
 Instale o Ollama e baixe um modelo com suporte a chat, por exemplo `ollama pull llama3.2`. Inicie o serviço e configure `OLLAMA_BASE_URL` e `OLLAMA_MODEL` no `.env`; os padrões são `http://127.0.0.1:11434` e `llama3.2:latest`. A chamada acontece no backend, então o Ollama precisa estar acessível a partir do servidor Next.js.
 
 Se o Ollama não estiver acessível, o site continua funcionando e a leitura assistida informa que não conseguiu conectar.
+
+No editor de pensamentos do admin, **Gravar áudio** envia a gravação ao Whisper local; o Ollama corrige a pontuação e organiza os parágrafos sem resumir nem acrescentar ideias. A revisão é inserida na posição do cursor (ou no fim do texto), preservando o conteúdo existente. O navegador precisa permitir acesso ao microfone.
+
+Com as dependências Python do ambiente instaladas, inicie o Whisper na raiz do projeto com `.venv/Scripts/python.exe -m uvicorn src.app.api.whisper.server:app --host 127.0.0.1 --port 8001` no Windows. O modelo `medium` carrega ao iniciar; FFmpeg precisa estar instalado. A URL pode ser alterada por `WHISPER_URL`. Não exponha a porta 8001 publicamente; somente a aplicação Next deve estar acessível pela rede.
 
 ## Hospedagem
 
