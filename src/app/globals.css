@@ -335,6 +335,299 @@
 .post-audio-status { color: var(--color-muted); }
 .post-audio-error { color: var(--color-danger); }
 
+.post-tiptap-shell {
+  border: 1px solid var(--color-line);
+  background: rgba(8, 12, 15, 0.48);
+}
+
+.post-tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--color-line);
+  padding: 0.55rem;
+}
+
+.post-tiptap-toolbar button {
+  min-height: 2.2rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  padding: 0.35rem 0.55rem;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.post-tiptap-toolbar button:hover:not(:disabled),
+.post-tiptap-toolbar button[aria-pressed="true"] {
+  border-color: #3d555e;
+  background: #142127;
+  color: #d5edf1;
+}
+
+.post-tiptap-toolbar button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.post-tiptap-shell .tiptap {
+  min-height: 55vh;
+  outline: none;
+  padding: 1.25rem;
+  color: var(--color-fg);
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  line-height: 1.75;
+}
+
+.post-tiptap-shell .tiptap > * + * { margin-top: 0.9rem; }
+.post-tiptap-shell .tiptap p { margin-block: 0.75rem; }
+.post-tiptap-shell .tiptap h2 { margin-block: 1.5rem 0.6rem; font-family: var(--font-sans); font-size: 1.45rem; font-weight: 650; line-height: 1.3; }
+.post-tiptap-shell .tiptap ul,
+.post-tiptap-shell .tiptap ol { padding-left: 1.6rem; }
+.post-tiptap-shell .tiptap ul { list-style: disc; }
+.post-tiptap-shell .tiptap ol { list-style: decimal; }
+
+.post-tiptap-shell .tiptap blockquote,
+.prose-mm blockquote {
+  border-left: 2px solid #5e98a4;
+  padding-left: 1rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.post-tiptap-shell .tiptap pre,
+.prose-mm pre {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  background: #080c0e;
+  padding: 0.9rem 1rem;
+  color: #c6e0e4;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.post-tiptap-shell .tiptap hr,
+.prose-mm hr { border: 0; border-top: 1px solid var(--color-line); }
+
+.post-tiptap-shell .tiptap [data-type="details"],
+.prose-mm details {
+  border: 1px solid var(--color-line);
+  border-radius: 0.3rem;
+  background: rgba(13, 19, 22, 0.65);
+  padding: 0.7rem 0.9rem;
+}
+
+.post-tiptap-shell .tiptap [data-type="details"] > button {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  margin-right: 0.4rem;
+  color: var(--site-link);
+}
+
+.post-tiptap-shell .tiptap [data-type="details"] summary,
+.prose-mm details > summary {
+  color: var(--site-link);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+
+.post-tiptap-shell .tiptap [data-type="detailsContent"],
+.prose-mm details > :not(summary) { margin-top: 0.6rem; }
+
+.post-tiptap-shell .tiptap .tableWrapper,
+.prose-mm table { max-width: 100%; overflow-x: auto; }
+
+.post-tiptap-shell .tiptap table,
+.prose-mm table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+}
+
+.post-tiptap-shell .tiptap th,
+.post-tiptap-shell .tiptap td,
+.prose-mm th,
+.prose-mm td {
+  min-width: 6rem;
+  border: 1px solid var(--color-line);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.post-tiptap-shell .tiptap th,
+.prose-mm th { background: #121b1f; color: var(--color-fg); font-weight: 600; }
+
+.post-tiptap-shell .tiptap .selectedCell { background: rgba(92, 154, 167, 0.16); }
+
+/* Redimensionamento de imagens do Tiptap */
+.post-tiptap-shell [data-resize-container] {
+  position: relative !important;
+  display: block !important;
+  width: fit-content;
+  max-width: 100%;
+  overflow: visible !important;
+  isolation: isolate;
+}
+
+.post-tiptap-shell [data-resize-wrapper] {
+  position: relative !important;
+  display: block !important;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible !important;
+  flex: none !important;
+}
+
+.post-tiptap-shell [data-resize-wrapper] > img {
+  display: block !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.post-tiptap-shell [data-resize-handle] {
+  position: absolute !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 14px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 9999 !important;
+  background: #4b9aaa !important;
+  border: 2px solid #fff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 45%);
+  pointer-events: auto !important;
+  touch-action: none;
+}
+
+.post-tiptap-shell [data-resize-handle="top"] {
+  top: -7px !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="right"] {
+  top: 50% !important;
+  right: -7px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="bottom"] {
+  bottom: -7px !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="left"] {
+  top: 50% !important;
+  left: -7px !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="top-left"] {
+  top: -7px !important;
+  left: -7px !important;
+  cursor: nwse-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="top-right"] {
+  top: -7px !important;
+  right: -7px !important;
+  cursor: nesw-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="bottom-left"] {
+  bottom: -7px !important;
+  left: -7px !important;
+  cursor: nesw-resize;
+}
+
+.post-tiptap-shell [data-resize-handle="bottom-right"] {
+  bottom: -7px !important;
+  right: -7px !important;
+  cursor: nwse-resize;
+}
+
+.post-tiptap-shell [data-resize-handle]:hover {
+  background: #2563eb !important;
+}
+
+@media (max-width: 640px) {
+  .post-tiptap-shell [data-resize-handle] {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    flex-basis: 18px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="top"] {
+    top: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="right"] {
+    right: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="bottom"] {
+    bottom: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="left"] {
+    left: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="top-left"] {
+    top: -9px !important;
+    left: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="top-right"] {
+    top: -9px !important;
+    right: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="bottom-left"] {
+    bottom: -9px !important;
+    left: -9px !important;
+  }
+
+  .post-tiptap-shell [data-resize-handle="bottom-right"] {
+    bottom: -9px !important;
+    right: -9px !important;
+  }
+}
+
 @media (max-height: 720px) {
   .access-content { padding-block: 0.75rem; }
   .access-brand h1 { margin-top: 0.85rem; }

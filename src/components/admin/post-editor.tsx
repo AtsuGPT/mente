@@ -1,6 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Markdown } from "@tiptap/markdown";
+import { TableKit } from "@tiptap/extension-table";
+import { PostImage } from "@/lib/tiptap/post-image";
 import { savePostAction } from "@/app/admin/actions";
 import { ThoughtArticle } from "@/components/thought-article";
 import { accentVars } from "@/lib/color";
@@ -10,6 +15,27 @@ import { slugify } from "@/lib/slug";
 import type { CategorySummary } from "@/server/categories";
 import type { ActionState } from "@/server/validation";
 import { SubmitButton } from "./submit-button";
+import { DetailsContent, DetailsMarkdown, DetailsSummary } from "@/lib/tiptap/details-markdown";
+
+const postEditorExtensions = [
+  StarterKit,
+  DetailsMarkdown.configure({ persist: true }),
+  DetailsSummary,
+  DetailsContent,
+  PostImage.configure({
+    inline: false,
+    allowBase64: false,
+    resize: {
+      enabled: true,
+      minWidth: 80,
+      minHeight: 60,
+      alwaysPreserveAspectRatio: true,
+      directions: ["top", "right", "bottom", "left", "top-right", "top-left", "bottom-right", "bottom-left"],
+    },
+  }),
+  TableKit.configure({ table: { resizable: true, renderWrapper: true } }),
+  Markdown.configure({ markedOptions: { gfm: true } }),
+];
 
 export type EditorPost = {
   id: string;
@@ -53,13 +79,25 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
   const [transcribing, setTranscribing] = useState(false);
   const [audioError, setAudioError] = useState("");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const editor = useEditor({
+    extensions: postEditorExtensions,
+    content,
+    contentType: "markdown",
+    immediatelyRender: false,
+    onUpdate: ({ editor: updatedEditor }) => {
+      setContent(updatedEditor.getMarkdown());
+      setDirty(true);
+    },
+  }, []);
 
   const fieldErrors = state.fieldErrors ?? {};
 
@@ -126,23 +164,9 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
         throw new Error(result.error || "Não foi possível transcrever o áudio.");
       }
 
-      const textarea = contentRef.current;
-      const selectionStart = textarea?.selectionStart ?? content.length;
-      const selectionEnd = textarea?.selectionEnd ?? content.length;
-      const before = content.slice(0, selectionStart);
-      const after = content.slice(selectionEnd);
-      const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
-      const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
-      const insertedText = `${prefix}${result.text.trim()}${suffix}`;
-      const nextContent = `${before}${insertedText}${after}`;
-      const cursorPosition = before.length + insertedText.length - suffix.length;
-      setContent(nextContent);
-      touch();
+      if (!editor) throw new Error("O editor ainda está carregando. Tente novamente.");
+      editor.chain().focus().insertContent(result.text.trim(), { contentType: "markdown" }).run();
       setAudioError("");
-      requestAnimationFrame(() => {
-        textarea?.focus();
-        textarea?.setSelectionRange(cursorPosition, cursorPosition);
-      });
     } catch (error) {
       setAudioError(error instanceof Error ? error.message : "Falha ao transcrever o áudio.");
     } finally {
@@ -153,6 +177,10 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
   async function startRecording() {
     setAudioError("");
     setRecordingSeconds(0);
+    if (!window.isSecureContext) {
+      setAudioError("O microfone só funciona em HTTPS ou em localhost. Abra o painel por http://localhost:3000 ou pelo domínio com HTTPS.");
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setAudioError("Este navegador não oferece suporte à gravação de áudio.");
       return;
@@ -198,6 +226,48 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
 
   function formatRecordingTime(seconds: number) {
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  async function uploadImage(file: File) {
+    if (!editor) return;
+    if (!/image\/(jpeg|png|webp)/.test(file.type)) {
+      setImageError("Envie uma imagem JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("A imagem deve ter no máximo 5 MB.");
+      return;
+    }
+
+    setUploadingImage(true);
+    setImageError("");
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+      const response = await fetch("/api/admin/post-images", { method: "POST", body: formData });
+      const result = await response.json() as { src?: string; error?: string };
+      if (!response.ok || !result.src) throw new Error(result.error || "Não foi possível enviar a imagem.");
+
+      const image = new window.Image();
+      image.onload = () => {
+        const maxWidth = Math.min(960, editor.view.dom.clientWidth || 960);
+        const scale = Math.min(1, maxWidth / image.naturalWidth);
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        editor.chain().focus().setImage({ src: result.src!, alt: file.name.replace(/\.[^.]+$/, ""), width, height }).run();
+        setContent(editor.getMarkdown());
+        setDirty(true);
+        setUploadingImage(false);
+      };
+      image.onerror = () => {
+        setImageError("A imagem foi enviada, mas não consegui carregá-la no editor.");
+        setUploadingImage(false);
+      };
+      image.src = result.src;
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Falha ao enviar a imagem.");
+      setUploadingImage(false);
+    }
   }
 
   const touch = () => setDirty(true);
@@ -289,31 +359,61 @@ export function PostEditor({ post, categories, selectedIds }: { post: EditorPost
           {transcribing ? <p className="post-audio-status" role="status">Transcrevendo com Whisper e organizando o texto com Ollama…</p> : null}
 
           <div className="mt-6">
-            <label htmlFor="content" className="sr-only">
-              Texto
-            </label>
-            <textarea
-              ref={contentRef}
-              id="content"
-              name="content"
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                touch();
-              }}
-              placeholder="Escreva livremente. Markdown é opcional."
-              aria-invalid={!!fieldErrors.content}
-              aria-describedby={fieldErrors.content ? "content-error" : "content-hint"}
-              className={`field-sizing-content block min-h-[55vh] w-full resize-none border border-line bg-transparent p-5 font-serif text-[1.2rem] leading-[1.75] text-fg placeholder:text-faint hover:border-[#444] focus-visible:border-fg focus-visible:outline-none md:p-7 ${
-                tab === "preview" ? "hidden" : ""
-              }`}
-            />
-            <FieldError id="content-error" errors={fieldErrors.content} />
-            {tab === "write" ? (
-              <p id="content-hint" className="label mt-3 normal-case tracking-normal text-faint">
-                Markdown: ## título · **negrito** · *itálico* · &gt; citação · - lista · [texto](https://link)
+            <input type="hidden" name="content" value={content} />
+            <div className={tab === "preview" ? "hidden" : ""}>
+              <div className="post-tiptap-shell" aria-label="Editor de texto">
+                <div className="post-tiptap-toolbar" role="toolbar" aria-label="Formatação do texto">
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("bold") ?? false} onClick={() => editor?.chain().focus().toggleBold().run()}>Negrito</button>
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("italic") ?? false} onClick={() => editor?.chain().focus().toggleItalic().run()}>Itálico</button>
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("blockquote") ?? false} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>Citação</button>
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("heading", { level: 2 }) ?? false} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>Título</button>
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("bulletList") ?? false} onClick={() => editor?.chain().focus().toggleBulletList().run()}>Lista</button>
+                  <button type="button" disabled={!editor} aria-pressed={editor?.isActive("codeBlock") ?? false} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>Código</button>
+                  <button type="button" disabled={!editor} onClick={() => editor?.chain().focus().setHorizontalRule().run()}>Divisória</button>
+                  <button
+                    type="button"
+                    disabled={!editor}
+                    onClick={() => editor?.chain().focus().insertContent({
+                      type: "details",
+                      content: [
+                        { type: "detailsSummary", content: [{ type: "text", text: "Resumo" }] },
+                        { type: "detailsContent", content: [{ type: "paragraph" }] },
+                      ],
+                    }).run()}
+                  >Details</button>
+                  <button type="button" disabled={!editor} onClick={() => editor?.chain().focus().insertTable({ rows: 2, cols: 3, withHeaderRow: true }).run()}>Tabela</button>
+                  {editor?.isActive("table") ? (
+                    <>
+                      <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()}>+ Linha</button>
+                      <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()}>+ Coluna</button>
+                      <button type="button" onClick={() => editor.chain().focus().deleteTable().run()}>Remover tabela</button>
+                    </>
+                  ) : null}
+                  <button type="button" disabled={!editor} onClick={() => editor?.chain().focus().undo().run()}>Desfazer</button>
+                  <button type="button" disabled={!editor} onClick={() => editor?.chain().focus().redo().run()}>Refazer</button>
+                  <button type="button" disabled={!editor || uploadingImage} onClick={() => imageInputRef.current?.click()}>
+                    {uploadingImage ? "Enviando imagem…" : "Adicionar imagem"}
+                  </button>
+                  <input
+                    ref={imageInputRef}
+                    className="sr-only"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      if (file) void uploadImage(file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </div>
+                {editor ? <EditorContent editor={editor} /> : <p className="p-5 text-sm text-muted">Carregando editor…</p>}
+              </div>
+              {imageError ? <p className="post-audio-error" role="alert">{imageError}</p> : null}
+              <p className="label mt-3 normal-case tracking-normal text-faint">
+                Formatação e tabelas são salvas em Markdown; cole texto normalmente no editor.
               </p>
-            ) : null}
+            </div>
+            <FieldError id="content-error" errors={fieldErrors.content} />
 
             {tab === "preview" ? (
               <div className="border border-line px-5 pb-10 md:px-10">

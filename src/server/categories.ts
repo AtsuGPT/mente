@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { getAccessRole } from "@/lib/auth/session";
+import type { Role } from "@/lib/auth/role";
 import { Prisma } from "@/generated/prisma";
 import type { CategoryInput } from "./validation";
 
@@ -26,6 +28,11 @@ export function publiclyVisible(now = new Date()): Prisma.PostWhereInput {
   return { status: "PUBLISHED", publishedAt: { lte: now } };
 }
 
+/** Posts privados só aparecem para usuário autenticado e administrador. */
+export function visibilityFilter(role: Role): Prisma.PostWhereInput {
+  return role === "ADMIN" || role === "INTIMO" ? {} : { private: false };
+}
+
 const ordering = [{ position: "asc" }, { name: "asc" }] as const;
 
 export async function listCategories(): Promise<CategorySummary[]> {
@@ -33,10 +40,11 @@ export async function listCategories(): Promise<CategorySummary[]> {
 }
 
 export async function listCategoriesWithPublicCounts() {
+  const role = (await getAccessRole()) ?? "CONVIDADO";
   const rows = await db.category.findMany({
     select: {
       ...summarySelect,
-      _count: { select: { posts: { where: { ...publiclyVisible(), private: false } } } },
+      _count: { select: { posts: { where: { ...publiclyVisible(), ...visibilityFilter(role) } } } },
     },
     orderBy: [...ordering],
   });

@@ -1,19 +1,10 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getAccessRole } from "@/lib/auth/session";
-import type { Role } from "@/lib/auth/role";
 import { Prisma, type PostStatus } from "@/generated/prisma";
 import { excerpt } from "@/lib/text";
-import { publiclyVisible, type CategorySummary, type MutationResult } from "./categories";
+import { publiclyVisible, visibilityFilter, type CategorySummary, type MutationResult } from "./categories";
 import type { PostInput } from "./validation";
-
-const visibilityFilter = (role: Role) => {
-  if (role === "ADMIN" || role === "INTIMO") {
-    return {};
-  }
-  return { private: false };
-};
-
 
 const categorySelect = {
   id: true,

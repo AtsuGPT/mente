@@ -39,4 +39,4 @@ if (!password || password.length < 4) {
   process.exit(1);
 }
 
-console.log(`ADMIN_PASSWORD_HASH="${hash(password)}"`);
+console.log(`"${hash(password)}"`);

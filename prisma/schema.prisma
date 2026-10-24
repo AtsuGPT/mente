@@ -61,3 +61,13 @@ model PostCounter {
   id    String @id @default("posts")
   value Int
 }
+
+model Visitor {
+  ip          String   @id
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  /// Caminho da última página, sem query string.
+  lastPath    String   @default("/")
+  /// Visitas separadas por pelo menos 5 minutos, não requisições.
+  visits      Int      @default(1)
+}

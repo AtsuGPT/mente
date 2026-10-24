@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     }
     transcript = result.text.trim().slice(0, 30_000);
   } catch (error) {
+    console.error("Whisper transcription error:", error);
     const timedOut = error instanceof Error && error.name === "TimeoutError";
     return jsonError(
       timedOut ? "A transcrição demorou demais. Tente um áudio mais curto." : "Não consegui conectar ao serviço Whisper local.",
@@ -81,15 +82,15 @@ export async function POST(request: Request) {
             role: "system",
             content: [
               "Você revisa transcrições de áudio ditadas pelo autor de um arquivo pessoal de pensamentos.",
-              "Reorganize a fala como texto escrito em português brasileiro: corrija pontuação, concordância e erros óbvios de reconhecimento; agrupe ideias em parágrafos claros.",
+              "Reorganize a fala como texto escrito em português brasileiro: corrija pontuação, concordância e erros óbvios de reconhecimento; agrupe ideias em parágrafos claros. Adicione ou adapte o texto sem alterar ideias.",
               "Preserve a voz, o tom, a primeira pessoa e todas as ideias do autor. Remova apenas hesitações e repetições acidentais quando isso não alterar o sentido.",
-              "Não resuma, não acrescente conteúdo, exemplos, títulos, listas ou conclusões que não foram ditos. Não explique o que fez.",
+              "Não tire conclusões que não foram ditos. Reorganize apenas o que for necessário para a clareza do texto. Sintetize quando possível.",
               "Retorne somente o texto revisado em Markdown simples.",
             ].join(" "),
           },
           { role: "user", content: `Transcrição bruta:\n\n${transcript}` },
         ],
-        options: { temperature: 0.2, num_predict: 1800 },
+        options: { temperature: 0.4, num_predict: 1800 },
       }),
     });
     if (!ollamaResponse.ok) {
@@ -101,10 +102,16 @@ export async function POST(request: Request) {
     if (typeof text !== "string" || !text.trim()) return jsonError("O Ollama retornou uma transcrição vazia.", 502);
     return Response.json({ text: text.trim() }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    console.error("Ollama transcript cleanup error:", error);
     const timedOut = error instanceof Error && error.name === "TimeoutError";
+    const invalidResponse = error instanceof SyntaxError;
     return jsonError(
-      timedOut ? "O Ollama demorou demais para organizar o texto." : "Não consegui conectar ao Ollama.",
-      timedOut ? 504 : 503,
+      timedOut
+        ? "O Ollama demorou demais para organizar o texto."
+        : invalidResponse
+          ? "O Ollama respondeu em um formato inesperado."
+          : "Não consegui conectar ao Ollama.",
+      timedOut ? 504 : invalidResponse ? 502 : 503,
     );
   }
 }

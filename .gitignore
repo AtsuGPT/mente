@@ -8,5 +8,6 @@ build
 *.tsbuildinfo
 next-env.d.ts
 src/generated
+public/uploads/
 .DS_Store
 npm-debug.log*

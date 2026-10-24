@@ -39,7 +39,7 @@ export function PostListItem({
 
       <div className="pl-[3.45rem]">
         <h2 className="mt-3 text-balance text-[1.35rem] font-medium leading-snug text-fg sm:text-[1.55rem]">
-          <Link href={`/pensamento/${post.slug}`} className="rounded-sm outline-offset-4 hover:text-(--accent-text)">
+          <Link href={`/pensamento/${post.slug}`} className="rounded-sm outline-offset-4 after:absolute after:inset-0 hover:text-(--accent-text)">
             {post.title}
           </Link>
         </h2>
