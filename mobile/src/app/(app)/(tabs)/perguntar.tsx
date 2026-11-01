@@ -518,41 +518,145 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
   );
 });
 
-/** Rascunho pronto: a Kally cria o pensamento (rascunho), ou leva ao editor. Imagens só com aprovação. */
-function DraftCard({ draft, pending }: { draft: { title: string; content: string; categories: string[] }; pending: boolean }) {
-  const { api, permissions } = useCurrentEnvironment();
-  const [content, setContent] = useState(draft.content);
-  const [creating, setCreating] = useState(false);
-  const [images, setImages] = useState(false);
-  useEffect(() => setContent(draft.content), [draft.content]);
-  const value = { title: draft.title, content };
+/**
+ * Prévia do pensamento preparado pela Kally, dentro da conversa: compacta, editável
+ * (título, pastas, texto), com Publicar (sempre com confirmação), Salvar rascunho e
+ * Cancelar. Salva pelo backend do ambiente atual, com as permissões da própria pessoa.
+ */
+type Stage = "preview" | "editing" | "confirm" | "saving" | "cancelled" | { saved: "PUBLISHED" | "DRAFT"; id: string; slug: string; environment: string };
 
-  async function create() {
-    setCreating(true);
+function DraftCard({ draft, pending }: { draft: { title: string; content: string; categories: string[] }; pending: boolean }) {
+  const { api, permissions, environment } = useCurrentEnvironment();
+  const [title, setTitle] = useState(draft.title);
+  const [content, setContent] = useState(draft.content);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [envCategories, setEnvCategories] = useState<string[] | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [stage, setStage] = useState<Stage>("preview");
+  const [images, setImages] = useState(false);
+
+  // Enquanto a Kally ainda escreve, a prévia acompanha o texto; depois, as edições são da pessoa.
+  useEffect(() => {
+    if (!pending) return;
+    setTitle(draft.title);
+    setContent(draft.content);
+  }, [pending, draft.title, draft.content]);
+
+  // Pastas do ambiente atual; a sugestão da Kally só vale se a pasta existir aqui.
+  useEffect(() => {
+    let alive = true;
+    api.categories().then(
+      ({ categories }) => {
+        if (!alive) return;
+        const names = categories.map((c) => c.name);
+        setEnvCategories(names);
+        setSelected(names.filter((n) => draft.categories.some((s) => s.toLowerCase() === n.toLowerCase())));
+      },
+      () => alive && setEnvCategories([]),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [api, draft.categories]);
+
+  async function save(publish: boolean) {
+    if (!title.trim() || !content.trim()) return Alert.alert("Pensamento", "Dê um título e um texto antes de salvar.");
+    setStage("saving");
     try {
-      const created = await api.kallyCreateDraft({ ...value, categories: draft.categories });
-      router.push({ pathname: "/editor/[id]", params: { id: created.id } });
+      const saved = await api.kallySavePost({ title: title.trim(), content, categories: selected, publish, private: isPrivate });
+      setStage({ saved: saved.status, id: saved.id, slug: saved.slug, environment: saved.environment.name });
     } catch (cause) {
-      Alert.alert("Rascunho", cause instanceof Error ? cause.message : "Não consegui criar o rascunho.");
-    } finally {
-      setCreating(false);
+      setStage("preview");
+      Alert.alert(publish ? "Publicar" : "Rascunho", cause instanceof Error ? cause.message : "Não consegui salvar o pensamento.");
     }
   }
 
+  if (stage === "cancelled") {
+    return (
+      <View style={[styles.card, styles.cardRow]}>
+        <AppText variant="small" color={colors.faint} style={{ flex: 1 }}>Prévia descartada.</AppText>
+        <Button label="Desfazer" variant="ghost" compact onPress={() => setStage("preview")} />
+      </View>
+    );
+  }
+
+  if (typeof stage === "object") {
+    const published = stage.saved === "PUBLISHED";
+    return (
+      <Animated.View entering={FadeIn.duration(250)} style={[styles.card, published && styles.cardDone]}>
+        <View style={styles.cardRow}>
+          <Icon name="check" size={18} color={published ? colors.success : colors.violet300} strokeWidth={2.2} />
+          <AppText variant="uiMedium" style={{ flex: 1 }}>{published ? `Publicado em ${stage.environment}` : "Rascunho salvo"}</AppText>
+        </View>
+        <AppText variant="small" color={colors.muted} numberOfLines={1} style={{ marginTop: space.xs }}>“{title}”</AppText>
+        <View style={styles.actions}>
+          {published ? (
+            <Button label="Ver pensamento" icon="eye" compact onPress={() => router.push({ pathname: "/post/[slug]", params: { slug: stage.slug } })} />
+          ) : (
+            <Button label="Abrir no editor" icon="edit" compact onPress={() => router.push({ pathname: "/editor/[id]", params: { id: stage.id } })} />
+          )}
+        </View>
+      </Animated.View>
+    );
+  }
+
+  const editing = stage === "editing";
+  const busy = stage === "saving";
   return (
     <View style={styles.card}>
-      <AppText variant="label" color={colors.violet300}>Rascunho</AppText>
-      {draft.title ? <AppText variant="uiMedium" style={{ marginTop: space.xs }}>{draft.title}</AppText> : null}
-      {draft.categories.length ? <AppText variant="small" color={colors.faint}>Pastas sugeridas: {draft.categories.join(", ")}</AppText> : null}
-      <AppText variant="small" color={colors.muted} numberOfLines={8} style={{ marginTop: space.xs }}>{content}</AppText>
-      {permissions.publish && !pending ? (
-        <View style={styles.actions}>
-          <Button label="Criar rascunho" icon="check" compact loading={creating} onPress={() => void create()} />
-          <Button label="Abrir no editor" icon="edit" variant="secondary" compact onPress={() => { handOffDraft(value); router.push({ pathname: "/editor/[id]", params: { id: "novo" } }); }} />
-          <Button label="Imagens" icon="image" variant="ghost" compact onPress={() => setImages(true)} />
+      <View style={styles.cardRow}>
+        <AppText variant="label" color={colors.violet300} style={{ flex: 1 }}>Prévia do pensamento</AppText>
+        {!pending && !busy && stage !== "confirm" ? (
+          <IconButton name={editing ? "check" : "edit"} label={editing ? "Concluir edição" : "Editar prévia"} color={colors.violet300} onPress={() => setStage(editing ? "preview" : "editing")} />
+        ) : null}
+      </View>
+
+      {editing ? (
+        <TextInput value={title} onChangeText={setTitle} placeholder="Título" placeholderTextColor={colors.faint} maxLength={200} style={[styles.input, styles.titleInput]} />
+      ) : title ? (
+        <AppText variant="uiMedium" style={{ marginTop: space.xs }}>{title}</AppText>
+      ) : null}
+
+      {envCategories?.length ? (
+        <View style={[styles.actions, { marginTop: space.sm }]}>
+          {(editing ? envCategories : selected).map((name) => (
+            <Chip key={name} label={name} selected={selected.includes(name)} onPress={editing ? () => setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name])) : undefined} />
+          ))}
+          {editing ? <Chip label={isPrivate ? "Privado" : "Público"} selected={isPrivate} onPress={() => setIsPrivate((v) => !v)} /> : isPrivate ? <Chip label="Privado" selected /> : null}
         </View>
       ) : null}
-      <ImagePickerSheet visible={images} query={draft.title} onClose={() => setImages(false)} onInsert={(markdown) => { setContent((c) => `${c.trim()}\n\n${markdown}`); setImages(false); }} />
+
+      {editing ? (
+        <TextInput value={content} onChangeText={setContent} multiline placeholder="Texto do pensamento" placeholderTextColor={colors.faint} style={[styles.input, styles.bodyInput]} />
+      ) : (
+        <Touchable onPress={() => setExpanded((v) => !v)}>
+          <AppText variant="small" color={colors.muted} numberOfLines={expanded ? undefined : 6} style={{ marginTop: space.sm }}>{content}</AppText>
+          {content.length > 320 ? <AppText variant="small" color={colors.violet300}>{expanded ? "Mostrar menos" : "Ver tudo"}</AppText> : null}
+        </Touchable>
+      )}
+
+      {stage === "confirm" ? (
+        <Animated.View entering={FadeInDown.duration(200)} style={styles.confirm}>
+          <AppText variant="uiMedium">Publicar em {environment.name}?</AppText>
+          <AppText variant="small" color={colors.muted}>{isPrivate ? "Fica visível só para participantes do ambiente." : "Fica visível para quem pode ler este ambiente."}</AppText>
+          <View style={styles.actions}>
+            <Button label="Confirmar publicação" icon="check" compact onPress={() => void save(true)} />
+            <Button label="Voltar" variant="secondary" compact onPress={() => setStage("preview")} />
+          </View>
+        </Animated.View>
+      ) : permissions.publish && !pending ? (
+        <View style={styles.actions}>
+          <Button label="Publicar" icon="send" compact loading={busy} disabled={busy} onPress={() => setStage("confirm")} />
+          <Button label="Salvar rascunho" icon="doc" variant="secondary" compact disabled={busy} onPress={() => void save(false)} />
+          <Button label="Imagens" icon="image" variant="ghost" compact disabled={busy} onPress={() => setImages(true)} />
+          <Button label="Editor" icon="edit" variant="ghost" compact disabled={busy} onPress={() => { handOffDraft({ title, content }); router.push({ pathname: "/editor/[id]", params: { id: "novo" } }); }} />
+          <Button label="Cancelar" variant="ghost" compact disabled={busy} onPress={() => setStage("cancelled")} />
+        </View>
+      ) : !permissions.publish ? (
+        <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>Você não tem permissão para publicar neste ambiente.</AppText>
+      ) : null}
+      <ImagePickerSheet visible={images} query={title} onClose={() => setImages(false)} onInsert={(markdown) => { setContent((c) => `${c.trim()}\n\n${markdown}`); setImages(false); }} />
     </View>
   );
 }
@@ -705,6 +809,11 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.line },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  cardDone: { borderColor: colors.violet600 },
+  confirm: { marginTop: space.md, padding: space.md, gap: space.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet600, backgroundColor: colors.violet950 },
+  titleInput: { marginTop: space.sm, minHeight: 40, flex: 0 },
+  bodyInput: { marginTop: space.sm, minHeight: 140, maxHeight: 280, flex: 0, textAlignVertical: "top" },
   attachThumb: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface },
   attachIcon: { width: 44, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
   bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.surface },

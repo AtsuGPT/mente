@@ -171,9 +171,9 @@ export function envApi(environmentId: string) {
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),
     transcribe: (form: FormData) => request<{ text: string }>(`${base}/kally/transcribe`, { method: "POST", form, timeoutMs: 6 * 60_000 }),
     kallyAttachment: (form: FormData) => request<KallyAttachment>(`${base}/kally/anexo`, { method: "POST", form, timeoutMs: 4 * 60_000 }),
-    /** A Kally cria o pensamento como rascunho no ambiente (a pessoa publica pelo editor). */
-    kallyCreateDraft: (input: { title: string; content: string; categories: string[] }) =>
-      request<{ id: string; slug: string }>(`${base}/kally/rascunho`, { method: "POST", json: input }),
+    /** Salva o pensamento preparado no chat: rascunho, ou publicado (publish) depois da confirmação da pessoa. */
+    kallySavePost: (input: { title: string; content: string; categories: string[]; publish: boolean; private?: boolean }) =>
+      request<{ id: string; slug: string; status: "PUBLISHED" | "DRAFT"; environment: { id: string; name: string } }>(`${base}/kally/rascunho`, { method: "POST", json: input }),
     kallyImages: (q: string) => request<{ images: KallyImage[] }>(`${base}/kally/imagens${query({ q })}`),
     kallyImportImage: (image: KallyImage) => request<{ src: string; markdown: string }>(`${base}/kally/imagens`, { method: "POST", json: image, timeoutMs: 60_000 }),
 

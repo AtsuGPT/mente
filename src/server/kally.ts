@@ -40,7 +40,7 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   const m = message.toLowerCase();
   const wantsMemory = /\b(meus?|minhas?|nossos?) (posts?|textos?|pensamentos?|ideias|rascunhos?|projetos?)\b|o que (eu )?(escrevi|publiquei|pensei)|\bno ambiente\b|\bnos (posts|pensamentos|textos)\b|\banalis|\brelacion|\bconect|\bresum/.test(m);
   if (/\b(revis[ae]|revisar|revisão|corrij[ae]|corrigir|melhor[ae] (meu|este|esse) texto)\b/.test(m)) return { mode: "revisar", casual: false, wantsMemory: true };
-  if (/(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia)/.test(m)) {
+  if (/(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
@@ -91,6 +91,7 @@ function modeInstructions(mode: KallyMode, found: boolean, categories: string[])
         "Os pensamentos [P…] são referências internas que você pode sugerir pelo título (\"vale reler…\"); eles não são falas nem argumentos da pessoa.",
         "Quando a ideia estiver madura, ou quando a pessoa pedir, escreva o rascunho na voz, na primeira pessoa e no estilo dela, sem acrescentar opiniões que ela não expressou. Para textos longos, use subtítulos (##), nunca vazios.",
         "Referências internas e comentários ficam FORA do rascunho, depois dele.",
+        "Você não publica nada sozinha: o rascunho aparece como prévia no app e só é publicado quando a pessoa confirma no botão Publicar. Nunca diga que já publicou.",
         `Escolha até 2 categorias só desta lista: ${categories.length ? categories.join(", ") : "(nenhuma categoria criada)"}.`,
         "Formato exato do rascunho:\n<rascunho>\n# Título\nCategorias: Nome1, Nome2\n\nCorpo em Markdown\n</rascunho>\nDepois do rascunho, sugira em uma linha dois títulos alternativos.",
       ];
@@ -139,7 +140,7 @@ export function buildPrompt(input: {
   if (input.mode === "ideia") {
     const internal = input.posts.filter((p) => p.kind !== "conversa");
     if (internal.length) system.push(`Referências internas que talvez se relacionem (só títulos; NÃO são falas da pessoa): ${internal.map((p) => `"${p.title}" (${p.categories.join(", ") || "sem pasta"})`).join("; ")}.`);
-    if (/rascunho|escrev[ae] (o|um) (texto|post|pensamento)|pode escrever|monte o texto/i.test(input.message)) {
+    if (/rascunho|escrev[ae] (o|um) (texto|post|pensamento)|pode escrever|monte o texto|cri(e|a|ar) (um |o |uma )?(post|pensamento)|publi(que|car|ca)|postar/i.test(input.message)) {
       system.push("A pessoa pediu o rascunho AGORA: escreva-o nesta resposta, no formato <rascunho> indicado, com o que ela já contou.");
     }
     const extra = [input.attachment ? materialBlock([], [], input.attachment, null, false) : "", input.web?.length ? materialBlock([], input.web, null, null, false) : ""].filter(Boolean).join("\n\n");
