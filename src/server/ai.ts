@@ -20,7 +20,49 @@ import "server-only";
 /** images: imagens em base64 (só para o modelo de visão do Ollama). */
 export type AiMessage = { role: "system" | "user" | "assistant"; content: string; images?: string[] };
 /** model troca o modelo só nesta chamada; json pede resposta em JSON válido. */
-export type AiOptions = { temperature?: number; maxTokens?: number; timeoutMs?: number; model?: string; json?: boolean };
+export type AiOptions = {
+  temperature?: number;
+  maxTokens?: number;
+  timeoutMs?: number;
+  model?: string;
+  json?: boolean;
+  /** Usa o mesmo num_ctx do modelo de conversa também em outro modelo (comparações justas). */
+  sameContext?: boolean;
+  /** Recebe as métricas que o Ollama devolve no fim da resposta (só no streaming). */
+  onStats?: (stats: GenerationStats) => void;
+};
+
+/** Métricas do Ollama para uma resposta (tempos em segundos). */
+export type GenerationStats = {
+  model: string;
+  loadSeconds: number;
+  promptTokens: number;
+  promptSeconds: number;
+  outputTokens: number;
+  outputSeconds: number;
+  tokensPerSecond: number;
+  totalSeconds: number;
+  thinkingChars: number;
+};
+
+export const defaultChatModel = () => config().model;
+
+/** Memória do modelo carregado (/api/ps): quanto está na GPU e quanto sobrou para a CPU/RAM. */
+export async function ollamaMemory(model: string): Promise<{ totalGB: number; vramGB: number; cpuGB: number; context: number } | null> {
+  const { provider, baseUrl } = config();
+  if (provider !== "ollama") return null;
+  try {
+    const data = (await fetch(`${baseUrl}/api/ps`, { signal: AbortSignal.timeout(5_000) }).then((r) => r.json())) as {
+      models?: { name: string; model: string; size: number; size_vram: number; context_length?: number }[];
+    };
+    const m = data.models?.find((x) => x.name === model || x.model === model);
+    if (!m) return null;
+    const gb = (n: number) => Math.round((n / 1e9) * 100) / 100;
+    return { totalGB: gb(m.size), vramGB: gb(m.size_vram), cpuGB: gb(m.size - m.size_vram), context: m.context_length ?? 0 };
+  } catch {
+    return null;
+  }
+}
 
 export class AiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -57,7 +99,7 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
             num_predict: options.maxTokens,
             // Mesmo contexto da Kally do site (OLLAMA_NUM_CTX): com valores diferentes o Ollama
             // recarrega o modelo a cada troca entre as duas. Só para o modelo de conversa.
-            ...(model === config().model ? { num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 8_192 } : {}),
+            ...(model === config().model || options.sameContext ? { num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 8_192 } : {}),
           },
         }
       : {
@@ -105,10 +147,11 @@ export async function* streamChat(messages: AiMessage[], options: AiOptions = {}
  */
 export async function openChatStream(messages: AiMessage[], options: AiOptions = {}): Promise<AsyncGenerator<string>> {
   const { response, provider } = await request(messages, options, true);
-  return readStream(response, provider);
+  return readStream(response, provider, options.model || config().model, options.onStats);
 }
 
-async function* readStream(response: Response, provider: "ollama" | "openai"): AsyncGenerator<string> {
+async function* readStream(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void): AsyncGenerator<string> {
+  let thinkingChars = 0;
   const reader = response.body?.getReader();
   if (!reader) throw new AiError("A IA não enviou resposta.", 502);
   const decoder = new TextDecoder();
@@ -118,8 +161,35 @@ async function* readStream(response: Response, provider: "ollama" | "openai"): A
   const parse = (line: string): string | null => {
     const raw = provider === "ollama" ? line : line.startsWith("data: ") ? line.slice(6) : "";
     if (!raw.trim() || raw.trim() === "[DONE]") return null;
-    const event = JSON.parse(raw) as { error?: string; message?: { content?: string }; choices?: { delta?: { content?: string } }[] };
+    const event = JSON.parse(raw) as {
+      error?: string;
+      done?: boolean;
+      message?: { content?: string; thinking?: string };
+      choices?: { delta?: { content?: string } }[];
+      load_duration?: number;
+      prompt_eval_count?: number;
+      prompt_eval_duration?: number;
+      eval_count?: number;
+      eval_duration?: number;
+      total_duration?: number;
+    };
     if (event.error) throw new AiError("A resposta da IA foi interrompida.", 502);
+    // Modelos que "pensam" (ex.: qwen3) mandam o raciocínio à parte: não vai para a resposta.
+    if (event.message?.thinking) thinkingChars += event.message.thinking.length;
+    if (provider === "ollama" && event.done && onStats) {
+      const s = (ns?: number) => Math.round(((ns ?? 0) / 1e9) * 100) / 100;
+      onStats({
+        model,
+        loadSeconds: s(event.load_duration),
+        promptTokens: event.prompt_eval_count ?? 0,
+        promptSeconds: s(event.prompt_eval_duration),
+        outputTokens: event.eval_count ?? 0,
+        outputSeconds: s(event.eval_duration),
+        tokensPerSecond: event.eval_duration ? Math.round(((event.eval_count ?? 0) / (event.eval_duration / 1e9)) * 10) / 10 : 0,
+        totalSeconds: s(event.total_duration),
+        thinkingChars,
+      });
+    }
     return (provider === "ollama" ? event.message?.content : event.choices?.[0]?.delta?.content) ?? null;
   };
 

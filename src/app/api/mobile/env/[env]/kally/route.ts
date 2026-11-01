@@ -1,4 +1,4 @@
-import { AiError, streamChat } from "@/server/ai";
+import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats } from "@/server/ai";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -188,10 +188,23 @@ export async function POST(request: Request, context: EnvContext) {
         } else {
           const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev });
           // A revisão intelectual usa o modelo de revisão (KALLY_REVIEW_MODEL), se configurado.
-          const model = dev ? devModel() : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
-          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: dev ? 1_000 : casual ? 320 : mode === "chat" ? 800 : 1_400, model })) {
+          const model = dev ? devModel(dev) : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          // Modo dev: diz qual modelo responde e mede tudo (mesmo contexto e mesmo limite para qualquer modelo).
+          const modelName = model || defaultChatModel();
+          let stats: GenerationStats | null = null;
+          if (dev) send({ model: modelName });
+          const started = Date.now();
+          let firstText = 0;
+          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: dev ? 4_096 : casual ? 320 : mode === "chat" ? 800 : 1_400, model, ...(dev ? { sameContext: true, timeoutMs: 600_000, onStats: (s: GenerationStats) => (stats = s) } : {}) })) {
+            if (!firstText) firstText = Date.now();
             answer += chunk;
             send({ text: chunk });
+          }
+          if (dev) {
+            const memory = await ollamaMemory(modelName);
+            const report = { ...(stats ?? { model: modelName }), firstTextSeconds: firstText ? Math.round((firstText - started) / 100) / 10 : null, wallSeconds: Math.round((Date.now() - started) / 100) / 10, memory };
+            console.info("Kally dev:", JSON.stringify(report));
+            send({ stats: report });
           }
         }
         send({ done: true });

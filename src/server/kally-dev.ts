@@ -9,7 +9,8 @@ import "server-only";
  * validadas aqui. KALLY_DEV_MODEL troca o modelo só neste modo (opcional).
  */
 
-export type DevSettings = { persona: DevPersona; instructions: string; vulgar: boolean };
+/** model: "experimental" usa KALLY_DEV_MODEL (se definido); "padrao", o modelo normal da Kally. */
+export type DevSettings = { persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental" };
 export type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
 
 const MAX_INSTRUCTIONS = 2_000;
@@ -23,7 +24,8 @@ const PERSONAS: Record<DevPersona, string> = {
   formal: "Formal e cuidadosa: linguagem culta, frases completas, tratamento respeitoso.",
 };
 
-export const devModel = () => process.env.KALLY_DEV_MODEL || undefined;
+/** Modelo do modo: só as duas opções do servidor (nada vindo do cliente vira nome de modelo). */
+export const devModel = (dev?: DevSettings | null) => (dev?.model === "padrao" ? undefined : process.env.KALLY_DEV_MODEL || undefined);
 
 /** Lê e valida o que o cliente mandou. Nulo = modo desligado (comportamento padrão). */
 export function parseDevSettings(value: unknown): DevSettings | null {
@@ -32,7 +34,7 @@ export function parseDevSettings(value: unknown): DevSettings | null {
   if (v.active !== true) return null;
   const persona = (Object.keys(PERSONAS) as DevPersona[]).includes(v.persona as DevPersona) ? (v.persona as DevPersona) : "livre";
   const instructions = typeof v.instructions === "string" ? v.instructions.trim().slice(0, MAX_INSTRUCTIONS) : "";
-  return { persona, instructions, vulgar: v.vulgar === true };
+  return { persona, instructions, vulgar: v.vulgar === true, model: v.model === "padrao" ? "padrao" : "experimental" };
 }
 
 /**

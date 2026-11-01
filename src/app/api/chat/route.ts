@@ -370,7 +370,7 @@ export async function POST(request: Request) {
           [{ role: "system", content: system }, ...history],
           (token) => send({ text: token }),
           dev
-            ? { numPredict: 1_200, signal: abort.signal, model: devModel() }
+            ? { numPredict: 1_200, signal: abort.signal, model: devModel({ ...dev, model: "padrao" }) } // experimento de modelo só no app
             : hasExtraSources
             ? { numPredict: 1_600, signal: abort.signal }
             // Mesmo contexto do /post e do app: trocar de num_ctx faz o Ollama recarregar o modelo.
