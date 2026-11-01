@@ -1,19 +1,10 @@
 import { getSession } from "@/lib/auth/session";
+import { AUDIO_TYPES, MAX_AUDIO_BYTES, transcribeWithWhisper } from "@/server/ai/whisper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
-const WHISPER_TIMEOUT_MS = 6 * 60 * 1000;
 const OLLAMA_TIMEOUT_MS = 2 * 60 * 1000;
-const AUDIO_TYPES = new Set([
-  "audio/webm",
-  "audio/mp4",
-  "audio/ogg",
-  "audio/wav",
-  "audio/mpeg",
-  "audio/x-m4a",
-]);
 
 function jsonError(error: string, status: number) {
   return Response.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
@@ -38,34 +29,12 @@ export async function POST(request: Request) {
   const audioType = audio.type.split(";")[0].trim().toLowerCase();
   if (!AUDIO_TYPES.has(audioType)) return jsonError("Este formato de áudio não é compatível com a gravação.", 415);
 
-  const whisperUrl = process.env.WHISPER_URL || "http://127.0.0.1:8001/transcribe";
-  const whisperForm = new FormData();
-  whisperForm.append("audio", audio, audio.name || `recording.${audio.type === "audio/mp4" ? "mp4" : "webm"}`);
-
-  let transcript: string;
-  try {
-    const whisperResponse = await fetch(whisperUrl, {
-      method: "POST",
-      body: whisperForm,
-      signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS),
-    });
-    if (!whisperResponse.ok) {
-      console.error("Whisper transcription failed:", whisperResponse.status);
-      return jsonError("O Whisper não conseguiu transcrever o áudio. Confira se o serviço está ativo.", 502);
-    }
-    const result = await whisperResponse.json() as { text?: unknown };
-    if (typeof result.text !== "string" || !result.text.trim()) {
-      return jsonError("Não encontrei fala reconhecível nesse áudio.", 422);
-    }
-    transcript = result.text.trim().slice(0, 30_000);
-  } catch (error) {
-    console.error("Whisper transcription error:", error);
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    return jsonError(
-      timedOut ? "A transcrição demorou demais. Tente um áudio mais curto." : "Não consegui conectar ao serviço Whisper local.",
-      timedOut ? 504 : 503,
-    );
-  }
+  const transcription = await transcribeWithWhisper(
+    audio,
+    audio.name || `recording.${audio.type === "audio/mp4" ? "mp4" : "webm"}`,
+  );
+  if (!transcription.ok) return jsonError(transcription.error, transcription.status);
+  const transcript = transcription.text.slice(0, 30_000);
 
   const ollamaUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
   const model = process.env.OLLAMA_MODEL || "llama3.2:latest";
