@@ -130,3 +130,8 @@ export type MapNode =
 export type MapEdge = { source: string; target: string; kind: "pasta" | "imagem" | "mencao" };
 
 export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[]; environment: { id: string; name: string; color: string; icon: string } };
+
+export type KallyMode = "chat" | "ideia";
+export type KallySource = { title: string; slug: string };
+export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string };
+export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };

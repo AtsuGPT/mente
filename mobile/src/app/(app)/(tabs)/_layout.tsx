@@ -7,7 +7,7 @@ const tabs: { name: string; title: string; icon: IconName }[] = [
   { name: "feed", title: "Início", icon: "home" },
   { name: "buscar", title: "Buscar", icon: "search" },
   { name: "mapa", title: "Mapa", icon: "map" },
-  { name: "perguntar", title: "Perguntar", icon: "chat" },
+  { name: "perguntar", title: "Kally", icon: "chat" },
   { name: "conta", title: "Ambiente", icon: "settings" },
 ];
 

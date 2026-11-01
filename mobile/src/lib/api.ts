@@ -14,6 +14,8 @@ import type {
   Member,
   MemberRole,
   PostCard,
+  KallyConversation,
+  KallyMessage,
   PostFull,
   User,
 } from "./types";
@@ -158,6 +160,14 @@ export function envApi(environmentId: string) {
       request<{ ok: true }>(`${base}/members/${encodeURIComponent(userId)}`, { method: "PATCH", json: update }),
     removeMember: (userId: string) => request<{ ok: true }>(`${base}/members/${encodeURIComponent(userId)}`, { method: "DELETE" }),
     leave: () => request<{ ok: true }>(`${base}/leave`, { method: "POST" }),
+
+    /** Kally: o envio de mensagens é em tempo real (lib/stream) em kallyPath. */
+    kallyPath: `${base}/kally`,
+    kallyConversations: () => request<{ conversations: KallyConversation[] }>(`${base}/kally`),
+    kallyConversation: (id: string) =>
+      request<KallyConversation & { messages: KallyMessage[] }>(`${base}/kally/${encodeURIComponent(id)}`),
+    deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    transcribe: (form: FormData) => request<{ text: string }>(`${base}/kally/transcribe`, { method: "POST", form, timeoutMs: 6 * 60_000 }),
 
     invites: () => request<{ invites: Invite[] }>(`${base}/invites`),
     createInvite: (input: { role: MemberRole; maxUses: number | null; expiresInDays: number | null }) =>
