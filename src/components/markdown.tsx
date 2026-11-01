@@ -50,7 +50,7 @@ const markdownSchema = {
  * Renderiza Markdown como conteúdo NÃO CONFIÁVEL:
  *  - HTML bruto nunca é interpretado (não há rehype-raw);
  *  - protocolos perigosos (javascript:, data:) são removidos pelo urlTransform padrão;
- *  - imagens ficam desativadas nesta versão;
+ *  - imagens só aparecem quando vêm de /uploads/posts/ (enviadas pelo editor);
  *  - links externos abrem com rel="noopener noreferrer".
  */
 const components: Components = {
@@ -95,8 +95,6 @@ export function Markdown({ children }: { children: string }) {
   return (
     <div className="prose-mm">
       <ReactMarkdown
-        disallowedElements={["img"]}
-        unwrapDisallowed
         components={components}
         remarkPlugins={[remarkGfm, remarkDirective, remarkDetails]}
         rehypePlugins={[[rehypeSanitize, markdownSchema]]}
