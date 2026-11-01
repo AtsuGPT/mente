@@ -1,8 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getAccessRole } from "@/lib/auth/session";
-import type { Role } from "@/lib/auth/role";
 import { Prisma } from "@/generated/prisma";
+import { DEFAULT_ENVIRONMENT_ID, resolveScope, type Scope } from "./scope";
 import type { CategoryInput } from "./validation";
 
 export type CategorySummary = {
@@ -28,35 +27,37 @@ export function publiclyVisible(now = new Date()): Prisma.PostWhereInput {
   return { status: "PUBLISHED", publishedAt: { lte: now } };
 }
 
-/** Posts privados só aparecem para usuário autenticado e administrador. */
-export function visibilityFilter(role: Role): Prisma.PostWhereInput {
-  return role === "ADMIN" || role === "INTIMO" ? {} : { private: false };
+/** Pensamentos do ambiente do escopo; privados só para quem pode vê-los. */
+export function scopeFilter(scope: Scope): Prisma.PostWhereInput {
+  return { environmentId: scope.environmentId, ...(scope.canSeePrivate ? {} : { private: false }) };
 }
 
 const ordering = [{ position: "asc" }, { name: "asc" }] as const;
 
-export async function listCategories(): Promise<CategorySummary[]> {
-  return db.category.findMany({ select: summarySelect, orderBy: [...ordering] });
+export async function listCategories(environmentId = DEFAULT_ENVIRONMENT_ID): Promise<CategorySummary[]> {
+  return db.category.findMany({ where: { environmentId }, select: summarySelect, orderBy: [...ordering] });
 }
 
-export async function listCategoriesWithPublicCounts() {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function listCategoriesWithPublicCounts(scopeArg?: Scope) {
+  const scope = await resolveScope(scopeArg);
   const rows = await db.category.findMany({
+    where: { environmentId: scope.environmentId },
     select: {
       ...summarySelect,
-      _count: { select: { posts: { where: { ...publiclyVisible(), ...visibilityFilter(role) } } } },
+      _count: { select: { posts: { where: { ...publiclyVisible(), ...scopeFilter(scope) } } } },
     },
     orderBy: [...ordering],
   });
   return rows.map(({ _count, ...c }) => ({ ...c, count: _count.posts }));
 }
 
-export async function getCategoryBySlug(slug: string): Promise<CategorySummary | null> {
-  return db.category.findUnique({ where: { slug }, select: summarySelect });
+export async function getCategoryBySlug(slug: string, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<CategorySummary | null> {
+  return db.category.findFirst({ where: { slug, environmentId }, select: summarySelect });
 }
 
-export async function listCategoriesWithAllCounts() {
+export async function listCategoriesWithAllCounts(environmentId = DEFAULT_ENVIRONMENT_ID) {
   const rows = await db.category.findMany({
+    where: { environmentId },
     select: { ...summarySelect, _count: { select: { posts: true } } },
     orderBy: [...ordering],
   });
@@ -71,42 +72,44 @@ function isUniqueViolation(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-export async function createCategory(input: CategoryInput): Promise<MutationResult<CategorySummary>> {
+const SLUG_TAKEN = { slug: ["Já existe uma categoria com este endereço."] };
+const NOT_FOUND = { ok: false as const, message: "Categoria não encontrada." };
+
+/** A categoria precisa pertencer ao ambiente: um id de outro ambiente é tratado como inexistente. */
+async function belongs(id: string, environmentId: string) {
+  return !!(await db.category.findFirst({ where: { id, environmentId }, select: { id: true } }));
+}
+
+export async function createCategory(input: CategoryInput, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult<CategorySummary>> {
   try {
-    const created = await db.category.create({ data: input, select: summarySelect });
+    const created = await db.category.create({ data: { ...input, environmentId }, select: summarySelect });
     return { ok: true, data: created };
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      return { ok: false, fieldErrors: { slug: ["Já existe uma categoria com este endereço."] } };
-    }
+    if (isUniqueViolation(error)) return { ok: false, fieldErrors: SLUG_TAKEN };
     throw error;
   }
 }
 
-export async function updateCategory(id: string, input: CategoryInput): Promise<MutationResult<CategorySummary>> {
+export async function updateCategory(id: string, input: CategoryInput, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult<CategorySummary>> {
+  if (!(await belongs(id, environmentId))) return NOT_FOUND;
   try {
     const updated = await db.category.update({ where: { id }, data: input, select: summarySelect });
     return { ok: true, data: updated };
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      return { ok: false, fieldErrors: { slug: ["Já existe uma categoria com este endereço."] } };
-    }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return { ok: false, message: "Categoria não encontrada." };
-    }
+    if (isUniqueViolation(error)) return { ok: false, fieldErrors: SLUG_TAKEN };
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") return NOT_FOUND;
     throw error;
   }
 }
 
 /** Remove a categoria; os pensamentos continuam existindo, apenas sem ela. */
-export async function deleteCategory(id: string): Promise<MutationResult> {
+export async function deleteCategory(id: string, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult> {
+  if (!(await belongs(id, environmentId))) return NOT_FOUND;
   try {
     await db.category.delete({ where: { id } });
     return { ok: true, data: undefined };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return { ok: false, message: "Categoria não encontrada." };
-    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") return NOT_FOUND;
     throw error;
   }
 }

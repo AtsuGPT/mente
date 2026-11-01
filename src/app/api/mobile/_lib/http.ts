@@ -1,11 +1,11 @@
 import "server-only";
 import { isIP } from "node:net";
-import { getAccessRole, getSession } from "@/lib/auth/session";
-import { ROLES, type Role } from "@/lib/auth/role";
+import { getMobileUser } from "@/lib/auth/session";
+import { isAccessError, resolveAccess, type Access, type Permissions } from "@/server/environments";
 
 /**
- * Utilitários das rotas /api/mobile. A autenticação vem do token Bearer,
- * lido por getSession()/getAccessRole() quando não há cookie.
+ * Utilitários das rotas /api/mobile. A pessoa vem do token Bearer; o que ela pode
+ * fazer vem da participação no ambiente da URL (resolveAccess), sempre no servidor.
  */
 
 /**
@@ -19,7 +19,7 @@ function corsHeaders(): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     Vary: "Origin",
   };
 }
@@ -50,16 +50,35 @@ export function clientIp(request: Request): string {
   return ip && isIP(ip) ? ip : "desconhecido";
 }
 
-/** Papel de quem chama; sem token válido, a resposta é 401 (o app volta ao login). */
-export async function requireRole(): Promise<Role | Response> {
-  const role = await getAccessRole();
-  return role ?? error("Sessão expirada. Entre novamente.", 401);
+/** Id da pessoa do token, ou null (visitante sem conta). */
+export async function currentUserId(): Promise<string | null> {
+  return (await getMobileUser())?.uid ?? null;
 }
 
-export async function requireAdminRequest(): Promise<true | Response> {
-  return (await getSession()) ? true : error("Apenas o administrador pode fazer isso.", 403);
+export async function requireUser(): Promise<string | Response> {
+  return (await currentUserId()) ?? error("Entre com sua conta para continuar.", 401);
 }
 
-export function isAdminRole(role: Role) {
-  return role === ROLES.ADMIN;
+export async function readJson(request: Request, maxBytes = 16_384): Promise<Record<string, unknown> | Response> {
+  if (Number(request.headers.get("content-length") ?? 0) > maxBytes) return error("Pedido grande demais.", 413);
+  try {
+    const body = await request.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : error("Pedido inválido.", 400);
+  } catch {
+    return error("Pedido inválido.", 400);
+  }
+}
+
+export type EnvContext = { params: Promise<{ env: string }> };
+
+/**
+ * Acesso ao ambiente da URL, exigindo (opcionalmente) uma permissão.
+ * 401 sem conta num ambiente privado, 403 sem participação/permissão, 404 se não existe.
+ */
+export async function envAccess(context: { params: Promise<{ env: string }> }, need?: keyof Permissions): Promise<Access | Response> {
+  const { env } = await context.params;
+  const access = await resolveAccess(env, await currentUserId());
+  if (isAccessError(access)) return error(access.error, access.status);
+  if (need && !access.permissions[need]) return error("Você não tem permissão para isso neste ambiente.", 403);
+  return access;
 }

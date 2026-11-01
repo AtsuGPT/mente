@@ -1,10 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getAccessRole } from "@/lib/auth/session";
-import { ROLES } from "@/lib/auth/role";
 import { excerpt } from "@/lib/text";
 import { POST_IMAGE_NAME } from "@/lib/uploads";
-import { publiclyVisible, visibilityFilter } from "./categories";
+import { publiclyVisible, scopeFilter } from "./categories";
+import type { Scope } from "./scope";
 
 /**
  * Grafo do arquivo, montado só a partir de relações que já existem nos dados:
@@ -34,17 +33,17 @@ export type MapEdge = { source: string; target: string; kind: "pasta" | "imagem"
 const IMAGE_IN_MARKDOWN = /\/uploads\/posts\/([^)\s?"#]+)/g;
 const POST_LINK_IN_MARKDOWN = /\]\(\/pensamento\/([a-z0-9-]+)\)/g;
 
-export async function getKnowledgeMap(): Promise<{ nodes: MapNode[]; edges: MapEdge[] }> {
-  const role = (await getAccessRole()) ?? ROLES.GUEST;
-  const isAdmin = role === ROLES.ADMIN;
+/** includeDrafts: quem gerencia o conteúdo do ambiente também vê os rascunhos no mapa. */
+export async function getKnowledgeMap(scope: Scope, options: { includeDrafts?: boolean } = {}): Promise<{ nodes: MapNode[]; edges: MapEdge[] }> {
 
   const [categories, posts] = await Promise.all([
     db.category.findMany({
+      where: { environmentId: scope.environmentId },
       select: { id: true, name: true, slug: true, color: true, description: true },
       orderBy: [{ position: "asc" }, { name: "asc" }],
     }),
     db.post.findMany({
-      where: isAdmin ? {} : { ...publiclyVisible(), ...visibilityFilter(role) },
+      where: options.includeDrafts ? { environmentId: scope.environmentId } : { ...publiclyVisible(), ...scopeFilter(scope) },
       select: {
         id: true,
         number: true,

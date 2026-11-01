@@ -48,12 +48,17 @@ export async function verifySessionToken(
 
 export const MOBILE_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 
-export type MobilePayload = { role: Role; email?: string };
+/**
+ * Identifica a pessoa (uid), não um papel: o papel é decidido por ambiente, a cada
+ * requisição, pela participação (Membership). O subject "mobile-user" invalida os
+ * tokens da versão anterior, que carregavam um papel fixo.
+ */
+export type MobilePayload = { uid: string };
 
 export async function signMobileToken(payload: MobilePayload, secret: string): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
-    .setSubject("mobile")
+    .setSubject("mobile-user")
     .setIssuedAt()
     .setExpirationTime(`${MOBILE_TOKEN_MAX_AGE_SECONDS}s`)
     .sign(key(secret));
@@ -67,11 +72,9 @@ export async function verifyMobileToken(
   try {
     const { payload } = await jwtVerify(token, key(secret), {
       algorithms: ["HS256"],
-      subject: "mobile",
+      subject: "mobile-user",
     });
-    const role = payload.role;
-    if (role !== ROLES.GUEST && role !== ROLES.INTIMATE && role !== ROLES.ADMIN) return null;
-    return typeof payload.email === "string" ? { role, email: payload.email } : { role };
+    return typeof payload.uid === "string" && payload.uid ? { uid: payload.uid } : null;
   } catch {
     return null;
   }

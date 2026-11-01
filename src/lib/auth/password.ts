@@ -50,6 +50,13 @@ export async function verifyPassword(password: string, stored: string): Promise<
   }
 }
 
+/** Hash de uma senha nova, no mesmo formato de scripts/hash-password.mjs. */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16);
+  const key = await scryptAsync(password, salt, 64, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return ["scrypt", 16384, 8, 1, salt.toString("base64url"), key.toString("base64url")].join(":");
+}
+
 /** Compara a senha com um hash fictício, apenas para equalizar o tempo de resposta. */
 export async function burnPasswordCheck(password: string) {
   await verifyPassword(password, await dummyHash());

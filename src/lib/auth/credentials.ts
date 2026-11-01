@@ -1,18 +1,25 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
-import { burnPasswordCheck, verifyPassword } from "@/lib/auth/password";
+import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/password";
 import { checkLoginAllowed, clearLoginFailures, registerLoginFailure } from "@/lib/auth/rate-limit";
-import { ROLES, type Role } from "@/lib/auth/role";
+import {
+  createUser,
+  ensureLegacyUser,
+  findUserForLogin,
+  normalizeUsername,
+  reservedUsernames,
+  USERNAME_PATTERN,
+} from "@/server/users";
 
 /**
- * Mesmas regras de accessLoginAction (lib/auth/login.ts), para o app mobile.
+ * Login e cadastro do app. As regras de login seguem accessLoginAction (lib/auth/login.ts):
+ * limite de tentativas, mensagem genérica e tempo igual para usuário inexistente.
  * Fica fora de login.ts porque lá tudo que é exportado vira Server Action.
  */
 
-export type CredentialsResult =
-  | { ok: true; role: Role; email?: string }
-  | { ok: false; error: string; status: number };
+type User = { id: string; username: string; displayName: string };
+type Failure = { ok: false; error: string; status: number; fieldErrors?: Record<string, string[]> };
 
 function sameText(a: string, b: string) {
   const left = Buffer.from(a.trim().toLocaleLowerCase("en-US"));
@@ -20,19 +27,24 @@ function sameText(a: string, b: string) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-export async function checkCredentials(rawUsername: unknown, rawPassword: unknown, ip: string): Promise<CredentialsResult> {
-  const key = `mobile:${ip}`;
-  const gate = checkLoginAllowed(key);
-  if (!gate.allowed) {
-    const minutes = Math.max(1, Math.ceil(gate.retryAfterSeconds / 60));
-    return { ok: false, error: `Muitas tentativas. Tente novamente em ${minutes} min.`, status: 429 };
-  }
+function gate(key: string): Failure | null {
+  const allowed = checkLoginAllowed(key);
+  if (allowed.allowed) return null;
+  const minutes = Math.max(1, Math.ceil(allowed.retryAfterSeconds / 60));
+  return { ok: false, error: `Muitas tentativas. Tente novamente em ${minutes} min.`, status: 429 };
+}
 
-  const username = String(rawUsername ?? "").trim().slice(0, 254);
+export async function checkCredentials(rawUsername: unknown, rawPassword: unknown, ip: string): Promise<{ ok: true; user: User } | Failure> {
+  const key = `mobile:${ip}`;
+  const blocked = gate(key);
+  if (blocked) return blocked;
+
+  const username = normalizeUsername(rawUsername);
   const password = String(rawPassword ?? "");
+  const invalid: Failure = { ok: false, error: "Usuário ou senha incorretos.", status: 401 };
   if (username.length < 1 || password.length < 4 || password.length > 1024) {
     registerLoginFailure(key);
-    return { ok: false, error: "Usuário ou senha incorretos.", status: 401 };
+    return invalid;
   }
 
   let config;
@@ -43,20 +55,55 @@ export async function checkCredentials(rawUsername: unknown, rawPassword: unknow
     return { ok: false, error: "Configuração do servidor incompleta.", status: 500 };
   }
 
-  const isAdmin = sameText(username, config.ADMIN_EMAIL);
+  // 1. Credenciais do .env (administrador e leitor do site).
   const siteUsername = process.env.SITE_USERNAME?.trim();
   const sitePasswordHash = process.env.SITE_PASSWORD_HASH;
+  const isAdmin = sameText(username, config.ADMIN_EMAIL);
   const isSiteUser = !!siteUsername && !!sitePasswordHash && sameText(username, siteUsername);
-  let passwordOk = false;
-  if (isAdmin) passwordOk = await verifyPassword(password, config.ADMIN_PASSWORD_HASH);
-  else if (isSiteUser) passwordOk = await verifyPassword(password, sitePasswordHash);
-  else await burnPasswordCheck(password);
-
-  if (!passwordOk || (!isAdmin && !isSiteUser)) {
-    registerLoginFailure(key);
-    return { ok: false, error: "Usuário ou senha incorretos.", status: 401 };
+  if (isAdmin || isSiteUser) {
+    const ok = await verifyPassword(password, isAdmin ? config.ADMIN_PASSWORD_HASH : sitePasswordHash!);
+    if (!ok) {
+      registerLoginFailure(key);
+      return invalid;
+    }
+    clearLoginFailures(key);
+    return { ok: true, user: await ensureLegacyUser(isAdmin ? "ADMIN" : "SITE", username) };
   }
 
+  // 2. Contas criadas no app.
+  const user = await findUserForLogin(username);
+  if (!user?.passwordHash) {
+    await burnPasswordCheck(password);
+    registerLoginFailure(key);
+    return invalid;
+  }
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    registerLoginFailure(key);
+    return invalid;
+  }
   clearLoginFailures(key);
-  return isAdmin ? { ok: true, role: ROLES.ADMIN, email: config.ADMIN_EMAIL } : { ok: true, role: ROLES.INTIMATE };
+  return { ok: true, user: { id: user.id, username: user.username, displayName: user.displayName } };
+}
+
+export async function registerAccount(raw: { username?: unknown; displayName?: unknown; password?: unknown }, ip: string): Promise<{ ok: true; user: User } | Failure> {
+  // Cada cadastro conta como uma tentativa: no máximo 5 a cada 15 minutos por IP.
+  const key = `register:${ip}`;
+  const blocked = gate(key);
+  if (blocked) return blocked;
+  registerLoginFailure(key);
+
+  const username = normalizeUsername(raw.username);
+  const displayName = String(raw.displayName ?? "").trim().slice(0, 60);
+  const password = String(raw.password ?? "");
+  const fieldErrors: Record<string, string[]> = {};
+  if (!USERNAME_PATTERN.test(username)) fieldErrors.username = ["Use de 3 a 32 letras minúsculas, números, ponto, hífen ou sublinhado."];
+  else if (reservedUsernames().includes(username)) fieldErrors.username = ["Este nome de usuário já está em uso."];
+  if (!displayName) fieldErrors.displayName = ["Informe como você quer ser chamado."];
+  if (password.length < 8) fieldErrors.password = ["A senha precisa ter pelo menos 8 caracteres."];
+  if (password.length > 1024) fieldErrors.password = ["Senha longa demais."];
+  if (Object.keys(fieldErrors).length) return { ok: false, error: "Revise os campos destacados.", status: 422, fieldErrors };
+
+  const created = await createUser({ username, displayName, passwordHash: await hashPassword(password) });
+  if (!created.ok) return { ok: false, error: "Revise os campos destacados.", status: 422, fieldErrors: created.fieldErrors };
+  return { ok: true, user: created.user };
 }

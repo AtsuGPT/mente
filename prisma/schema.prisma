@@ -1,5 +1,10 @@
 // Modelo de dados do Minha Mente.
-// Um pensamento (Post) pertence a uma ou mais categorias sem duplicar conteúdo.
+// Um ambiente (Environment) é um espaço independente com seus próprios pensamentos,
+// categorias e participantes. Um pensamento (Post) pertence a uma ou mais categorias
+// do mesmo ambiente sem duplicar conteúdo.
+//
+// O ambiente original tem id "mente": é o valor padrão de environmentId, então os
+// dados anteriores aos ambientes continuam nele sem nenhuma cópia.
 
 generator client {
   provider = "prisma-client-js"
@@ -16,39 +21,142 @@ enum PostStatus {
   PUBLISHED
 }
 
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  /// Sempre em minúsculas. Contas legadas usam o ADMIN_EMAIL / SITE_USERNAME do .env.
+  username     String   @unique
+  displayName  String
+  /// scrypt:N:r:p:salt:hash. Nulo nas contas legadas, autenticadas pelo .env.
+  passwordHash String?
+  /// "ADMIN" ou "SITE" para as credenciais do .env; nulo para contas criadas no app.
+  legacyKind   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships       Membership[]
+  ownedEnvironments Environment[] @relation("EnvironmentOwner")
+  invitesCreated    Invite[]
+  posts             Post[]
+}
+
+model Environment {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  /// Cor de identidade em hexadecimal (#RRGGBB).
+  color       String    @default("#7C5CE0")
+  /// Nome de um ícone do app (brain, book, folder, bulb, users, sparkle).
+  icon        String    @default("brain")
+  /// Visitantes sem conta podem ler os pensamentos públicos.
+  guestAccess Boolean   @default(false)
+  /// Foto em data URL. No ambiente "mente" a foto vem de SiteSettings (a mesma do site).
+  imageData   String?
+  ownerId     String?
+  /// Arquivado: some das listas e fica só para o proprietário. Nada é apagado.
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner      User?        @relation("EnvironmentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members    Membership[]
+  invites    Invite[]
+  posts      Post[]     // fase-b
+  categories Category[] // fase-b
+}
+
+model Membership {
+  id               String     @id @default(cuid())
+  environmentId    String
+  userId           String
+  role             MemberRole @default(VIEWER)
+  /// Ajustes do proprietário sobre o padrão do papel (nulo = padrão do papel).
+  canPublish       Boolean?
+  canEditOwn       Boolean?
+  canManageContent Boolean?
+  canManageMembers Boolean?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id            String     @id @default(cuid())
+  /// Código curto e aleatório; é o que vai no link de convite.
+  code          String     @unique
+  environmentId String
+  role          MemberRole @default(VIEWER)
+  /// Nulo = usos ilimitados.
+  maxUses       Int?
+  uses          Int        @default(0)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdById   String?
+  createdAt     DateTime   @default(now())
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([environmentId])
+}
+
 model Post {
-  id          String     @id @default(cuid())
-  /// Numeração sequencial do arquivo, alocada pelo contador PostCounter.
-  number      Int        @unique
-  title       String
-  slug        String     @unique
+  id            String     @id @default(cuid())
+  environmentId String     @default("mente")
+  /// Numeração sequencial dentro do ambiente, alocada pelo contador PostCounter.
+  number        Int
+  title         String
+  slug          String
   /// Markdown. Renderizado sem HTML bruto.
-  content     String
-  private Boolean @default(false)
-  status      PostStatus @default(DRAFT)
+  content       String
+  private       Boolean    @default(false)
+  status        PostStatus @default(DRAFT)
   /// Preenchida ao publicar. Uma data futura mantém o pensamento invisível até lá.
-  publishedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  publishedAt   DateTime?
+  /// Quem criou pelo app; nulo nos pensamentos anteriores aos ambientes.
+  authorId      String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  categories Category[]
+  environment Environment @relation(fields: [environmentId], references: [id]) // fase-b
+  author      User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  categories  Category[]
 
+  @@unique([environmentId, number])
+  @@unique([environmentId, slug])
   @@index([status, publishedAt])
+  @@index([environmentId, status, publishedAt])
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String   @default("")
+  id            String   @id @default(cuid())
+  environmentId String   @default("mente")
+  name          String
+  slug          String
+  description   String   @default("")
   /// Cor de destaque em hexadecimal (#RRGGBB).
-  color       String   @default("#929292")
+  color         String   @default("#929292")
   /// Ordem de exibição na navegação.
-  position    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  posts Post[]
+  environment Environment @relation(fields: [environmentId], references: [id]) // fase-b
+  posts       Post[]
+
+  @@unique([environmentId, slug])
 }
 
 model SiteSettings {
@@ -57,6 +165,8 @@ model SiteSettings {
   updatedAt        DateTime @updatedAt
 }
 
+/// Contador da numeração dos pensamentos. "posts" é o do ambiente "mente";
+/// os demais ambientes usam "posts:<environmentId>".
 model PostCounter {
   id    String @id @default("posts")
   value Int
