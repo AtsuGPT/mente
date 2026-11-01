@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // App web (Expo exportado em public/app por "npm run export:web" em mobile/): é uma SPA,
+  // então rotas como /app/feed caem no index.html — só quando não há arquivo com esse nome.
+  async rewrites() {
+    return { beforeFiles: [], afterFiles: [], fallback: [{ source: "/app/:path*", destination: "/app/index.html" }] };
+  },
 };
 
 export default nextConfig;

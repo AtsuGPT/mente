@@ -51,7 +51,12 @@ export async function saveImageUpload(request: Request): Promise<SavedImage> {
   if (!(image instanceof File) || image.size === 0) return { ok: false, error: "Selecione uma imagem.", status: 400 };
   if (image.size > MAX_IMAGE_BYTES) return { ok: false, error: "A imagem deve ter no máximo 5 MB.", status: 413 };
 
-  const bytes = Buffer.from(await image.arrayBuffer());
+  return saveImageBytes(Buffer.from(await image.arrayBuffer()));
+}
+
+/** Valida os bytes (JPG/PNG/WebP, até 5 MB) e grava com nome uuid. Usado também pela Kally ao importar imagens aprovadas. */
+export async function saveImageBytes(bytes: Buffer): Promise<SavedImage> {
+  if (bytes.length > MAX_IMAGE_BYTES) return { ok: false, error: "A imagem deve ter no máximo 5 MB.", status: 413 };
   const detected = detectImage(bytes);
   if (!detected) return { ok: false, error: "Envie uma imagem JPG, PNG ou WebP válida.", status: 415 };
 

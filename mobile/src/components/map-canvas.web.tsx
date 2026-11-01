@@ -19,7 +19,8 @@ export const MapCanvas = forwardRef<KnowledgeMapHandle, Props>(function MapCanva
   const [error, setError] = useState("");
 
   useEffect(() => {
-    LoadSkiaWeb({ locateFile: (file) => `/${file}` })
+    // Publicado em /app (EXPO_PUBLIC_WEB_BASE), o canvaskit.wasm fica em /app/canvaskit.wasm.
+    LoadSkiaWeb({ locateFile: (file) => `${process.env.EXPO_PUBLIC_WEB_BASE ?? ""}/${file}` })
       .then(() => import("./knowledge-map"))
       .then((module) => setMap(() => module.KnowledgeMap as unknown as MapComponent))
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar o Skia no navegador."));

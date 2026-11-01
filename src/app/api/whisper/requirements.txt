@@ -1,0 +1,7 @@
+# Serviço de transcrição (server.py). Instale no .venv:  python -m pip install -r requirements.txt
+fastapi
+uvicorn
+python-multipart
+faster-whisper>=1.2
+# faster-whisper 1.2 ainda passa metadata_errors ao PyAV, removido nas versões novas.
+av<16
