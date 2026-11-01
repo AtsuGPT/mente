@@ -1,9 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getAccessRole } from "@/lib/auth/session";
 import { Prisma, type PostStatus } from "@/generated/prisma";
 import { excerpt } from "@/lib/text";
-import { publiclyVisible, visibilityFilter, type CategorySummary, type MutationResult } from "./categories";
+import { publiclyVisible, scopeFilter, type CategorySummary, type MutationResult } from "./categories";
+import { counterId, DEFAULT_ENVIRONMENT_ID, resolveScope, type Scope } from "./scope";
 import type { PostInput } from "./validation";
 
 const categorySelect = {
@@ -26,6 +26,7 @@ const postSelect = {
   content: true,
   status: true,
   publishedAt: true,
+  authorId: true,
   createdAt: true,
   updatedAt: true,
   categories: { select: categorySelect, orderBy: [...categoryOrder] },
@@ -63,6 +64,7 @@ function toFull(row: PostRow): PostFull {
 
 /* ------------------------------------------------------------------ */
 /* Leitura pública — nunca devolve rascunhos nem publicações futuras.  */
+/* Sem escopo explícito, vale o do site (ambiente "mente", cookies).    */
 /* ------------------------------------------------------------------ */
 
 export const FEED_PAGE_SIZE = 10;
@@ -78,15 +80,18 @@ function parseSearchDate(value: string | undefined, endOfDay = false): Date | un
   return dayValue;
 }
 
-export async function listPublishedPosts(options: {
-  categorySlug?: string;
-  q?: string;
-  from?: string;
-  to?: string;
-  page?: number;
-  pageSize?: number;
-} = {}) {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function listPublishedPosts(
+  options: {
+    categorySlug?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+    scope?: Scope;
+  } = {},
+) {
+  const scope = await resolveScope(options.scope);
   const pageSize = options.pageSize ?? FEED_PAGE_SIZE;
   const requested = Math.max(1, Math.floor(options.page ?? 1));
   const query = options.q?.trim().slice(0, 100);
@@ -94,8 +99,8 @@ export async function listPublishedPosts(options: {
   const toExclusive = parseSearchDate(options.to, true);
   const where: Prisma.PostWhereInput = {
     ...publiclyVisible(),
-    ...visibilityFilter(role),
-    ...(options.categorySlug ? { categories: { some: { slug: options.categorySlug } } } : {}),
+    ...scopeFilter(scope),
+    ...(options.categorySlug ? { categories: { some: { slug: options.categorySlug, environmentId: scope.environmentId } } } : {}),
     ...(query
       ? {
           OR: [
@@ -124,15 +129,15 @@ export async function listPublishedPosts(options: {
   return { posts: rows.map(toCard), total, page, pageCount, pageSize };
 }
 
-export async function searchPublishedPostsByTerms(terms: string[], limit = 100): Promise<PostFull[]> {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function searchPublishedPostsByTerms(terms: string[], limit = 100, scopeArg?: Scope): Promise<PostFull[]> {
+  const scope = await resolveScope(scopeArg);
   const normalizedTerms = [...new Set(terms.map((term) => term.trim()).filter(Boolean))].slice(0, 8);
   if (!normalizedTerms.length) return [];
 
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
-      ...visibilityFilter(role),
+      ...scopeFilter(scope),
       OR: normalizedTerms.flatMap((term) => [
         { title: { contains: term } },
         { content: { contains: term } },
@@ -145,13 +150,13 @@ export async function searchPublishedPostsByTerms(terms: string[], limit = 100):
   return rows.map(toFull);
 }
 
-export async function listLatestPosts(limit = 6, categorySlug?: string): Promise<PostCard[]> {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function listLatestPosts(limit = 6, categorySlug?: string, scopeArg?: Scope): Promise<PostCard[]> {
+  const scope = await resolveScope(scopeArg);
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
-      ...visibilityFilter(role),
-      ...(categorySlug ? { categories: { some: { slug: categorySlug } } } : {}),
+      ...scopeFilter(scope),
+      ...(categorySlug ? { categories: { some: { slug: categorySlug, environmentId: scope.environmentId } } } : {}),
     },
     select: postSelect,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
@@ -160,28 +165,28 @@ export async function listLatestPosts(limit = 6, categorySlug?: string): Promise
   return rows.map(toCard);
 }
 
-export async function countPublishedPosts(): Promise<number> {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
-  return db.post.count({ where: { ...publiclyVisible(), ...visibilityFilter(role) } });
+export async function countPublishedPosts(scopeArg?: Scope): Promise<number> {
+  const scope = await resolveScope(scopeArg);
+  return db.post.count({ where: { ...publiclyVisible(), ...scopeFilter(scope) } });
 }
 
-export async function getPublishedPostBySlug(slug: string): Promise<PostFull | null> {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function getPublishedPostBySlug(slug: string, scopeArg?: Scope): Promise<PostFull | null> {
+  const scope = await resolveScope(scopeArg);
   const row = await db.post.findFirst({
-    where: { slug, ...publiclyVisible(), ...visibilityFilter(role) },
+    where: { slug, ...publiclyVisible(), ...scopeFilter(scope) },
     select: postSelect,
   });
   return row ? toFull(row) : null;
 }
 
 /** Outros pensamentos que compartilham categoria, do mais recente ao mais antigo. */
-export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">, limit = 3): Promise<PostCard[]> {
-  const role = (await getAccessRole()) ?? "CONVIDADO";
+export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">, limit = 3, scopeArg?: Scope): Promise<PostCard[]> {
+  const scope = await resolveScope(scopeArg);
   if (post.categories.length === 0) return [];
   const rows = await db.post.findMany({
     where: {
       ...publiclyVisible(),
-      ...visibilityFilter(role),
+      ...scopeFilter(scope),
       id: { not: post.id },
       categories: { some: { id: { in: post.categories.map((c) => c.id) } } },
     },
@@ -192,16 +197,18 @@ export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">
   return rows.map(toCard);
 }
 
+/** Sitemap do site: só o ambiente original, só públicos. */
 export async function listSitemapEntries() {
   return db.post.findMany({
-    where: { ...publiclyVisible(), ...visibilityFilter("CONVIDADO") },
+    where: { ...publiclyVisible(), ...scopeFilter({ environmentId: DEFAULT_ENVIRONMENT_ID, canSeePrivate: false }) },
     select: { slug: true, updatedAt: true, publishedAt: true },
     orderBy: { publishedAt: "desc" },
   });
 }
 
 /* ------------------------------------------------------------------ */
-/* Administração — chamadas apenas após requireAdmin().                */
+/* Administração — chamadas apenas após checar a permissão (site:       */
+/* requireAdmin(); app: permissões do ambiente). Sempre por ambiente.   */
 /* ------------------------------------------------------------------ */
 
 export type AdminStatusFilter = "all" | "draft" | "published";
@@ -216,6 +223,7 @@ export type AdminPostRow = {
   private: boolean;
   publishedAt: Date | null;
   updatedAt: Date;
+  authorId: string | null;
   categories: CategorySummary[];
 };
 
@@ -224,9 +232,14 @@ export async function listAdminPosts(options: {
   status?: AdminStatusFilter;
   categoryId?: string;
   page?: number;
+  environmentId?: string;
+  /** Só os pensamentos desta pessoa (quem não gerencia o conteúdo do ambiente). */
+  authorId?: string;
 }) {
   const q = options.q?.trim();
   const where: Prisma.PostWhereInput = {
+    environmentId: options.environmentId ?? DEFAULT_ENVIRONMENT_ID,
+    ...(options.authorId ? { authorId: options.authorId } : {}),
     ...(options.status === "draft" ? { status: "DRAFT" } : {}),
     ...(options.status === "published" ? { status: "PUBLISHED" } : {}),
     ...(options.categoryId ? { categories: { some: { id: options.categoryId } } } : {}),
@@ -256,6 +269,7 @@ export async function listAdminPosts(options: {
       status: true,
       publishedAt: true,
       updatedAt: true,
+      authorId: true,
       categories: { select: categorySelect, orderBy: [...categoryOrder] },
     },
     orderBy: [{ updatedAt: "desc" }],
@@ -275,13 +289,15 @@ export type AdminPost = {
   private: boolean;
   status: PostStatus;
   publishedAt: Date | null;
+  authorId: string | null;
   createdAt: Date;
   updatedAt: Date;
   categories: CategorySummary[];
 };
 
-export async function getAdminPost(id: string): Promise<AdminPost | null> {
-  return db.post.findUnique({ where: { id }, select: postSelect });
+/** Um pensamento do ambiente informado; de outro ambiente, é como se não existisse. */
+export async function getAdminPost(id: string, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<AdminPost | null> {
+  return db.post.findFirst({ where: { id, environmentId }, select: postSelect });
 }
 
 function isUniqueViolation(error: unknown) {
@@ -290,17 +306,19 @@ function isUniqueViolation(error: unknown) {
 
 const SLUG_TAKEN = { slug: ["Já existe um pensamento com este endereço."] };
 
-async function existingCategories(ids: string[]) {
+/** Só categorias que existem e são do mesmo ambiente. */
+async function existingCategories(ids: string[], environmentId: string) {
   if (ids.length === 0) return [];
-  const found = await db.category.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  const found = await db.category.findMany({ where: { id: { in: ids }, environmentId }, select: { id: true } });
   return found.map((category) => ({ id: category.id }));
 }
 
-async function nextPostNumber(client: Prisma.TransactionClient): Promise<number> {
+async function nextPostNumber(client: Prisma.TransactionClient, environmentId: string): Promise<number> {
+  const id = counterId(environmentId);
   const counter = await client.postCounter.upsert({
-    where: { id: "posts" },
+    where: { id },
     update: { value: { increment: 1 } },
-    create: { id: "posts", value: 1 },
+    create: { id, value: 1 },
     select: { value: true },
   });
   return counter.value;
@@ -319,14 +337,20 @@ function resolveState(input: PostInput, existing?: { status: PostStatus; publish
   return { status, publishedAt };
 }
 
-export async function createPost(input: PostInput): Promise<MutationResult<{ id: string }>> {
-  const categories = await existingCategories(input.categoryIds);
+export async function createPost(
+  input: PostInput,
+  options: { environmentId?: string; authorId?: string | null } = {},
+): Promise<MutationResult<{ id: string }>> {
+  const environmentId = options.environmentId ?? DEFAULT_ENVIRONMENT_ID;
+  const categories = await existingCategories(input.categoryIds, environmentId);
   const { status, publishedAt } = resolveState(input);
   try {
     const created = await db.$transaction(async (tx) => {
-      const number = await nextPostNumber(tx);
+      const number = await nextPostNumber(tx, environmentId);
       const post = await tx.post.create({
         data: {
+          environmentId,
+          authorId: options.authorId ?? null,
           number,
           title: input.title,
           slug: input.slug,
@@ -347,11 +371,11 @@ export async function createPost(input: PostInput): Promise<MutationResult<{ id:
   }
 }
 
-export async function updatePost(id: string, input: PostInput): Promise<MutationResult<{ id: string }>> {
-  const existing = await db.post.findUnique({ where: { id }, select: { status: true, publishedAt: true } });
+export async function updatePost(id: string, input: PostInput, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult<{ id: string }>> {
+  const existing = await db.post.findFirst({ where: { id, environmentId }, select: { status: true, publishedAt: true } });
   if (!existing) return { ok: false, message: "Pensamento não encontrado." };
 
-  const categories = await existingCategories(input.categoryIds);
+  const categories = await existingCategories(input.categoryIds, environmentId);
   const { status, publishedAt } = resolveState(input, existing);
   try {
     const updated = await db.$transaction(async (tx) => {
@@ -377,7 +401,9 @@ export async function updatePost(id: string, input: PostInput): Promise<Mutation
   }
 }
 
-export async function deletePost(id: string): Promise<MutationResult> {
+export async function deletePost(id: string, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult> {
+  const existing = await db.post.findFirst({ where: { id, environmentId }, select: { id: true } });
+  if (!existing) return { ok: false, message: "Pensamento não encontrado." };
   try {
     await db.post.delete({ where: { id } });
     return { ok: true, data: undefined };

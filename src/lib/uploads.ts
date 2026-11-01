@@ -1,4 +1,6 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -9,6 +11,8 @@ import path from "node:path";
 
 /** Nome gerado pelo servidor no upload: uuid + extensão detectada pelos bytes. */
 export const POST_IMAGE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
+
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** Tipo real da imagem pela assinatura dos bytes (o tipo enviado pelo navegador pode ser falso). */
 export function detectImage(bytes: Buffer): { mime: string; extension: string } | null {
@@ -27,4 +31,34 @@ export function detectImage(bytes: Buffer): { mime: string; extension: string } 
 /** Pasta das imagens. UPLOADS_DIR permite apontar para um volume; o padrão é ./uploads. */
 export function postImagesDirectory(): string {
   return path.join(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"), "posts");
+}
+
+export type SavedImage = { ok: true; src: string; mime: string } | { ok: false; error: string; status: number };
+
+/** Lê o campo "image" do FormData, valida (até 5 MB, JPG/PNG/WebP pelos bytes) e grava com nome uuid. */
+export async function saveImageUpload(request: Request): Promise<SavedImage> {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_IMAGE_BYTES + 64 * 1024) return { ok: false, error: "A imagem deve ter no máximo 5 MB.", status: 413 };
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return { ok: false, error: "Não consegui ler o arquivo de imagem.", status: 400 };
+  }
+
+  const image = formData.get("image");
+  if (!(image instanceof File) || image.size === 0) return { ok: false, error: "Selecione uma imagem.", status: 400 };
+  if (image.size > MAX_IMAGE_BYTES) return { ok: false, error: "A imagem deve ter no máximo 5 MB.", status: 413 };
+
+  const bytes = Buffer.from(await image.arrayBuffer());
+  const detected = detectImage(bytes);
+  if (!detected) return { ok: false, error: "Envie uma imagem JPG, PNG ou WebP válida.", status: 415 };
+
+  const filename = `${randomUUID()}.${detected.extension}`;
+  const uploadDirectory = postImagesDirectory();
+  await mkdir(uploadDirectory, { recursive: true });
+  // Pasta de dados (volume), não código: fica fora do rastreamento de arquivos do build.
+  await writeFile(path.join(/*turbopackIgnore: true*/ uploadDirectory, filename), bytes, { flag: "wx" });
+  return { ok: true, src: `/uploads/posts/${filename}`, mime: detected.mime };
 }
