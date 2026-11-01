@@ -45,6 +45,18 @@ type Message = {
   local?: boolean;
   /** resposta gerada no Modo Desenvolvedor */
   dev?: boolean;
+  /** modelo que respondeu e métricas do Ollama (só no Modo Desenvolvedor) */
+  model?: string;
+  stats?: DevStats;
+};
+type DevStats = {
+  loadSeconds?: number;
+  tokensPerSecond?: number;
+  outputTokens?: number;
+  thinkingChars?: number;
+  firstTextSeconds?: number | null;
+  wallSeconds?: number;
+  memory?: { totalGB: number; vramGB: number; cpuGB: number; context: number } | null;
 };
 type ReviewKind = "textual" | "intelectual";
 
@@ -62,10 +74,10 @@ type PendingAttachment = { id: number; name: string; localUri?: string; isImage:
 const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
 
 /** Modo Desenvolvedor: personalidade definida pela pessoa, guardada neste aparelho. */
-type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean };
+type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental" };
 type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
 const DEV_KEY = "minha-mente.kally-dev.v1";
-const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false };
+const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false, model: "experimental" };
 const DEV_PERSONAS: { id: DevPersona; label: string }[] = [
   { id: "livre", label: "Só minhas instruções" },
   { id: "direta", label: "Direta" },
@@ -277,7 +289,7 @@ function Kally() {
       web,
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
-      dev: dev.active ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar } : undefined,
+      dev: dev.active ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -299,6 +311,9 @@ function Kally() {
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
+        const extra = event as { model?: string; stats?: DevStats };
+        if (extra.model) update((m) => ({ ...m, model: extra.model }));
+        if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
         if (event.text) {
           buffer += event.text;
           if (!timer) timer = setTimeout(flush, 60);
@@ -532,6 +547,11 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
           <View style={styles.actions}>
             <Chip label={form.vulgar ? "Linguagem vulgar liberada" : "Sem linguagem vulgar"} selected={form.vulgar} onPress={() => setForm({ ...form, vulgar: !form.vulgar })} />
           </View>
+          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo (para comparar com as mesmas mensagens)</AppText>
+          <View style={styles.actions}>
+            <Chip label="Padrão (o da Kally)" selected={form.model === "padrao"} onPress={() => setForm({ ...form, model: "padrao" })} />
+            <Chip label="Experimental (do servidor)" selected={form.model !== "padrao"} onPress={() => setForm({ ...form, model: "experimental" })} />
+          </View>
           <View style={styles.actions}>
             <Button label="Ativar" icon="check" compact onPress={() => onSave({ ...form, active: true })} />
             <Button label="Voltar à Kally padrão" variant="secondary" compact onPress={() => onSave({ ...form, active: false })} />
@@ -585,7 +605,7 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
   return (
     <Animated.View entering={FadeInDown.duration(220)} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
       <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>
-        {isUser ? "Você" : item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
+        {isUser ? "Você" : item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.model ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
       </AppText>
       {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
       {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
@@ -601,6 +621,17 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
         </>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
+      {item.stats ? (
+        <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>
+          {[
+            item.stats.loadSeconds ? `carga ${item.stats.loadSeconds}s` : "",
+            item.stats.firstTextSeconds != null ? `1º texto ${item.stats.firstTextSeconds}s` : "",
+            item.stats.tokensPerSecond ? `${item.stats.tokensPerSecond} tok/s (${item.stats.outputTokens} tokens)` : "",
+            item.stats.thinkingChars ? "pensou antes de responder" : "",
+            item.stats.memory ? `GPU ${item.stats.memory.vramGB}/${item.stats.memory.totalGB} GB · CPU ${item.stats.memory.cpuGB} GB · ctx ${item.stats.memory.context}` : "",
+          ].filter(Boolean).join(" · ")}
+        </AppText>
+      ) : null}
       {internal.length ? (
         <View style={styles.sources}>
           <AppText variant="label" color={colors.faint}>Do ambiente</AppText>
