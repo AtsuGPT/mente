@@ -11,6 +11,7 @@ import { useCurrentEnvironment } from "@/lib/environment";
 import { applySuggestions, extractDraft, handOffDraft } from "@/lib/draft-handoff";
 import { formatDateShort } from "@/lib/format";
 import { pickImage, uploadablePart } from "@/lib/upload";
+import { getItem, setItem } from "@/lib/secure-storage";
 import type { KallyAttachment, KallyConversation, KallyImage, KallyMode, KallyReview, KallySource } from "@/lib/types";
 import { Markdown } from "@/components/markdown/markdown";
 import { EnvironmentHeader } from "@/components/environment-header";
@@ -40,6 +41,10 @@ type Message = {
   /** modo que a Kally usou nesta resposta */
   mode?: string;
   failed?: boolean;
+  /** aviso do próprio app (ex.: /dev): não vai ao servidor nem ao histórico */
+  local?: boolean;
+  /** resposta gerada no Modo Desenvolvedor */
+  dev?: boolean;
 };
 type ReviewKind = "textual" | "intelectual";
 
@@ -55,6 +60,19 @@ const modeLabel = (mode?: string) => MODES.find((m) => m.mode === mode)?.label;
 type PendingAttachment = { id: number; name: string; localUri?: string; isImage: boolean; status: "processing" | "ready" | "error"; result?: KallyAttachment; error?: string };
 
 const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
+
+/** Modo Desenvolvedor: personalidade definida pela pessoa, guardada neste aparelho. */
+type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean };
+type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
+const DEV_KEY = "minha-mente.kally-dev.v1";
+const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false };
+const DEV_PERSONAS: { id: DevPersona; label: string }[] = [
+  { id: "livre", label: "Só minhas instruções" },
+  { id: "direta", label: "Direta" },
+  { id: "divertida", label: "Divertida" },
+  { id: "deferente", label: "Deferente / obediente" },
+  { id: "formal", label: "Formal" },
+];
 
 let counter = 0;
 const newId = () => `local-${Date.now()}-${counter++}`;
@@ -91,8 +109,38 @@ function Kally() {
   const [picking, setPicking] = useState(false);
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
+  const [devSheet, setDevSheet] = useState(false);
   const list = useRef<FlatList<Message>>(null);
   const attachSeq = useRef(0);
+
+  useEffect(() => {
+    void getItem(DEV_KEY).then((saved) => {
+      if (saved) setDevState({ ...DEV_OFF, ...(JSON.parse(saved) as Partial<DevConfig>) });
+    }).catch(() => undefined);
+  }, []);
+  const setDev = (next: DevConfig) => {
+    setDevState(next);
+    void setItem(DEV_KEY, JSON.stringify(next)).catch(() => undefined);
+  };
+  const notice = (content: string) => setMessages((current) => [...current, { id: newId(), role: "assistant", content, local: true }]);
+
+  /** /dev, /dev on, /dev off (ou "padrão"), /dev <instruções>. Tratado aqui; nada vai ao modelo. */
+  function devCommand(content: string) {
+    const arg = content.replace(/^\/dev\s*/i, "").trim();
+    if (/^(off|desligar|padr[aã]o|sair)$/i.test(arg)) {
+      setDev({ ...dev, active: false });
+      return notice("Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+    }
+    if (!arg || /^(on|ligar)$/i.test(arg)) {
+      const next = { ...dev, active: arg ? true : !dev.active };
+      setDev(next);
+      if (next.active && !next.instructions && next.persona === "livre") setDevSheet(true);
+      return notice(next.active ? "Modo desenvolvedor **ligado**. Ajuste a personalidade em *Modo ▾ → Modo desenvolvedor* ou com `/dev suas instruções`." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+    }
+    setDev({ ...dev, active: true, instructions: arg.slice(0, 2000) });
+    notice("Modo desenvolvedor **ligado** com as suas instruções. Use `/dev off` para voltar à Kally padrão.");
+  }
   const started = messages.length > 0;
 
   const loadHistory = useCallback(async () => {
@@ -198,6 +246,10 @@ function Kally() {
   async function send(raw: string) {
     const content = raw.trim();
     if (loading) return;
+    if (/^\/dev(?:\s|$)/i.test(content)) {
+      setDraft("");
+      return devCommand(content);
+    }
     const reviewing = mode === "revisar" && (reviewTarget || content.length > 400);
     if (!content && !(mode === "revisar" && reviewTarget)) return;
     if (attachment?.status === "processing") {
@@ -211,7 +263,7 @@ function Kally() {
     const user: Message = { id: newId(), role: "user", content: message, attachmentName: ready?.name, imageUri: ready?.localUri, reviewSource: reviewing && !reviewTarget ? content : undefined };
     const assistant: Message = { id: newId(), role: "assistant", content: "", reviewSource: user.reviewSource };
     // Temporária: o app manda o histórico (o servidor não guarda nada).
-    const temporaryHistory = conversationId ? undefined : messages.slice(-10).map(({ role, content: c }) => ({ role, content: c }));
+    const temporaryHistory = conversationId ? undefined : messages.filter((m) => !m.local).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
     setMessages((current) => [...current, user, assistant]);
     setDraft("");
     setTranscribed(false);
@@ -225,6 +277,7 @@ function Kally() {
       web,
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
+      dev: dev.active ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar } : undefined,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -243,7 +296,7 @@ function Kally() {
     try {
       await streamEvents(api.kallyPath, payload, (event) => {
         if (event.conversationId) setConversationId(event.conversationId);
-        if (event.mode) update((m) => ({ ...m, mode: event.mode }));
+        if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
         if (event.text) {
@@ -273,11 +326,20 @@ function Kally() {
       <AmbientGlow intensity={0.55} />
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <View style={{ flex: 1 }}>
-          <EnvironmentHeader title="Kally" subtitle={started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
+          <EnvironmentHeader title={dev.active ? "Kally · dev" : "Kally"} subtitle={dev.active ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
         </View>
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
         {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
+
+      {dev.active ? (
+        <View style={styles.devBar}>
+          <Icon name="settings" size={14} color={colors.warning} />
+          <AppText variant="small" color={colors.warning} style={{ flex: 1 }}>Modo desenvolvedor ativo: personalidade definida por você.</AppText>
+          <Touchable onPress={() => setDevSheet(true)}><AppText variant="small" color={colors.violet200}>Ajustar</AppText></Touchable>
+          <Touchable onPress={() => { setDev({ ...dev, active: false }); notice("Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }}><AppText variant="small" color={colors.violet200}>Padrão</AppText></Touchable>
+        </View>
+      ) : null}
 
       <FlatList
         ref={list}
@@ -382,6 +444,13 @@ function Kally() {
         <Pressable style={styles.backdrop} onPress={() => setModeMenu(false)}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
+            <Touchable onPress={() => { setModeMenu(false); setDevSheet(true); }} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
+              <Icon name="settings" size={18} color={dev.active ? colors.warning : colors.muted} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="uiMedium" color={dev.active ? colors.warning : colors.text}>Modo desenvolvedor {dev.active ? "· ativo" : ""}</AppText>
+                <AppText variant="small" color={colors.faint}>Personalidade e estilo definidos por você (/dev)</AppText>
+              </View>
+            </Touchable>
             {available.map((m) => (
               <Touchable key={m.mode} onPress={() => { setMode(m.mode); setModeMenu(false); }} style={[styles.modeRow, m.mode === mode && styles.modeRowOn]}>
                 <Icon name={m.icon} size={18} color={m.mode === mode ? colors.violet200 : colors.muted} />
@@ -395,6 +464,8 @@ function Kally() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <DevSheet visible={devSheet} value={dev} onClose={() => setDevSheet(false)} onSave={(next) => { setDev(next); setDevSheet(false); notice(next.active ? "Modo desenvolvedor **ligado** com a nova configuração." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }} />
 
       <PostPicker visible={picking} onClose={() => setPicking(false)} onPick={(post) => { setReviewTarget(post); setPicking(false); }} />
 
@@ -428,6 +499,46 @@ function Kally() {
         </Pressable>
       </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+/** Configuração do Modo Desenvolvedor: personalidade, instruções e linguagem. */
+function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value: DevConfig; onClose: () => void; onSave: (next: DevConfig) => void }) {
+  const insets = useSafeAreaInsets();
+  const [form, setForm] = useState(value);
+  useEffect(() => {
+    if (visible) setForm({ ...value, active: true });
+  }, [visible, value]);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg, gap: space.sm }]}>
+          <AppText variant="title">Modo desenvolvedor</AppText>
+          <AppText variant="small" color={colors.faint}>Você define personalidade, tom e estilo da Kally. As permissões e a privacidade do Minha Mente continuam as mesmas. Fica salvo neste aparelho.</AppText>
+          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Personalidade</AppText>
+          <View style={styles.actions}>
+            {DEV_PERSONAS.map((p) => <Chip key={p.id} label={p.label} selected={form.persona === p.id} onPress={() => setForm({ ...form, persona: p.id })} />)}
+          </View>
+          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Instruções (prioridade sobre o estilo padrão)</AppText>
+          <TextInput
+            value={form.instructions}
+            onChangeText={(instructions) => setForm({ ...form, instructions })}
+            placeholder="Ex.: fale como um amigo de bar, me chame de chefe, respostas curtas…"
+            placeholderTextColor={colors.faint}
+            multiline
+            maxLength={2000}
+            style={[styles.input, styles.bodyInput, { minHeight: 110 }]}
+          />
+          <View style={styles.actions}>
+            <Chip label={form.vulgar ? "Linguagem vulgar liberada" : "Sem linguagem vulgar"} selected={form.vulgar} onPress={() => setForm({ ...form, vulgar: !form.vulgar })} />
+          </View>
+          <View style={styles.actions}>
+            <Button label="Ativar" icon="check" compact onPress={() => onSave({ ...form, active: true })} />
+            <Button label="Voltar à Kally padrão" variant="secondary" compact onPress={() => onSave({ ...form, active: false })} />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -474,7 +585,7 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
   return (
     <Animated.View entering={FadeInDown.duration(220)} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
       <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>
-        {isUser ? "Você" : item.mode && item.mode !== "chat" ? `Kally · ${modeLabel(item.mode) ?? item.mode}` : "Kally"}
+        {isUser ? "Você" : item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
       </AppText>
       {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
       {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
@@ -820,6 +931,8 @@ const styles = StyleSheet.create({
   typing: { flexDirection: "row", alignItems: "center", gap: space.sm },
   reviewBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   modeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
+  modeRowDev: { borderWidth: 1, borderColor: colors.warning },
+  devBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: colors.surfaceRaised, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   modeRowOn: { backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   row2: { flexDirection: "row", alignItems: "center", gap: space.sm, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },

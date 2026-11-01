@@ -3,6 +3,7 @@ import { detectPostIntent, detectSearchIntent, isCasualMessage, stripPostCommand
 import { AUTONOMY_LEVELS, emptyWorkspace, type Autonomy, type PostAction, type PostWorkspace, type WebSource } from "@/lib/kally/types";
 import { OllamaError, streamOllamaChat } from "@/server/ai/ollama";
 import { buildAttachmentContext } from "@/server/kally/attachments";
+import { devModel, devSystemPrompt, parseDevSettings } from "@/server/kally-dev";
 import { postActionSchema, runPostAction, workspaceSchema, type PostContext } from "@/server/kally/post-flow";
 import { MULTI_DOCUMENT_RULES, SOURCE_RULES } from "@/server/kally/prompts";
 import { formatWebContext, researchWeb } from "@/server/kally/web-search";
@@ -180,7 +181,9 @@ export async function POST(request: Request) {
   }
   if (messages.at(-1)?.role !== "user") return jsonError("A última mensagem precisa ser sua pergunta.", 400);
 
-  const options = body as { attachments?: unknown; webSearch?: unknown; autonomy?: unknown; post?: unknown; skipPostIntent?: unknown };
+  const options = body as { attachments?: unknown; webSearch?: unknown; autonomy?: unknown; post?: unknown; skipPostIntent?: unknown; dev?: unknown };
+  // Modo Desenvolvedor: só para quem entrou com conta; muda apenas o prompt da conversa.
+  const dev = role === "CONVIDADO" ? null : parseDevSettings(options.dev);
   const attachmentIds = Array.isArray(options.attachments)
     ? options.attachments.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 10)
     : [];
@@ -335,7 +338,14 @@ export async function POST(request: Request) {
           wantsSearch && !webSources.length ? "A pesquisa na internet não encontrou fontes suficientes. Diga isso ao usuário e não preencha lacunas com informações inventadas." : "",
         ].filter(Boolean).join("\n\n");
 
-        const system = [
+        const system = dev
+          ? [
+              devSystemPrompt(dev, "chat do arquivo de pensamentos de Kayk, no site Minha Mente"),
+              "Quando usar um pensamento, cite o título como link Markdown usando exatamente o href informado.",
+              hasExtraSources ? SOURCE_RULES : "",
+              attachmentContext.used.length > 1 ? MULTI_DOCUMENT_RULES : "",
+            ].filter(Boolean).join("\n")
+          : [
           "Você é Kally, a assistente de leitura do arquivo de pensamentos de Kayk no Minha Mente.",
           "Responda em português brasileiro, de forma natural e direta. Você pode conversar sobre a pergunta, mas priorize explicar o que os pensamentos recuperados dizem e conecte sua resposta a eles quando houver relação.",
           "Uma conversa casual recebe uma resposta casual e breve; aprofunde quando o pedido exigir.",
@@ -359,7 +369,9 @@ export async function POST(request: Request) {
         await streamOllamaChat(
           [{ role: "system", content: system }, ...history],
           (token) => send({ text: token }),
-          hasExtraSources
+          dev
+            ? { numPredict: 1_200, signal: abort.signal, model: devModel() }
+            : hasExtraSources
             ? { numPredict: 1_600, signal: abort.signal }
             // Mesmo contexto do /post e do app: trocar de num_ctx faz o Ollama recarregar o modelo.
             : { numPredict: 700, signal: abort.signal, timeoutMs: 120_000 },
