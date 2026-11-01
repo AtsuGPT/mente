@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, type ReactNode } from "react";
 import {
   BlurMask,
   Canvas,
@@ -17,7 +17,7 @@ import {
   type SkPath,
 } from "@shopify/react-native-skia";
 import { GestureDetector, useCompetingGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from "react-native-gesture-handler";
-import { Extrapolation, interpolate, useDerivedValue, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import { Easing, Extrapolation, interpolate, useDerivedValue, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
 import { readableAccent } from "@shared/color";
 import { hitTest, type LaidOutNode, type Layout } from "@/lib/graph-layout";
 import { colors } from "@/theme/tokens";
@@ -127,6 +127,17 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
   const ty = useSharedValue(height / 2);
 
   const transform = useDerivedValue(() => [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }]);
+
+  // Movimento ambiente: um relógio de 0 a 1 em laço (9 s). Os nós oscilam 1–2 px, a luz
+  // percorre as conexões e o halo central pulsa. As posições de toque continuam fixas.
+  const reduceMotion = useReducedMotion();
+  const clock = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    clock.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
+  }, [clock, reduceMotion]);
+  const flow = useDerivedValue(() => -clock.value * 264);
+  const hubPulse = useDerivedValue(() => 0.75 + Math.sin(clock.value * Math.PI * 4) * 0.2);
   // Rótulos dos pensamentos surgem ao aproximar; os das pastas e do centro ficam sempre.
   const labelOpacity = useDerivedValue(() => interpolate(scale.value, [0.45, 0.75], [0, 1], Extrapolation.CLAMP));
 
@@ -241,7 +252,7 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
 
           {/* Halo central de profundidade */}
           {hub ? (
-            <Circle cx={hub.x} cy={hub.y} r={hub.r * 3.2} color={colors.violet950} opacity={0.9}>
+            <Circle cx={hub.x} cy={hub.y} r={hub.r * 3.2} color={colors.violet950} opacity={hubPulse}>
               <BlurMask blur={60} style="normal" />
             </Circle>
           ) : null}
@@ -261,6 +272,18 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
               <DashPathEffect intervals={[4, 4]} />
             </Path>
             <Points points={paths.dots} mode="points" strokeWidth={4.5} strokeCap="round" color={colors.violet400} />
+            {/* Luz percorrendo as conexões principais */}
+            {!reduceMotion ? (
+              <>
+                <Path path={paths.root} style="stroke" strokeWidth={3} strokeCap="round" color={colors.violet200} opacity={0.55}>
+                  <DashPathEffect intervals={[10, 122]} phase={flow} />
+                  <BlurMask blur={2} style="solid" />
+                </Path>
+                <Path path={paths.branch} style="stroke" strokeWidth={2.2} strokeCap="round" color={colors.violet300} opacity={0.4}>
+                  <DashPathEffect intervals={[8, 124]} phase={flow} />
+                </Path>
+              </>
+            ) : null}
           </Group>
           <Path path={paths.active} style="stroke" strokeWidth={8} color={colors.violet400} opacity={0.35}>
             <BlurMask blur={8} style="normal" />
@@ -268,8 +291,8 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
           <Path path={paths.active} style="stroke" strokeWidth={1.8} color={colors.violet200} />
 
           {layout.nodes.map((node) => (
+            <Drift key={node.id} clock={clock} seed={node.id} amplitude={reduceMotion || node.kind === "ambiente" ? 0 : node.kind === "pasta" ? 1.1 : 1.8}>
             <MapNodeShape
-              key={node.id}
               node={node}
               opacity={highlighted && !highlighted.has(node.id) ? dim : 1}
               selected={node.id === selectedId}
@@ -277,12 +300,24 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
               labelOpacity={labelOpacity}
               subtitle={node.kind === "ambiente" ? `${layout.nodes.filter((n) => n.kind === "pasta").length} pastas · ${layout.nodes.filter((n) => n.kind === "pensamento").length} pensamentos` : undefined}
             />
+            </Drift>
           ))}
         </Group>
       </Canvas>
     </GestureDetector>
   );
 });
+
+/** Oscilação suave de um nó (fase própria por id), calculada no thread de interface. */
+function Drift({ clock, seed, amplitude, children }: { clock: SharedValue<number>; seed: string; amplitude: number; children: ReactNode }) {
+  const phase = useMemo(() => [...seed].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) / 997 * Math.PI * 2, [seed]);
+  const transform = useDerivedValue(() => {
+    const t = clock.value * Math.PI * 2;
+    return [{ translateX: Math.sin(t + phase) * amplitude }, { translateY: Math.cos(t * 2 + phase) * amplitude * 0.8 }];
+  });
+  if (!amplitude) return <>{children}</>;
+  return <Group transform={transform}>{children}</Group>;
+}
 
 type Fonts = { labelFont: SkFont | null; smallFont: SkFont | null; folderFont: SkFont | null; hubFont: SkFont | null };
 

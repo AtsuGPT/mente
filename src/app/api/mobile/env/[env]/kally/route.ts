@@ -6,6 +6,7 @@ import {
   addMessage,
   buildPrompt,
   createConversation,
+  detectIntent,
   findRelevantPosts,
   getConversation,
   KALLY_MODES,
@@ -71,9 +72,14 @@ export async function POST(request: Request, context: EnvContext) {
 
   let conversation = typeof body.conversationId === "string" ? await getConversation(access.environment.id, userId, body.conversationId) : null;
   if (typeof body.conversationId === "string" && !conversation) return error("Conversa não encontrada.", 404);
-  const requested = KALLY_MODES.includes(body.mode as KallyMode) ? (body.mode as KallyMode) : "chat";
-  const mode = (conversation?.mode as KallyMode | undefined) ?? requested;
-  if (mode === "ideia" && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
+  // O modo vale por mensagem (a conversa é uma só). Automático: a Kally deduz a intenção.
+  const requested = KALLY_MODES.includes(body.mode as KallyMode) ? (body.mode as KallyMode) : "auto";
+  if (requested === "ideia" && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
+  const intent = detectIntent(message);
+  const hasReviewPayload = !!body.review && typeof body.review === "object";
+  let mode: Exclude<KallyMode, "auto"> = requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
+  if (mode === "ideia" && !access.permissions.publish) mode = "chat";
+  const casual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   if (!allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
 
   // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado).
@@ -89,7 +95,8 @@ export async function POST(request: Request, context: EnvContext) {
       ? (() => {
           const a = body.attachment as Record<string, unknown>;
           const content = text(a.text, 20_000);
-          return content ? { name: text(a.name, 120) || "anexo", kind: a.kind === "imagem" ? "imagem" : "pdf", text: content } : null;
+          const kinds = ["pdf", "imagem", "texto", "docx", "csv", "audio"] as const;
+          return content ? { name: text(a.name, 120) || "anexo", kind: kinds.includes(a.kind as never) ? (a.kind as Attachment["kind"]) : "texto", text: content } : null;
         })()
       : null;
 
@@ -108,9 +115,11 @@ export async function POST(request: Request, context: EnvContext) {
       review = { kind, text: `# ${post.title}\n\n${post.content}`, postId: null, slug: post.slug };
     } else if (text(r.text, 20_000)) {
       review = { kind, text: text(r.text, 20_000), postId: null, slug: null };
-    } else if (!history.length) {
-      return error("Escolha um pensamento ou cole o texto para revisar.", 400);
+    } else if (message.length > 400) {
+      // Automático/Revisar com o texto colado na própria mensagem.
+      review = { kind, text: message, postId: null, slug: null };
     }
+    // Sem texto: a Kally pede, com naturalidade, que a pessoa cole ou escolha um pensamento.
   }
 
   // Memória do ambiente: pela mensagem (curta? junta com a anterior), pelo texto revisado ou pelo anexo.
@@ -118,17 +127,21 @@ export async function POST(request: Request, context: EnvContext) {
   const query = review ? review.text.slice(0, 800) : attachment ? `${message} ${attachment.text.slice(0, 600)}` : message.length < 40 ? `${lastUser} ${message}` : message;
   // Conversas anteriores só entram em Conversar e Aprender: na revisão e na ideia elas se misturariam ao texto da pessoa.
   const withConversations = mode === "chat" || mode === "aprender";
-  const posts = (
-    await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
-      userId: withConversations ? userId : null,
-      draftAuthorId: userId,
-      excludeConversationId: conversation?.id,
-      allDrafts: access.permissions.manageContent,
-    })
-  )
-    .filter((p) => !review?.slug || p.slug !== review.slug)
-    // Em conversa solta, só material claramente relacionado (senão o modelo puxa assunto do nada).
-    .filter((p) => mode !== "chat" || p.score >= 0.25);
+  // Papo casual não consulta a memória (mais rápido e sem puxar assunto do nada); revisão
+  // sem texto também não (a Kally só pede o texto, em vez de "revisar" posts soltos).
+  const posts = casual || (mode === "revisar" && !review)
+    ? []
+    : (
+        await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
+          userId: withConversations ? userId : null,
+          draftAuthorId: userId,
+          excludeConversationId: conversation?.id,
+          allDrafts: access.permissions.manageContent,
+        })
+      )
+        .filter((p) => !review?.slug || p.slug !== review.slug)
+        // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
+        .filter((p) => mode !== "chat" || p.score >= (intent.wantsMemory ? 0.2 : 0.4));
 
   // Internet: só com permissão da pessoa, e só quando o ambiente não basta (ou para aprender/aprofundar).
   let web: WebResult[] = [];
@@ -168,8 +181,8 @@ export async function POST(request: Request, context: EnvContext) {
         } else {
           const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null });
           // A revisão intelectual usa o modelo de revisão (KALLY_REVIEW_MODEL), se configurado.
-          const model = mode === "revisar" ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
-          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: mode === "chat" ? 800 : 1_400, model })) {
+          const model = mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: casual ? 320 : mode === "chat" ? 800 : 1_400, model })) {
             answer += chunk;
             send({ text: chunk });
           }

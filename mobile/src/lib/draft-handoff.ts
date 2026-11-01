@@ -22,7 +22,8 @@ export function takeDraft(postId?: string) {
  * <rascunho># Título / Categorias: A, B / corpo</rascunho>
  */
 export function extractDraft(text: string): { before: string; draft: { title: string; content: string; categories: string[] } | null; after: string } {
-  const match = text.match(/<rascunho>\s*([\s\S]*?)\s*(?:<\/rascunho>|$)/i);
+  // O modelo às vezes troca a marcação por *rascunho* / **Rascunho:**; aceita as duas.
+  const match = text.match(/(?:<rascunho>|\*{1,2}rascunho:?\*{1,2}:?)\s*([\s\S]*?)\s*(?:<\/rascunho>|\*{1,2}\/rascunho\*{1,2}|$)/i);
   if (!match || match.index === undefined) return { before: text, draft: null, after: "" };
   let body = match[1].trim();
   const heading = body.match(/^#\s+(.+)\n?/);
