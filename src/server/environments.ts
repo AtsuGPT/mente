@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { HEX_COLOR } from "@/lib/color";
 import { slugify } from "@/lib/slug";
 import { Prisma, type MemberRole } from "@/generated/prisma";
+import { publiclyVisible } from "./categories";
 import { getProfileImage, setProfileImage } from "./site-settings";
 import { DEFAULT_ENVIRONMENT_ID, type Scope } from "./scope";
 
@@ -134,11 +135,17 @@ export function canEditPost(access: Access, post: { authorId: string | null }) {
 
 /* ------------------------------ Listagem ------------------------------- */
 
-async function counts(environmentIds: string[]) {
+/**
+ * Contagem de pensamentos visível para quem pede: participantes contam os publicados
+ * (inclusive privados); visitantes, só os públicos. Assim a lista não revela quantos
+ * pensamentos privados existem num ambiente do qual a pessoa não participa.
+ */
+async function counts(environmentIds: string[], publicOnly: boolean) {
   if (!environmentIds.length) return new Map<string, { posts: number; members: number }>();
+  const visible = { ...publiclyVisible(), ...(publicOnly ? { private: false } : {}) };
   const rows = await db.environment.findMany({
     where: { id: { in: environmentIds } },
-    select: { id: true, _count: { select: { posts: { where: { status: "PUBLISHED" } }, members: true } } },
+    select: { id: true, _count: { select: { posts: { where: visible }, members: true } } },
   });
   return new Map(rows.map((r) => [r.id, { posts: r._count.posts, members: r._count.members }]));
 }
@@ -164,13 +171,14 @@ export async function listEnvironmentsFor(userId: string | null) {
     select: environmentSelect,
     orderBy: { createdAt: "asc" },
   });
-  const stats = await counts([...mineIds, ...open.map((e) => e.id)]);
+  const memberStats = await counts([...mineIds], false);
+  const openStats = await counts(open.map((e) => e.id), true);
 
   const shape = async (environment: EnvironmentRow, role: MemberRole | "GUEST", permissions: Permissions) => ({
     ...environment,
     role,
     permissions,
-    stats: stats.get(environment.id) ?? { posts: 0, members: 0 },
+    stats: (role === "GUEST" ? openStats : memberStats).get(environment.id) ?? { posts: 0, members: 0 },
     image: await environmentImage(environment),
   });
 
