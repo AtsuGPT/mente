@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { completeChat, type AiMessage } from "./ai";
+import { devSystemPrompt, type DevSettings } from "./kally-dev";
 import { recall, type Retrieved } from "./kally-memory";
 import type { WebResult } from "./web-search";
 import type { Scope } from "./scope";
@@ -130,9 +131,17 @@ export function buildPrompt(input: {
   web?: WebResult[];
   attachment?: Attachment | null;
   reviewText?: string | null;
+  /** Modo Desenvolvedor: substitui a personalidade padrão (identity e o tom do modo Conversar). */
+  dev?: DevSettings | null;
 }): AiMessage[] {
   const found = input.posts.some((p) => p.kind !== "conversa");
-  const system = [...identity(input.environmentName), ...modeInstructions(input.mode, found, input.categories)];
+  const system = input.dev
+    ? [
+        devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`),
+        // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
+        ...(input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)),
+      ]
+    : [...identity(input.environmentName), ...modeInstructions(input.mode, found, input.categories)];
   const history = input.history.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo

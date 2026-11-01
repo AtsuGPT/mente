@@ -19,6 +19,7 @@ import {
   type KallyMode,
 } from "@/server/kally";
 import { searchWeb, type WebResult } from "@/server/web-search";
+import { devModel, parseDevSettings } from "@/server/kally-dev";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -84,6 +85,8 @@ export async function POST(request: Request, context: EnvContext) {
   let mode: Exclude<KallyMode, "auto"> = postCommand ? "ideia" : requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
   const casual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
+  // Modo Desenvolvedor: só muda o prompt (personalidade/estilo). Permissões e ambiente continuam os mesmos.
+  const dev = parseDevSettings(body.dev);
   if (!allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
 
   // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado).
@@ -168,7 +171,7 @@ export async function POST(request: Request, context: EnvContext) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0 });
+      send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
       send({ sources });
       let answer = "";
       try {
@@ -183,10 +186,10 @@ export async function POST(request: Request, context: EnvContext) {
           ].join("");
           send({ text: answer });
         } else {
-          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null });
+          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev });
           // A revisão intelectual usa o modelo de revisão (KALLY_REVIEW_MODEL), se configurado.
-          const model = mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
-          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: casual ? 320 : mode === "chat" ? 800 : 1_400, model })) {
+          const model = dev ? devModel() : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: dev ? 1_000 : casual ? 320 : mode === "chat" ? 800 : 1_400, model })) {
             answer += chunk;
             send({ text: chunk });
           }

@@ -56,8 +56,15 @@ const SOURCE_KIND_LABEL: Record<WebSource["kind"], string> = {
   noticia: "Notícia",
 };
 
+/** Modo Desenvolvedor: personalidade definida pela pessoa (só com conta), guardada neste navegador. */
+type DevConfig = { active: boolean; persona: string; instructions: string; vulgar: boolean };
+const DEV_KEY = "minha-mente.kally-dev.v1";
+const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false };
+const DEV_PERSONAS: [string, string][] = [["livre", "Só minhas instruções"], ["direta", "Direta"], ["divertida", "Divertida"], ["deferente", "Deferente / obediente"], ["formal", "Formal"]];
+
 export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role; categories?: Category[] }) {
   const isAdmin = role === "ADMIN";
+  const canDev = role !== "CONVIDADO";
   const canAttach = role === "ADMIN" || role === "INTIMO";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -71,6 +78,8 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const [conversationFiles, setConversationFiles] = useState<AttachmentInfo[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
+  const [devOpen, setDevOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<PostWorkspace | null>(null);
@@ -109,6 +118,43 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
     }, 700);
     return () => clearTimeout(timer);
   }, [workspace, isAdmin]);
+
+  useEffect(() => {
+    if (!canDev) return;
+    try {
+      const saved = localStorage.getItem(DEV_KEY);
+      if (saved) setDevState({ ...DEV_OFF, ...(JSON.parse(saved) as Partial<DevConfig>) });
+    } catch {
+      // Sem armazenamento local: o modo vale só nesta aba.
+    }
+  }, [canDev]);
+
+  function setDev(next: DevConfig, message?: string) {
+    setDevState(next);
+    try {
+      localStorage.setItem(DEV_KEY, JSON.stringify(next));
+    } catch {
+      // ignorado
+    }
+    if (message) setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", local: true, content: message }]);
+  }
+
+  /** /dev, /dev on, /dev off (ou "padrão"), /dev <instruções>. Tratado aqui; nada vai ao modelo. */
+  function devCommand(content: string) {
+    setDraft("");
+    if (!canDev) {
+      setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", local: true, content: "O modo desenvolvedor está disponível para quem entrou com usuário e senha." }]);
+      return;
+    }
+    const arg = content.replace(/^\/dev\s*/i, "").trim();
+    if (/^(off|desligar|padr[aã]o|sair)$/i.test(arg)) return setDev({ ...dev, active: false }, "Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+    if (!arg || /^(on|ligar)$/i.test(arg)) {
+      const active = arg ? true : !dev.active;
+      if (active) setDevOpen(true);
+      return setDev({ ...dev, active }, active ? "Modo desenvolvedor **ligado**. Ajuste a personalidade no painel ou com `/dev suas instruções`." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+    }
+    setDev({ ...dev, active: true, instructions: arg.slice(0, 2000) }, "Modo desenvolvedor **ligado** com as suas instruções. Use `/dev off` para voltar à Kally padrão.");
+  }
 
   function chooseAutonomy(next: Autonomy) {
     setAutonomy(next);
@@ -182,6 +228,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
     const readyFiles = pending.filter((item) => item.state === "done" && item.info).map((item) => item.info as AttachmentInfo);
     const content = rawContent.trim() || (readyFiles.length && !options.action ? "Analise os anexos enviados." : "");
     if (!content || loading) return;
+    if (!options.action && /^\/dev(?:\s|$)/i.test(content)) return devCommand(content);
     if (pending.some((item) => item.state === "uploading")) {
       setError("Aguarde o processamento dos anexos antes de enviar.");
       return;
@@ -236,6 +283,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
           webSearch,
           autonomy,
           skipPostIntent: options.skipPostIntent,
+          ...(canDev && dev.active ? { dev: { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar } } : {}),
           ...(activeWorkspace && action ? { post: { action, workspace: activeWorkspace } } : {}),
         }),
       });
@@ -380,7 +428,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
     >
       <div className="site-chat-toolbar">
         <div>
-          <p className="label">Kally · Arquivo de pensamentos · Ollama</p>
+          <p className="label">{dev.active && canDev ? "Kally · Modo desenvolvedor" : "Kally · Arquivo de pensamentos · Ollama"}</p>
           <p className="mt-1 text-xs text-muted">As respostas sobre Kayk se apoiam nos textos publicados.</p>
         </div>
         <div className="flex flex-none items-center gap-3">
@@ -394,6 +442,11 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" /><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5Z" stroke="currentColor" strokeWidth="1.6" /></svg>
             Internet
           </button>
+          {canDev ? (
+            <button type="button" className="kally-toggle" aria-pressed={dev.active} title="Modo desenvolvedor: personalidade e estilo definidos por você (/dev)" onClick={() => setDevOpen((value) => !value)}>
+              Dev
+            </button>
+          ) : null}
           {messages.length || workspace ? (
             <button type="button" className="site-chat-reset" disabled={loading} onClick={resetConversation}>
               Nova conversa
@@ -401,6 +454,33 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
           ) : null}
         </div>
       </div>
+
+      {canDev && devOpen ? (
+        <div className="kally-autonomy" aria-label="Modo desenvolvedor">
+          <span className="label">Modo desenvolvedor {dev.active ? "· ativo" : "· desligado"}</span>
+          <div className="kally-segmented" role="radiogroup" aria-label="Personalidade">
+            {DEV_PERSONAS.map(([id, label]) => (
+              <button key={id} type="button" role="radio" aria-checked={dev.persona === id} onClick={() => setDev({ ...dev, persona: id })}>{label}</button>
+            ))}
+          </div>
+          <textarea
+            className="w-full border border-line bg-transparent p-2 text-sm"
+            rows={3}
+            maxLength={2000}
+            value={dev.instructions}
+            placeholder="Instruções de personalidade (têm prioridade sobre o estilo padrão)…"
+            onChange={(event) => setDev({ ...dev, instructions: event.target.value })}
+          />
+          <label className="kally-autonomy-hint">
+            <input type="checkbox" checked={dev.vulgar} onChange={(event) => setDev({ ...dev, vulgar: event.target.checked })} /> Linguagem vulgar liberada
+          </label>
+          <div className="flex gap-3">
+            <button type="button" className="kally-toggle" aria-pressed={dev.active} onClick={() => { setDev({ ...dev, active: true }, "Modo desenvolvedor **ligado**."); setDevOpen(false); }}>Ativar</button>
+            <button type="button" className="site-chat-reset" onClick={() => { setDev({ ...dev, active: false }, "Modo desenvolvedor **desligado**. Voltei à Kally padrão."); setDevOpen(false); }}>Voltar à Kally padrão</button>
+          </div>
+          <span className="kally-autonomy-hint">Muda só a personalidade e o estilo. Permissões, privacidade e a criação de posts continuam iguais.</span>
+        </div>
+      ) : null}
 
       {isAdmin ? (
         <div className="kally-autonomy" role="radiogroup" aria-label="Nível de autonomia na criação de posts">
@@ -435,7 +515,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
           </div>
         ) : messages.map((message) => (
           <article key={message.id} className={`site-chat-message ${message.role === "user" ? "is-user" : "is-assistant"}`}>
-            <p className="site-chat-speaker">{message.role === "user" ? "Você" : "Kally"}</p>
+            <p className="site-chat-speaker">{message.role === "user" ? "Você" : message.local ? "Minha Mente" : dev.active && canDev ? "Kally · dev" : "Kally"}</p>
             {message.content ? <Markdown>{message.content}</Markdown> : loading && message.id === lastAssistantId ? <p className="text-sm text-muted">{progress || "Lendo os pensamentos…"}</p> : null}
             {loading && message.id === lastAssistantId && message.content && progress ? <p className="kally-progress">{progress}</p> : null}
             {message.attachments?.length ? (
