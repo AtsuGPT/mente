@@ -104,7 +104,8 @@ Quando um erro vira texto, ele ganha contorno. Deixa de ser uma sensação difus
 async function main() {
   for (const c of categories) {
     await db.category.upsert({
-      where: { slug: c.slug },
+      // O seed sempre preenche o ambiente original ("mente").
+      where: { environmentId_slug: { environmentId: "mente", slug: c.slug } },
       update: { color: c.color },
       create: c,
     });
@@ -114,11 +115,11 @@ async function main() {
   if (process.env.SEED_SAMPLES === "1") {
     for (const s of samples) {
       const linkedCategories = await db.category.findMany({
-        where: { slug: { in: s.categories } },
+        where: { environmentId: "mente", slug: { in: s.categories } },
         select: { id: true },
       });
       const categories = linkedCategories.map(({ id }) => ({ id }));
-      if (await db.post.findUnique({ where: { slug: s.slug }, select: { id: true } })) continue;
+      if (await db.post.findUnique({ where: { environmentId_slug: { environmentId: "mente", slug: s.slug } }, select: { id: true } })) continue;
 
       const { value: number } = await db.postCounter.upsert({
         where: { id: "posts" },
