@@ -11,6 +11,7 @@ import { pickImage, uploadablePart } from "@/lib/upload";
 import { Markdown } from "@/components/markdown/markdown";
 import { AppText, Button, Chip, SectionLabel, TextField, Touchable } from "@/components/ui/primitives";
 import { colors, fonts, radius, space } from "@/theme/tokens";
+import { takeDraft } from "@/lib/draft-handoff";
 
 type Intent = "save" | "publish" | "unpublish";
 type Selection = { start: number; end: number };
@@ -56,6 +57,8 @@ export default function EditorScreen() {
   const { api } = useCurrentEnvironment();
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === "novo";
+  // Rascunho vindo da Kally (só ao abrir um novo pensamento).
+  const [handoff] = useState(() => (isNew ? takeDraft() : null));
   const navigation = useNavigation();
   const contentRef = useRef<TextInputInstance>(null);
 
@@ -66,17 +69,17 @@ export default function EditorScreen() {
   const [status, setStatus] = useState<PostStatus>("DRAFT");
   const [originalSlug, setOriginalSlug] = useState("");
 
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
+  const [title, setTitle] = useState(handoff?.title ?? "");
+  const [slug, setSlug] = useState(handoff?.title ? slugify(handoff.title) : "");
   const [slugTouched, setSlugTouched] = useState(!isNew);
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(handoff?.content ?? "");
   const [isPrivate, setIsPrivate] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [publishedLocal, setPublishedLocal] = useState("");
   const [selection, setSelection] = useState<Selection>({ start: 0, end: 0 });
   const [tab, setTab] = useState<"write" | "preview">("write");
 
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(!!handoff);
   const [saving, setSaving] = useState<Intent | "delete" | "image" | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);

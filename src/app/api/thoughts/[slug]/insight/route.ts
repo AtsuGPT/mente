@@ -1,5 +1,6 @@
 import { getPublishedPostBySlug } from "@/server/posts";
 import { stripMarkdown } from "@/lib/text";
+import { AiError, openChatStream } from "@/server/ai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,17 +89,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const mode = modeValue as Mode;
   const selectedMode = modes[mode];
   const categories = post.categories.map((category) => category.name).join(", ") || "sem categoria";
-  const ollamaUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
-  const model = process.env.OLLAMA_MODEL || "llama3.2:latest";
-  let ollamaResponse: Response;
+  let chunks: AsyncGenerator<string>;
   try {
-    ollamaResponse = await fetch(`${ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        stream: true,
-        messages: [
+    chunks = await openChatStream(
+        [
           {
             role: "system",
             content: [
@@ -119,15 +113,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
             ].join("\n\n"),
           },
         ],
-        options: { num_predict: mode === "deepen" ? 900 : 600 },
-      }),
-    });
-  } catch {
-    return jsonError("Não foi possível conectar ao Ollama. Verifique se ele está em execução neste servidor.", 503);
-  }
-  if (!ollamaResponse.ok) {
-    console.error("Ollama thought request failed:", ollamaResponse.status, await ollamaResponse.text());
-    return jsonError("O Ollama não conseguiu gerar a leitura. Confira se o modelo configurado está instalado.", 502);
+        { maxTokens: mode === "deepen" ? 900 : 600 },
+    );
+  } catch (error) {
+    return jsonError(error instanceof AiError ? error.message : "Não foi possível conectar ao provedor de IA.", error instanceof AiError ? error.status : 503);
   }
 
   const encoder = new TextEncoder();
@@ -139,28 +128,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       send({ status: "started" });
       try {
-        const reader = ollamaResponse.body?.getReader();
-        if (!reader) throw new Error("Ollama returned an empty response body");
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        const handleLine = (line: string) => {
-          if (!line.trim()) return;
-          const event = JSON.parse(line) as { message?: { content?: string }; done?: boolean; error?: string };
-          if (event.error) throw new Error(event.error);
-          if (event.message?.content) send({ text: event.message.content });
-          if (event.done) send({ done: true });
-        };
-
-        while (true) {
-          const { value, done } = await reader.read();
-          buffer += decoder.decode(value, { stream: !done });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) handleLine(line);
-          if (done) break;
-        }
-        if (buffer.trim()) handleLine(buffer);
+        for await (const text of chunks) send({ text });
+        send({ done: true });
         controller.close();
       } catch (error) {
         console.error("Ollama thought stream failed:", error instanceof Error ? error.message : "Unknown error");

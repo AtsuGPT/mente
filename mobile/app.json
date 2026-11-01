@@ -43,6 +43,10 @@
         {
           "photosPermission": "O Minha Mente usa suas fotos para inserir imagens nos pensamentos."
         }
+      ],
+      [
+        "expo-audio",
+        { "microphonePermission": "O Minha Mente usa o microfone para você falar ideias à Kally." }
       ]
     ]
   }
