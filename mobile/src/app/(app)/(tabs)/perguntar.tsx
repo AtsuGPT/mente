@@ -366,7 +366,7 @@ function Kally() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={mode === "revisar" ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Conte sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : "Fale com a Kally…"}
+          placeholder={mode === "revisar" ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Conte sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : permissions.publish ? "Fale com a Kally… (/post cria um post)" : "Fale com a Kally…"}
           placeholderTextColor={colors.faint}
           selectionColor={colors.violet400}
           maxLength={mode === "revisar" ? 4000 : 4000}

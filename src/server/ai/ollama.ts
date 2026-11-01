@@ -8,11 +8,16 @@ import "server-only";
 
 export type OllamaMessage = { role: "system" | "user" | "assistant"; content: string; images?: string[] };
 
+/** Mantém o modelo carregado entre pedidos (sem isso, ele sai da memória após 5 min parado). */
+const KEEP_ALIVE = () => process.env.AI_KEEP_ALIVE || "30m";
+
 export function ollamaConfig() {
   const baseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
   const model = process.env.OLLAMA_MODEL || "llama3.2:latest";
   const parsedCtx = Number(process.env.OLLAMA_NUM_CTX);
-  const numCtx = Number.isFinite(parsedCtx) && parsedCtx >= 2048 ? Math.floor(parsedCtx) : 16_384;
+  // 8192 (não 16384): com 16k o llama3.2 passa de 4 GB e metade roda na CPU numa GPU de 4 GB.
+  // O mesmo valor é usado pela Kally do app (server/ai.ts), para o Ollama não recarregar o modelo.
+  const numCtx = Number.isFinite(parsedCtx) && parsedCtx >= 2048 ? Math.floor(parsedCtx) : 8_192;
   return { baseUrl, model, numCtx };
 }
 
@@ -70,7 +75,7 @@ export async function streamOllamaChat(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: requestSignal(options),
-      body: JSON.stringify({ model: options.model ?? model, stream: true, messages, options: modelOptions(options) }),
+      body: JSON.stringify({ model: options.model ?? model, stream: true, messages, keep_alive: KEEP_ALIVE(), options: modelOptions(options) }),
     });
   } catch (error) {
     throw connectionError(error);
@@ -163,6 +168,7 @@ export async function ollamaJson<T>(
         stream: false,
         format: schema,
         messages,
+        keep_alive: KEEP_ALIVE(),
         options: { ...modelOptions(options), temperature: options.temperature ?? 0.2 },
       }),
     });
