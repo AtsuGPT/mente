@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getSession } from "@/lib/auth/session";
+import { detectImage, postImagesDirectory } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,19 +11,6 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function jsonError(error: string, status: number) {
   return Response.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
-}
-
-function detectImage(bytes: Buffer): { mime: string; extension: string } | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return { mime: "image/jpeg", extension: "jpg" };
-  }
-  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
-    return { mime: "image/png", extension: "png" };
-  }
-  if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") {
-    return { mime: "image/webp", extension: "webp" };
-  }
-  return null;
 }
 
 export async function POST(request: Request) {
@@ -47,9 +35,10 @@ export async function POST(request: Request) {
   if (!detected) return jsonError("Envie uma imagem JPG, PNG ou WebP válida.", 415);
 
   const filename = `${randomUUID()}.${detected.extension}`;
-  const uploadDirectory = path.join(process.cwd(), "public", "uploads", "posts");
+  const uploadDirectory = postImagesDirectory();
   await mkdir(uploadDirectory, { recursive: true });
-  await writeFile(path.join(uploadDirectory, filename), bytes, { flag: "wx" });
+  // Pasta de dados (volume), não código: fica fora do rastreamento de arquivos do build.
+  await writeFile(path.join(/*turbopackIgnore: true*/ uploadDirectory, filename), bytes, { flag: "wx" });
 
   return Response.json(
     { src: `/uploads/posts/${filename}`, mime: detected.mime },
