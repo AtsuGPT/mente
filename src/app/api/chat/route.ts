@@ -361,7 +361,8 @@ export async function POST(request: Request) {
           (token) => send({ text: token }),
           hasExtraSources
             ? { numPredict: 1_600, signal: abort.signal }
-            : { numPredict: 700, signal: abort.signal, numCtx: null, timeoutMs: 120_000 },
+            // Mesmo contexto do /post e do app: trocar de num_ctx faz o Ollama recarregar o modelo.
+            : { numPredict: 700, signal: abort.signal, timeoutMs: 120_000 },
         );
         send({ done: true });
         controller.close();
