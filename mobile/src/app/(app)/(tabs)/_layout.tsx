@@ -16,6 +16,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Troca de aba com um esmaecer curto (sem custo perceptível no Expo Go).
+        animation: "fade",
         tabBarActiveTintColor: colors.violet300,
         tabBarInactiveTintColor: colors.faint,
         tabBarStyle: {

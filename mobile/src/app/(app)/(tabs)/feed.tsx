@@ -1,3 +1,4 @@
+import { AmbientGlow } from "@/components/ambient-glow";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,6 +42,7 @@ export default function FeedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <AmbientGlow intensity={0.7} />
       <FlatList
         data={feed.loading ? [] : feed.posts}
         keyExtractor={(item) => item.id}

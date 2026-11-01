@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeInDown, FadeOut } from "react-native-reanimated";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -14,8 +15,9 @@ import type { KallyAttachment, KallyConversation, KallyImage, KallyMode, KallyRe
 import { Markdown } from "@/components/markdown/markdown";
 import { EnvironmentHeader } from "@/components/environment-header";
 import { VoiceButton } from "@/components/voice-button";
+import { AmbientGlow } from "@/components/ambient-glow";
 import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
-import { Icon } from "@/components/ui/icon";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space, type } from "@/theme/tokens";
 
 /**
@@ -33,38 +35,26 @@ type Message = {
   /** texto colado para revisão (para aplicar as sugestões sem um post) */
   reviewSource?: string;
   attachmentName?: string;
+  /** miniatura local da imagem anexada (só nesta sessão) */
+  imageUri?: string;
+  /** modo que a Kally usou nesta resposta */
+  mode?: string;
+  failed?: boolean;
 };
 type ReviewKind = "textual" | "intelectual";
 
-const MODES: { mode: KallyMode; label: string; needsPublish?: boolean }[] = [
-  { mode: "chat", label: "Conversar" },
-  { mode: "ideia", label: "Ideia", needsPublish: true },
-  { mode: "revisar", label: "Revisar" },
-  { mode: "aprender", label: "Aprender" },
+const MODES: { mode: KallyMode; label: string; hint: string; icon: IconName; needsPublish?: boolean }[] = [
+  { mode: "auto", label: "Automático", hint: "A Kally entende o que você quer", icon: "sparkle" },
+  { mode: "chat", label: "Conversar", hint: "Papo livre, com o ambiente quando ajudar", icon: "chat" },
+  { mode: "ideia", label: "Idealizar", hint: "Desenvolver uma ideia até virar post", icon: "bulb", needsPublish: true },
+  { mode: "revisar", label: "Revisar", hint: "Revisão de um texto ou pensamento", icon: "edit" },
+  { mode: "aprender", label: "Aprender", hint: "Explicações por etapas, com perguntas", icon: "book" },
 ];
+const modeLabel = (mode?: string) => MODES.find((m) => m.mode === mode)?.label;
 
-const intro: Record<KallyMode, { title: (env: string) => string; text: string; suggestions: string[] }> = {
-  chat: {
-    title: (env) => `Oi! O que vamos explorar em ${env}?`,
-    text: "Pergunte sobre os pensamentos do ambiente, peça para relacionar ideias ou só converse. Com a web ligada, a Kally completa com fontes externas.",
-    suggestions: ["Quais temas aparecem mais aqui?", "Que relações existem entre os pensamentos?", "Me conta uma curiosidade"],
-  },
-  ideia: {
-    title: () => "Qual ideia você quer desenvolver?",
-    text: "Escreva ou fale. A Kally pergunta aos poucos, sugere títulos, pastas e pensamentos relacionados, e monta o rascunho na sua voz.",
-    suggestions: ["Tenho uma ideia, mas ainda está confusa…", "Quero escrever sobre algo que vivi hoje"],
-  },
-  revisar: {
-    title: () => "O que você quer revisar?",
-    text: "Escolha um pensamento seu ou cole um texto. Revisão textual sugere trocas que você aprova; a intelectual questiona argumentos e conceitos.",
-    suggestions: [],
-  },
-  aprender: {
-    title: () => "O que você quer aprender?",
-    text: "A Kally parte do que o ambiente já tem, monta uma sequência de etapas e confere sua compreensão com perguntas.",
-    suggestions: ["Quero aprender sobre redes de computadores", "Me ensine o tema mais presente aqui"],
-  },
-};
+type PendingAttachment = { id: number; name: string; localUri?: string; isImage: boolean; status: "processing" | "ready" | "error"; result?: KallyAttachment; error?: string };
+
+const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
 
 let counter = 0;
 const newId = () => `local-${Date.now()}-${counter++}`;
@@ -85,7 +75,8 @@ export default function KallyScreen() {
 function Kally() {
   const insets = useSafeAreaInsets();
   const { api, environment, permissions } = useCurrentEnvironment();
-  const [mode, setMode] = useState<KallyMode>("chat");
+  const [mode, setMode] = useState<KallyMode>("auto");
+  const [modeMenu, setModeMenu] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [save, setSave] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -93,14 +84,15 @@ function Kally() {
   const [transcribed, setTranscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [web, setWeb] = useState(false);
-  const [attachment, setAttachment] = useState<KallyAttachment | null>(null);
-  const [attaching, setAttaching] = useState(false);
-  const [reviewKind, setReviewKind] = useState<ReviewKind>("textual");
+  const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
+  const [queued, setQueued] = useState<string | null>(null);
+  const [reviewKind, setReviewKind] = useState<ReviewKind>("intelectual");
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
   const [picking, setPicking] = useState(false);
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const list = useRef<FlatList<Message>>(null);
+  const attachSeq = useRef(0);
   const started = messages.length > 0;
 
   const loadHistory = useCallback(async () => {
@@ -115,9 +107,8 @@ function Kally() {
     void loadHistory();
   }, [loadHistory]);
 
-  function startNew(nextMode: KallyMode = mode) {
+  function startNew() {
     if (loading) return;
-    setMode(nextMode);
     setConversationId(null);
     setMessages([]);
     setDraft("");
@@ -130,7 +121,6 @@ function Kally() {
     setShowHistory(false);
     try {
       const full = await api.kallyConversation(conversation.id);
-      setMode(full.mode);
       setConversationId(full.id);
       setSave(true);
       setMessages(full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources })));
@@ -156,45 +146,69 @@ function Kally() {
     ]);
   }
 
-  async function uploadAttachment(part: Blob, name: string) {
-    setAttaching(true);
-    try {
-      const form = new FormData();
-      form.append("file", part, name);
-      setAttachment(await api.kallyAttachment(form));
-    } catch (cause) {
-      Alert.alert("Anexo", cause instanceof Error ? cause.message : "Não consegui ler o anexo.");
-    } finally {
-      setAttaching(false);
-    }
+  /** Começa a processar o anexo na hora (em segundo plano); a pessoa segue escrevendo. */
+  function processAttachment(part: Blob, name: string, localUri: string | undefined, isImage: boolean) {
+    const id = ++attachSeq.current;
+    setAttachment({ id, name, localUri, isImage, status: "processing" });
+    const form = new FormData();
+    form.append("file", part, name);
+    api.kallyAttachment(form).then(
+      (result) => setAttachment((a) => (a?.id === id ? { ...a, status: "ready", result } : a)),
+      (cause) => setAttachment((a) => (a?.id === id ? { ...a, status: "error", error: cause instanceof Error ? cause.message : "Não consegui ler o anexo." } : a)),
+    );
   }
 
   async function pickDocument() {
-    const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], copyToCacheDirectory: true });
+    const result = await DocumentPicker.getDocumentAsync({ type: Platform.OS === "web" ? ["image/*", "application/pdf", "text/*", ".md", ".csv", ".docx", "audio/*"] : ["*/*"], copyToCacheDirectory: true });
     const asset = result.canceled ? null : result.assets[0];
     if (!asset) return;
+    if ((asset.size ?? 0) > 25 * 1024 * 1024) return Alert.alert("Anexo", "O anexo deve ter no máximo 25 MB.");
     const part = Platform.OS === "web" ? (asset.file ?? (await (await fetch(asset.uri)).blob())) : (new File(asset.uri) as unknown as Blob);
-    await uploadAttachment(part, asset.name);
+    const isImage = (asset.mimeType ?? "").startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(asset.name);
+    processAttachment(part, asset.name, isImage ? asset.uri : undefined, isImage);
+  }
+
+  async function pickPhoto() {
+    const asset = await pickImage();
+    if (!asset) return;
+    const { part, name } = await uploadablePart(asset);
+    processAttachment(part, name, asset.uri, true);
   }
 
   function attach() {
-    if (Platform.OS === "web") return void pickDocument();
-    Alert.alert("Anexar", "PDFs viram texto; imagens são descritas pela Kally. Nada fica guardado.", [
-      { text: "Foto", onPress: () => void pickImage().then(async (asset) => { if (asset) { const { part, name } = await uploadablePart(asset); await uploadAttachment(part, name); } }).catch((e) => Alert.alert("Anexo", e instanceof Error ? e.message : "Erro")) },
-      { text: "PDF ou arquivo", onPress: () => void pickDocument() },
+    if (Platform.OS === "web") return void pickDocument().catch((e) => Alert.alert("Anexo", e instanceof Error ? e.message : "Erro"));
+    Alert.alert("Anexar", "Imagens são descritas, PDF/Word/TXT/CSV viram texto e áudios são transcritos. Nada fica guardado.", [
+      { text: "Foto", onPress: () => void pickPhoto().catch((e) => Alert.alert("Anexo", e instanceof Error ? e.message : "Erro")) },
+      { text: "Arquivo", onPress: () => void pickDocument().catch((e) => Alert.alert("Anexo", e instanceof Error ? e.message : "Erro")) },
       { text: "Cancelar", style: "cancel" },
     ]);
   }
 
-  async function send(raw: string) {
-    let content = raw.trim();
-    const firstReview = mode === "revisar" && !started;
-    if (firstReview && !reviewTarget && !content) return;
-    if (!firstReview && !content) return;
-    if (loading) return;
-    if (firstReview) content = `${reviewKind === "textual" ? "Revisão textual" : "Revisão intelectual"} de ${reviewTarget ? `"${reviewTarget.title}"` : "um texto colado"}`;
+  // Enviou enquanto o anexo ainda era processado: manda sozinho quando ficar pronto.
+  useEffect(() => {
+    if (queued !== null && attachment?.status !== "processing") {
+      const text = queued;
+      setQueued(null);
+      if (attachment?.status === "error") setDraft(text);
+      else void send(text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queued, attachment?.status]);
 
-    const user: Message = { id: newId(), role: "user", content, attachmentName: attachment?.name, reviewSource: firstReview && !reviewTarget ? raw.trim() : undefined };
+  async function send(raw: string) {
+    const content = raw.trim();
+    if (loading) return;
+    const reviewing = mode === "revisar" && (reviewTarget || content.length > 400);
+    if (!content && !(mode === "revisar" && reviewTarget)) return;
+    if (attachment?.status === "processing") {
+      setQueued(raw);
+      setDraft("");
+      return;
+    }
+    const ready = attachment?.status === "ready" ? attachment : null;
+    const message = content || `Revise "${reviewTarget?.title}"`;
+
+    const user: Message = { id: newId(), role: "user", content: message, attachmentName: ready?.name, imageUri: ready?.localUri, reviewSource: reviewing && !reviewTarget ? content : undefined };
     const assistant: Message = { id: newId(), role: "assistant", content: "", reviewSource: user.reviewSource };
     // Temporária: o app manda o histórico (o servidor não guarda nada).
     const temporaryHistory = conversationId ? undefined : messages.slice(-10).map(({ role, content: c }) => ({ role, content: c }));
@@ -202,52 +216,68 @@ function Kally() {
     setDraft("");
     setTranscribed(false);
     setLoading(true);
-    const update = (change: (m: Message) => Message) => setMessages((current) => current.map((m) => (m.id === assistant.id ? change(m) : m)));
     const payload = {
-      message: content,
+      message,
       mode,
       conversationId,
       save: !conversationId && save,
       history: temporaryHistory,
       web,
-      attachment: attachment ? { name: attachment.name, kind: attachment.kind, text: attachment.text } : undefined,
-      review: firstReview ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: raw.trim() }) } : undefined,
+      attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
+      review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
     };
     setAttachment(null);
+    setReviewTarget(null);
+
+    // O texto chega em muitos pedaços: junta e atualiza a tela a cada ~60 ms (menos renderizações).
+    let buffer = "";
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const update = (change: (m: Message) => Message) => setMessages((current) => current.map((m) => (m.id === assistant.id ? change(m) : m)));
+    const flush = () => {
+      timer = null;
+      if (!buffer) return;
+      const chunk = buffer;
+      buffer = "";
+      update((m) => ({ ...m, content: m.content + chunk }));
+    };
     try {
       await streamEvents(api.kallyPath, payload, (event) => {
         if (event.conversationId) setConversationId(event.conversationId);
+        if (event.mode) update((m) => ({ ...m, mode: event.mode }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
-        if (event.text) update((m) => ({ ...m, content: m.content + event.text }));
+        if (event.text) {
+          buffer += event.text;
+          if (!timer) timer = setTimeout(flush, 60);
+        }
       });
+      if (timer) clearTimeout(timer);
+      flush();
     } catch (cause) {
-      update((m) => ({ ...m, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
+      if (timer) clearTimeout(timer);
+      flush();
+      update((m) => ({ ...m, failed: true, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
     } finally {
       setLoading(false);
       if (save || conversationId) void loadHistory();
     }
   }
 
-  const canIdea = permissions.publish;
-  const info = intro[mode];
-  const reviewReady = mode === "revisar" && !started;
+  const available = MODES.filter((m) => !m.needsPublish || permissions.publish);
+  const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
+  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} />, [loading, messages.length]);
+  const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <AmbientGlow intensity={0.55} />
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <View style={{ flex: 1 }}>
-          <EnvironmentHeader title="Kally" subtitle={started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua assistente neste ambiente"} />
+          <EnvironmentHeader title="Kally" subtitle={started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
         </View>
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
-        {started ? <IconButton name="plus" label="Nova conversa" onPress={() => startNew()} /> : null}
+        {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modes} style={{ flexGrow: 0 }}>
-        {MODES.filter((m) => !m.needsPublish || canIdea).map((m) => (
-          <Chip key={m.mode} label={m.label} selected={mode === m.mode} onPress={() => mode !== m.mode && startNew(m.mode)} />
-        ))}
-      </ScrollView>
 
       <FlatList
         ref={list}
@@ -256,27 +286,15 @@ function Kally() {
         contentContainerStyle={{ padding: space.lg, gap: space.lg, flexGrow: 1 }}
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
         keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={Platform.OS !== "web"}
+        windowSize={9}
         ListEmptyComponent={
-          <View style={styles.empty}>
+          <Animated.View entering={FadeIn.duration(400)} style={styles.empty}>
             <View style={styles.badge}><Icon name="sparkle" size={22} color={colors.violet300} /></View>
-            <AppText variant="title" style={{ textAlign: "center", marginTop: space.md }}>{info.title(environment.name)}</AppText>
-            <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>{info.text}</AppText>
-
-            {mode === "revisar" ? (
-              <View style={{ gap: space.sm, marginTop: space.xl, alignSelf: "stretch" }}>
-                <View style={styles.row2}>
-                  <Chip label="Textual" selected={reviewKind === "textual"} onPress={() => setReviewKind("textual")} />
-                  <Chip label="Intelectual" selected={reviewKind === "intelectual"} onPress={() => setReviewKind("intelectual")} />
-                </View>
-                <Button label={reviewTarget ? `Revisar "${reviewTarget.title}"` : "Escolher um pensamento"} icon="doc" variant="secondary" onPress={() => setPicking(true)} />
-                <AppText variant="small" color={colors.faint} style={{ textAlign: "center" }}>…ou cole o texto abaixo e envie.</AppText>
-              </View>
-            ) : (
-              <View style={{ gap: space.sm, marginTop: space.xl, alignItems: "center" }}>
-                {info.suggestions.map((s) => <Chip key={s} label={s} onPress={() => (mode === "ideia" ? setDraft(s) : void send(s))} />)}
-              </View>
-            )}
-
+            <AppText variant="title" style={{ textAlign: "center", marginTop: space.md }}>Oi! Sobre o que vamos conversar?</AppText>
+            <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
+              Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.
+            </AppText>
             <Touchable onPress={() => setSave((v) => !v)} style={styles.saveToggle} accessibilityRole="switch" accessibilityState={{ checked: save }}>
               <View style={[styles.check, save && styles.checkOn]}>{save ? <Icon name="check" size={14} color="#FFFFFF" strokeWidth={2.4} /> : null}</View>
               <View style={{ flex: 1 }}>
@@ -284,66 +302,99 @@ function Kally() {
                 <AppText variant="small" color={colors.faint}>{save ? "Fica no seu histórico deste ambiente (só você vê)." : "Temporária: nada fica guardado quando você sair."}</AppText>
               </View>
             </Touchable>
-          </View>
+          </Animated.View>
         }
-        renderItem={({ item }) => <Bubble item={item} mode={mode} pending={loading && item === messages.at(-1)} />}
+        renderItem={renderItem}
       />
 
       {transcribed ? <AppText variant="small" color={colors.warning} style={styles.note}>Transcrição do áudio: revise e edite antes de enviar.</AppText> : null}
-      {attachment || attaching ? (
-        <View style={styles.attachment}>
-          {attaching ? <ActivityIndicator color={colors.violet300} /> : <Icon name={attachment?.kind === "pdf" ? "doc" : "image"} size={16} color={colors.violet300} />}
-          <AppText variant="small" numberOfLines={1} style={{ flex: 1 }}>
-            {attaching ? "Lendo o anexo…" : `${attachment!.name} · ${attachment!.kind === "pdf" ? `${attachment!.pages ?? "?"} pág.` : "imagem descrita"}${attachment!.truncated ? " (parcial)" : ""}`}
-          </AppText>
-          {attachment ? <IconButton name="close" label="Remover anexo" color={colors.muted} onPress={() => setAttachment(null)} /> : null}
+      {queued !== null ? <AppText variant="small" color={colors.violet300} style={styles.note}>Sua mensagem sai assim que o anexo terminar de ser lido…</AppText> : null}
+
+      {attachment ? (
+        <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(160)} style={[styles.attachment, attachment.status === "error" && { borderColor: colors.danger }]}>
+          {attachment.localUri ? <Image source={{ uri: attachment.localUri }} style={styles.attachThumb} /> : <View style={styles.attachIcon}><Icon name="doc" size={18} color={colors.violet300} /></View>}
+          <View style={{ flex: 1 }}>
+            <AppText variant="small" numberOfLines={1}>{attachment.name}</AppText>
+            <AppText variant="small" color={attachment.status === "error" ? colors.danger : colors.faint} numberOfLines={2}>
+              {attachment.status === "processing"
+                ? attachment.isImage ? "Descrevendo a imagem…" : "Lendo o arquivo…"
+                : attachment.status === "error"
+                  ? attachment.error
+                  : `Pronto · ${ATTACH_LABEL[attachment.result!.kind]}${attachment.result!.pages ? ` · ${attachment.result!.pages} pág.` : ""}${attachment.result!.truncated ? " (parcial)" : ""}`}
+            </AppText>
+          </View>
+          {attachment.status === "processing" ? <ActivityIndicator color={colors.violet300} /> : null}
+          <IconButton name="close" label="Remover anexo" color={colors.muted} onPress={() => { setAttachment(null); setQueued(null); }} />
+        </Animated.View>
+      ) : null}
+
+      {mode === "revisar" ? (
+        <View style={styles.reviewBar}>
+          <Touchable onPress={() => setPicking(true)} style={[styles.tool, { flex: 1 }]}>
+            <Icon name="doc" size={14} color={colors.violet300} />
+            <AppText variant="small" numberOfLines={1} color={colors.violet200} style={{ flex: 1 }}>{reviewTarget ? reviewTarget.title : "Escolher pensamento (ou cole o texto)"}</AppText>
+          </Touchable>
+          <Chip label="Textual" selected={reviewKind === "textual"} onPress={() => setReviewKind("textual")} />
+          <Chip label="Intelectual" selected={reviewKind === "intelectual"} onPress={() => setReviewKind("intelectual")} />
         </View>
       ) : null}
 
       <View style={styles.tools}>
+        <Touchable onPress={() => setModeMenu(true)} style={[styles.tool, mode !== "auto" && styles.toolOn]} accessibilityLabel={`Modo: ${current.label}. Tocar para trocar`}>
+          <Icon name={current.icon} size={14} color={mode !== "auto" ? colors.violet200 : colors.muted} />
+          <AppText variant="small" color={mode !== "auto" ? colors.violet200 : colors.muted}>{current.label} ▾</AppText>
+        </Touchable>
         <Touchable onPress={() => setWeb((v) => !v)} style={[styles.tool, web && styles.toolOn]} accessibilityRole="switch" accessibilityState={{ checked: web }} accessibilityLabel="Permitir pesquisa na internet">
-          <Icon name="globe" size={16} color={web ? colors.violet200 : colors.muted} />
+          <Icon name="globe" size={14} color={web ? colors.violet200 : colors.muted} />
           <AppText variant="small" color={web ? colors.violet200 : colors.muted}>Web</AppText>
         </Touchable>
-        <Touchable onPress={attach} disabled={attaching || loading} style={styles.tool} accessibilityLabel="Anexar PDF ou imagem">
-          <Icon name="clip" size={16} color={colors.muted} />
+        <Touchable onPress={attach} disabled={attachment?.status === "processing"} style={styles.tool} accessibilityLabel="Anexar arquivo">
+          <Icon name="clip" size={14} color={colors.muted} />
           <AppText variant="small" color={colors.muted}>Anexo</AppText>
         </Touchable>
-        {reviewReady && reviewTarget ? <AppText variant="small" color={colors.violet300} numberOfLines={1} style={{ flex: 1 }}>Revisando “{reviewTarget.title}”</AppText> : null}
       </View>
 
       <View style={[styles.composer, { paddingBottom: space.md }]}>
-        {mode === "ideia" || mode === "chat" ? (
-          <VoiceButton
-            transcribe={api.transcribe}
-            disabled={loading || !permissions.publish}
-            onText={(text) => {
-              setDraft((current) => (current.trim() ? `${current.trim()}\n\n${text}` : text));
-              setTranscribed(true);
-            }}
-          />
-        ) : null}
+        <VoiceButton
+          transcribe={api.transcribe}
+          disabled={loading || !permissions.publish}
+          onText={(text) => {
+            setDraft((value) => (value.trim() ? `${value.trim()}\n\n${text}` : text));
+            setTranscribed(true);
+          }}
+        />
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={reviewReady ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Descreva sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : "Fale com a Kally…"}
+          placeholder={mode === "revisar" ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Conte sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : "Fale com a Kally…"}
           placeholderTextColor={colors.faint}
           selectionColor={colors.violet400}
-          maxLength={reviewReady && !reviewTarget ? 20000 : 4000}
+          maxLength={mode === "revisar" ? 4000 : 4000}
           multiline
-          editable={!loading}
           style={styles.input}
         />
-        <Touchable
-          accessibilityRole="button"
-          accessibilityLabel="Enviar"
-          disabled={loading || (!draft.trim() && !(reviewReady && reviewTarget))}
-          onPress={() => void send(draft)}
-          style={[styles.send, (loading || (!draft.trim() && !(reviewReady && reviewTarget))) && { opacity: 0.4 }]}
-        >
-          <Icon name="send" size={20} color="#FFFFFF" strokeWidth={2} />
+        <Touchable accessibilityRole="button" accessibilityLabel="Enviar" disabled={sendDisabled} onPress={() => void send(draft)} style={[styles.send, sendDisabled && { opacity: 0.4 }]}>
+          {loading || queued !== null ? <ActivityIndicator color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" strokeWidth={2} />}
         </Touchable>
       </View>
+
+      <Modal visible={modeMenu} transparent animationType="fade" onRequestClose={() => setModeMenu(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setModeMenu(false)}>
+          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+            <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
+            {available.map((m) => (
+              <Touchable key={m.mode} onPress={() => { setMode(m.mode); setModeMenu(false); }} style={[styles.modeRow, m.mode === mode && styles.modeRowOn]}>
+                <Icon name={m.icon} size={18} color={m.mode === mode ? colors.violet200 : colors.muted} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="uiMedium" color={m.mode === mode ? colors.violet200 : colors.text}>{m.label}</AppText>
+                  <AppText variant="small" color={colors.faint}>{m.hint}</AppText>
+                </View>
+                {m.mode === mode ? <Icon name="check" size={16} color={colors.violet300} /> : null}
+              </Touchable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <PostPicker visible={picking} onClose={() => setPicking(false)} onPick={(post) => { setReviewTarget(post); setPicking(false); }} />
 
@@ -365,7 +416,7 @@ function Kally() {
                   <View style={styles.row}>
                     <Touchable style={{ flex: 1 }} onPress={() => void resume(item)}>
                       <AppText numberOfLines={1} color={item.id === conversationId ? colors.violet300 : colors.text}>{item.title}</AppText>
-                      <AppText variant="small" color={colors.faint}>{MODES.find((m) => m.mode === item.mode)?.label ?? "Conversa"} · {formatDateShort(item.updatedAt)}</AppText>
+                      <AppText variant="small" color={colors.faint}>{formatDateShort(item.updatedAt)}</AppText>
                     </Touchable>
                     <IconButton name="trash" label="Apagar conversa" color={colors.muted} onPress={() => remove(item)} />
                   </View>
@@ -414,17 +465,21 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
   );
 }
 
-function Bubble({ item, mode, pending }: { item: Message; mode: KallyMode; pending: boolean }) {
+/** Memo: durante o streaming só a última bolha muda; as outras não são redesenhadas. */
+const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending: boolean }) {
   const isUser = item.role === "user";
   const { before, draft, after } = isUser ? { before: item.content, draft: null, after: "" } : extractDraft(item.content);
   const internal = item.sources?.filter((s) => s.kind !== "web") ?? [];
   const external = item.sources?.filter((s) => s.kind === "web") ?? [];
   return (
-    <View style={[styles.bubble, isUser ? styles.user : styles.assistant]}>
-      <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>{isUser ? "Você" : "Kally"}</AppText>
-      {item.attachmentName ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
+    <Animated.View entering={FadeInDown.duration(220)} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
+      <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>
+        {isUser ? "Você" : item.mode && item.mode !== "chat" ? `Kally · ${modeLabel(item.mode) ?? item.mode}` : "Kally"}
+      </AppText>
+      {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
+      {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
       {!item.content ? (
-        <AppText variant="small" color={colors.muted}>{mode === "revisar" ? "Revisando…" : "Pensando…"}</AppText>
+        <View style={styles.typing}><ActivityIndicator size="small" color={colors.violet300} /><AppText variant="small" color={colors.muted}>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</AppText></View>
       ) : isUser ? (
         <AppText>{item.content}</AppText>
       ) : (
@@ -459,9 +514,9 @@ function Bubble({ item, mode, pending }: { item: Message; mode: KallyMode; pendi
           ))}
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
-}
+});
 
 /** Rascunho pronto: a Kally cria o pensamento (rascunho), ou leva ao editor. Imagens só com aprovação. */
 function DraftCard({ draft, pending }: { draft: { title: string; content: string; categories: string[] }; pending: boolean }) {
@@ -640,7 +695,7 @@ const styles = StyleSheet.create({
   sources: { marginTop: space.sm, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, gap: space.xs },
   link: { flexDirection: "row", alignItems: "center", gap: space.xs },
   note: { paddingHorizontal: space.lg },
-  attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
+  attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, marginTop: space.xs, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
   tools: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.line },
   toolOn: { borderColor: colors.violet600, backgroundColor: colors.violet950 },
@@ -650,6 +705,13 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.line },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  attachThumb: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface },
+  attachIcon: { width: 44, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
+  bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.surface },
+  typing: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  reviewBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
+  modeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
+  modeRowOn: { backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   row2: { flexDirection: "row", alignItems: "center", gap: space.sm, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
   thumb: { width: "31%", aspectRatio: 1, borderRadius: radius.sm, overflow: "hidden", backgroundColor: colors.surface },
