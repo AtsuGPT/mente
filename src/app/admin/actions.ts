@@ -6,7 +6,10 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createCategory, deleteCategory, updateCategory } from "@/server/categories";
 import { createPost, deletePost, updatePost } from "@/server/posts";
 import { setProfileImage } from "@/server/site-settings";
-import { parseCategoryForm, parsePostForm, type ActionState } from "@/server/validation";
+import { detectImageMime } from "@/lib/image-mime";
+import { parseCategoryForm, parsePostForm, postSchema, type ActionState } from "@/server/validation";
+import { slugify } from "@/lib/slug";
+import { z } from "zod";
 
 /** Tudo que é público depende de posts e categorias; invalida o conjunto. */
 function revalidateEverything() {
@@ -14,17 +17,6 @@ function revalidateEverything() {
 }
 
 const INVALID = "Revise os campos destacados.";
-
-function detectImageMime(bytes: Buffer): string | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
-  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
-    return "image/png";
-  }
-  if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") {
-    return "image/webp";
-  }
-  return null;
-}
 
 export async function saveProfileImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
@@ -87,6 +79,55 @@ export async function deletePostAction(id: string) {
   await deletePost(id);
   revalidateEverything();
   redirect("/admin?excluido=1");
+}
+
+export type ChatPublishResult = ActionState & {
+  id?: string;
+  slug?: string;
+  status?: "publish" | "save";
+};
+
+/**
+ * Publicação a partir do chat da Kally. Usa a mesma validação (postSchema),
+ * o mesmo serviço (createPost) e a mesma autorização do editor administrativo.
+ */
+export async function publishChatDraftAction(input: {
+  title: string;
+  content: string;
+  categoryIds: string[];
+  private: boolean;
+  intent: "publish" | "save";
+}): Promise<ChatPublishResult> {
+  await requireAdmin();
+  const base = slugify(String(input.title ?? "")) || "pensamento";
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const parsed = postSchema.safeParse({
+      title: String(input.title ?? ""),
+      slug: attempt === 0 ? base : `${base.slice(0, 110)}-${attempt + 1}`,
+      content: String(input.content ?? ""),
+      private: Boolean(input.private),
+      categoryIds: Array.isArray(input.categoryIds) ? input.categoryIds.map(String).slice(0, 50) : [],
+      publishedAt: null,
+      intent: input.intent === "publish" ? "publish" : "save",
+    });
+    if (!parsed.success) {
+      return { ok: false, message: INVALID, fieldErrors: z.flattenError(parsed.error).fieldErrors };
+    }
+    const result = await createPost(parsed.data);
+    if (result.ok) {
+      revalidateEverything();
+      return {
+        ok: true,
+        id: result.data.id,
+        slug: parsed.data.slug,
+        status: parsed.data.intent === "publish" ? "publish" : "save",
+        message: parsed.data.intent === "publish" ? "Pensamento publicado." : "Rascunho salvo no painel.",
+      };
+    }
+    // Endereço já usado: tenta o próximo sufixo; outros erros encerram.
+    if (!result.fieldErrors?.slug) return { ok: false, message: result.message ?? INVALID, fieldErrors: result.fieldErrors };
+  }
+  return { ok: false, message: "Não consegui gerar um endereço único para este título. Ajuste o título e tente de novo." };
 }
 
 /* ------------------------------- Categorias ----------------------------- */
