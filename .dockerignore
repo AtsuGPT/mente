@@ -1,0 +1,36 @@
+# O que NÃO entra no contexto de build do Docker.
+
+# Segredos: as variáveis são injetadas só ao rodar o container.
+.env
+.env.*
+
+# Gerados no Windows; a imagem gera os seus próprios, para Linux.
+node_modules
+.next
+src/generated
+next-env.d.ts
+*.tsbuildinfo
+
+# Dados: entram por volume, nunca dentro da imagem.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+public/uploads
+uploads
+
+# Serviço Whisper (Python): roda fora deste container.
+.venv
+src/app/api/whisper
+**/__pycache__
+
+# App mobile (Expo): projeto independente, não faz parte da imagem do backend.
+mobile
+
+# Não necessários para o build.
+.git
+.agents
+docs
+skills-lock.json
+npm-debug.log*
+.DS_Store
