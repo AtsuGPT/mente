@@ -67,8 +67,12 @@ export async function POST(request: Request, context: EnvContext) {
 
   const body = await readJson(request, 80_000);
   if (body instanceof Response) return body;
-  const message = text(body.message, MAX_MESSAGE_LENGTH + 1);
-  if (!message || message.length > MAX_MESSAGE_LENGTH) return error(`Escreva uma mensagem de até ${MAX_MESSAGE_LENGTH} caracteres.`, 400);
+  const raw = text(body.message, MAX_MESSAGE_LENGTH + 1);
+  if (!raw || raw.length > MAX_MESSAGE_LENGTH) return error(`Escreva uma mensagem de até ${MAX_MESSAGE_LENGTH} caracteres.`, 400);
+  // "/post ideia": o mesmo comando do chat do site. Vai direto para Idealizar e monta a prévia.
+  const postCommand = /^\/post(?:\s|$)/i.test(raw);
+  if (postCommand && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
+  const message = postCommand ? `${raw.replace(/^\/post\s*/i, "").trim() || "minha ideia desta conversa"} — crie o post agora` : raw;
 
   let conversation = typeof body.conversationId === "string" ? await getConversation(access.environment.id, userId, body.conversationId) : null;
   if (typeof body.conversationId === "string" && !conversation) return error("Conversa não encontrada.", 404);
@@ -77,7 +81,7 @@ export async function POST(request: Request, context: EnvContext) {
   if (requested === "ideia" && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
   const intent = detectIntent(message);
   const hasReviewPayload = !!body.review && typeof body.review === "object";
-  let mode: Exclude<KallyMode, "auto"> = requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
+  let mode: Exclude<KallyMode, "auto"> = postCommand ? "ideia" : requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
   const casual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   if (!allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);

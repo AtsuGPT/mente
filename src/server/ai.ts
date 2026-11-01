@@ -52,7 +52,13 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
           messages,
           keep_alive: process.env.AI_KEEP_ALIVE || "30m",
           ...(options.json ? { format: "json" } : {}),
-          options: { temperature: options.temperature, num_predict: options.maxTokens },
+          options: {
+            temperature: options.temperature,
+            num_predict: options.maxTokens,
+            // Mesmo contexto da Kally do site (OLLAMA_NUM_CTX): com valores diferentes o Ollama
+            // recarrega o modelo a cada troca entre as duas. Só para o modelo de conversa.
+            ...(model === config().model ? { num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 8_192 } : {}),
+          },
         }
       : {
           model,

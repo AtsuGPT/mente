@@ -32,6 +32,8 @@ export function extractDraft(text: string): { before: string; draft: { title: st
   const cats = body.match(/^categorias?:\s*(.+)\n?/i);
   const categories = cats ? cats[1].split(",").map((c) => c.trim().replace(/\.$/, "")).filter(Boolean) : [];
   if (cats) body = body.slice(cats[0].length).trim();
+  // O modelo às vezes copia a linha do formato pedido ("Corpo em Markdown").
+  body = body.replace(/^corpo em markdown:?\s*\n+/i, "").trim();
   const draft = { title, content: body, categories };
   return { before: text.slice(0, match.index).trim(), draft: draft.content || draft.title ? draft : null, after: text.slice(match.index + match[0].length).trim() };
 }
