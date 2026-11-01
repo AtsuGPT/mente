@@ -14,7 +14,9 @@ import type {
   Member,
   MemberRole,
   PostCard,
+  KallyAttachment,
   KallyConversation,
+  KallyImage,
   KallyMessage,
   PostFull,
   User,
@@ -168,6 +170,12 @@ export function envApi(environmentId: string) {
       request<KallyConversation & { messages: KallyMessage[] }>(`${base}/kally/${encodeURIComponent(id)}`),
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),
     transcribe: (form: FormData) => request<{ text: string }>(`${base}/kally/transcribe`, { method: "POST", form, timeoutMs: 6 * 60_000 }),
+    kallyAttachment: (form: FormData) => request<KallyAttachment>(`${base}/kally/anexo`, { method: "POST", form, timeoutMs: 4 * 60_000 }),
+    /** A Kally cria o pensamento como rascunho no ambiente (a pessoa publica pelo editor). */
+    kallyCreateDraft: (input: { title: string; content: string; categories: string[] }) =>
+      request<{ id: string; slug: string }>(`${base}/kally/rascunho`, { method: "POST", json: input }),
+    kallyImages: (q: string) => request<{ images: KallyImage[] }>(`${base}/kally/imagens${query({ q })}`),
+    kallyImportImage: (image: KallyImage) => request<{ src: string; markdown: string }>(`${base}/kally/imagens`, { method: "POST", json: image, timeoutMs: 60_000 }),
 
     invites: () => request<{ invites: Invite[] }>(`${base}/invites`),
     createInvite: (input: { role: MemberRole; maxUses: number | null; expiresInDays: number | null }) =>

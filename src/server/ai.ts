@@ -11,10 +11,16 @@ import "server-only";
  *   AI_BASE_URL  endereço do provedor (sem barra no fim). Padrão: OLLAMA_BASE_URL ou o Ollama local.
  *   AI_MODEL     modelo. Padrão: OLLAMA_MODEL ou llama3.2:latest.
  *   AI_API_KEY   chave, se o provedor exigir. Nunca é enviada ao app.
+ *   AI_VISION_MODEL  modelo que lê imagens (Ollama). Padrão: gemma3:4b.
+ *   AI_EMBED_MODEL   modelo de embeddings da memória da Kally. Padrão: nomic-embed-text.
+ *   AI_KEEP_ALIVE    quanto tempo o Ollama mantém o modelo carregado (padrão 30m): sem isso,
+ *                    cada pergunta depois de 5 minutos parada esperava o modelo recarregar.
  */
 
-export type AiMessage = { role: "system" | "user" | "assistant"; content: string };
-export type AiOptions = { temperature?: number; maxTokens?: number; timeoutMs?: number };
+/** images: imagens em base64 (só para o modelo de visão do Ollama). */
+export type AiMessage = { role: "system" | "user" | "assistant"; content: string; images?: string[] };
+/** model troca o modelo só nesta chamada; json pede resposta em JSON válido. */
+export type AiOptions = { temperature?: number; maxTokens?: number; timeoutMs?: number; model?: string; json?: boolean };
 
 export class AiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -32,15 +38,30 @@ function config() {
 }
 
 async function request(messages: AiMessage[], options: AiOptions, stream: boolean) {
-  const { provider, baseUrl, model, apiKey } = config();
+  const { provider, baseUrl, apiKey } = config();
+  const model = options.model || config().model;
   if (!baseUrl) throw new AiError("A IA não está configurada no servidor (AI_BASE_URL).", 503);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
   const body =
     provider === "ollama"
-      ? { model, stream, messages, options: { temperature: options.temperature, num_predict: options.maxTokens } }
-      : { model, stream, messages, temperature: options.temperature, max_tokens: options.maxTokens };
+      ? {
+          model,
+          stream,
+          messages,
+          keep_alive: process.env.AI_KEEP_ALIVE || "30m",
+          ...(options.json ? { format: "json" } : {}),
+          options: { temperature: options.temperature, num_predict: options.maxTokens },
+        }
+      : {
+          model,
+          stream,
+          messages: messages.map(({ role, content }) => ({ role, content })),
+          temperature: options.temperature,
+          max_tokens: options.maxTokens,
+          ...(options.json ? { response_format: { type: "json_object" } } : {}),
+        };
   const url = provider === "ollama" ? `${baseUrl}/api/chat` : `${baseUrl}/v1/chat/completions`;
 
   let response: Response;
@@ -109,4 +130,27 @@ async function* readStream(response: Response, provider: "ollama" | "openai"): A
   }
   const rest = parse(buffer.trim());
   if (rest) yield rest;
+}
+
+export const visionModel = () => process.env.AI_VISION_MODEL || "gemma3:4b";
+
+/**
+ * Vetores de significado para a memória da Kally. Sempre pelo Ollama local ou pelo
+ * provedor configurado (/api/embed ou /v1/embeddings). Quem chama trata a falha e
+ * volta para a busca por palavras.
+ */
+export async function embed(texts: string[]): Promise<number[][]> {
+  if (!texts.length) return [];
+  const { provider, baseUrl, apiKey } = config();
+  const model = process.env.AI_EMBED_MODEL || "nomic-embed-text";
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const url = provider === "ollama" ? `${baseUrl}/api/embed` : `${baseUrl}/v1/embeddings`;
+  const body = provider === "ollama" ? { model, input: texts, keep_alive: process.env.AI_KEEP_ALIVE || "30m" } : { model, input: texts };
+  const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) throw new AiError("O modelo de embeddings não respondeu.", 502);
+  const data = (await response.json()) as { embeddings?: number[][]; data?: { embedding: number[] }[] };
+  const vectors = provider === "ollama" ? data.embeddings : data.data?.map((d) => d.embedding);
+  if (!vectors || vectors.length !== texts.length) throw new AiError("O modelo de embeddings respondeu em formato inesperado.", 502);
+  return vectors;
 }

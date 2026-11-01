@@ -12,3 +12,7 @@ public/uploads/
 /uploads/
 .DS_Store
 npm-debug.log*
+
+# App web exportado (mobile: npm run export:web)
+/public/app/
+__pycache__/

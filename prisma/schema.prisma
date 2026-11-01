@@ -72,6 +72,7 @@ model Environment {
   posts      Post[]     // fase-b
   categories Category[] // fase-b
   kallyConversations KallyConversation[]
+  kallyChunks        KallyChunk[]
 }
 
 model Membership {
@@ -215,4 +216,27 @@ model KallyMessage {
   conversation KallyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+/// Índice de significado da Kally (embeddings), por ambiente. Refeito sozinho quando o
+/// conteúdo muda (hash) e limpo quando some. Conversas só entram para a própria dona.
+model KallyChunk {
+  id            String   @id @default(cuid())
+  environmentId String
+  /// "post" ou "conversa".
+  kind          String
+  refId         String
+  /// Dona da conversa (nulo para posts): a busca só devolve conversas da própria pessoa.
+  userId        String?
+  chunk         Int
+  hash          String
+  text          String
+  /// Vetor em JSON.
+  vector        String
+  updatedAt     DateTime @updatedAt
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, refId, chunk])
+  @@index([environmentId, kind])
 }

@@ -1,5 +1,23 @@
 import { AiError, streamChat } from "@/server/ai";
-import { addMessage, buildPrompt, createConversation, findRelevantPosts, getConversation, listConversations, MAX_MESSAGE_LENGTH, type KallyMode } from "@/server/kally";
+import { canEditPost } from "@/server/environments";
+import { listCategories } from "@/server/categories";
+import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
+import {
+  addMessage,
+  buildPrompt,
+  createConversation,
+  findRelevantPosts,
+  getConversation,
+  KALLY_MODES,
+  listConversations,
+  MAX_MESSAGE_LENGTH,
+  needsOutsideHelp,
+  reviewText,
+  toSources,
+  type Attachment,
+  type KallyMode,
+} from "@/server/kally";
+import { searchWeb, type WebResult } from "@/server/web-search";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -7,7 +25,7 @@ export const dynamic = "force-dynamic";
 
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
-const MAX_PER_WINDOW = 30;
+const MAX_PER_WINDOW = 40;
 const usage = new Map<string, { count: number; resetAt: number }>();
 function allowed(userId: string) {
   const now = Date.now();
@@ -20,7 +38,7 @@ function allowed(userId: string) {
   return entry.count <= MAX_PER_WINDOW;
 }
 
-/** Conversas da pessoa neste ambiente (as de outros ambientes e de outras pessoas não aparecem). */
+/** Conversas SALVAS da pessoa neste ambiente (as temporárias não existem no servidor). */
 export async function GET(_request: Request, context: EnvContext) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;
@@ -28,10 +46,17 @@ export async function GET(_request: Request, context: EnvContext) {
   return json({ conversations: await listConversations(access.environment.id, access.userId) });
 }
 
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
 /**
- * Envia uma mensagem à Kally: { message, conversationId?, mode? }.
- * Responde em Server-Sent Events: { conversationId } → { sources } → { text }... → { done }.
- * O histórico vem do banco, não do app, e as duas mensagens ficam salvas na conversa.
+ * Mensagem à Kally:
+ *   { message, mode?, conversationId?, save?, history?, web?, attachment?, review? }
+ * - Conversa nova é TEMPORÁRIA por padrão: nada é gravado e o histórico vem do app
+ *   (history). Com save: true ela é criada e o histórico passa a vir do banco.
+ * - web: a pessoa permite pesquisar na internet quando o ambiente não bastar.
+ * - review: { postId | slug | text, kind: "textual" | "intelectual" } (modo revisar).
+ * Responde em Server-Sent Events: { conversationId?, temporary, mode } → { sources } →
+ * { review }? → { text }... → { done }.
  */
 export async function POST(request: Request, context: EnvContext) {
   const access = await envAccess(context);
@@ -39,51 +64,123 @@ export async function POST(request: Request, context: EnvContext) {
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
   const userId = access.userId;
 
-  const body = await readJson(request, 24_000);
+  const body = await readJson(request, 80_000);
   if (body instanceof Response) return body;
-  const message = typeof body.message === "string" ? body.message.trim() : "";
+  const message = text(body.message, MAX_MESSAGE_LENGTH + 1);
   if (!message || message.length > MAX_MESSAGE_LENGTH) return error(`Escreva uma mensagem de até ${MAX_MESSAGE_LENGTH} caracteres.`, 400);
-  const mode: KallyMode = body.mode === "ideia" ? "ideia" : "chat";
 
   let conversation = typeof body.conversationId === "string" ? await getConversation(access.environment.id, userId, body.conversationId) : null;
   if (typeof body.conversationId === "string" && !conversation) return error("Conversa não encontrada.", 404);
-  const effectiveMode = (conversation?.mode as KallyMode | undefined) ?? mode;
-  if (effectiveMode === "ideia" && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
+  const requested = KALLY_MODES.includes(body.mode as KallyMode) ? (body.mode as KallyMode) : "chat";
+  const mode = (conversation?.mode as KallyMode | undefined) ?? requested;
+  if (mode === "ideia" && !access.permissions.publish) return error("Você não pode publicar neste ambiente.", 403);
   if (!allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
 
-  const history = conversation?.messages ?? [];
-  // Busca pelo que a pessoa disse agora e, se for curto, também pela mensagem anterior dela.
-  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const posts = await findRelevantPosts(access.scope, message.length < 40 ? `${lastUser} ${message}` : message, effectiveMode === "ideia" ? 3 : 5);
-  const sources = posts.map(({ title, slug }) => ({ title, slug }));
-  const prompt = buildPrompt(effectiveMode, access.environment.name, history, message, posts);
+  // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado).
+  const history = conversation
+    ? conversation.messages
+    : (Array.isArray(body.history) ? body.history : [])
+        .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && typeof (m as { content?: unknown }).content === "string")
+        .slice(-10)
+        .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
 
-  if (!conversation) {
-    const created = await createConversation(access.environment.id, userId, effectiveMode, message);
+  const attachment: Attachment | null =
+    body.attachment && typeof body.attachment === "object"
+      ? (() => {
+          const a = body.attachment as Record<string, unknown>;
+          const content = text(a.text, 20_000);
+          return content ? { name: text(a.name, 120) || "anexo", kind: a.kind === "imagem" ? "imagem" : "pdf", text: content } : null;
+        })()
+      : null;
+
+  // Texto para revisar: só o que esta pessoa pode ler (rascunho próprio/editável, publicado visível ou colado).
+  let review: { kind: "textual" | "intelectual"; text: string; postId: string | null; slug: string | null } | null = null;
+  if (mode === "revisar") {
+    const r = (body.review && typeof body.review === "object" ? body.review : {}) as Record<string, unknown>;
+    const kind = r.kind === "textual" ? "textual" : "intelectual";
+    if (typeof r.postId === "string") {
+      const post = await getAdminPost(r.postId, access.environment.id);
+      if (!post || !canEditPost(access, post)) return error("Pensamento não encontrado.", 404);
+      review = { kind, text: `# ${post.title}\n\n${post.content}`, postId: post.id, slug: post.slug };
+    } else if (typeof r.slug === "string") {
+      const post = await getPublishedPostBySlug(r.slug, access.scope);
+      if (!post) return error("Pensamento não encontrado.", 404);
+      review = { kind, text: `# ${post.title}\n\n${post.content}`, postId: null, slug: post.slug };
+    } else if (text(r.text, 20_000)) {
+      review = { kind, text: text(r.text, 20_000), postId: null, slug: null };
+    } else if (!history.length) {
+      return error("Escolha um pensamento ou cole o texto para revisar.", 400);
+    }
+  }
+
+  // Memória do ambiente: pela mensagem (curta? junta com a anterior), pelo texto revisado ou pelo anexo.
+  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+  const query = review ? review.text.slice(0, 800) : attachment ? `${message} ${attachment.text.slice(0, 600)}` : message.length < 40 ? `${lastUser} ${message}` : message;
+  // Conversas anteriores só entram em Conversar e Aprender: na revisão e na ideia elas se misturariam ao texto da pessoa.
+  const withConversations = mode === "chat" || mode === "aprender";
+  const posts = (
+    await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
+      userId: withConversations ? userId : null,
+      draftAuthorId: userId,
+      excludeConversationId: conversation?.id,
+      allDrafts: access.permissions.manageContent,
+    })
+  )
+    .filter((p) => !review?.slug || p.slug !== review.slug)
+    // Em conversa solta, só material claramente relacionado (senão o modelo puxa assunto do nada).
+    .filter((p) => mode !== "chat" || p.score >= 0.25);
+
+  // Internet: só com permissão da pessoa, e só quando o ambiente não basta (ou para aprender/aprofundar).
+  let web: WebResult[] = [];
+  const wantsDeeper = /pesquis|aprofund|fonte|refer[eê]ncia|internet|link/i.test(message);
+  if (body.web === true && (needsOutsideHelp(posts) || mode === "aprender" || wantsDeeper)) {
+    const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
+    web = await searchWeb(webQuery, 4);
+  }
+  const sources = toSources(posts, web);
+  const categories = mode === "ideia" ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
+
+  if (!conversation && body.save === true) {
+    const created = await createConversation(access.environment.id, userId, mode, review?.text.split("\n")[0].replace(/^#\s*/, "Revisão: ") || message);
     conversation = { ...created, messages: [] };
   }
-  const conversationId = conversation.id;
-  await addMessage(conversationId, "user", message);
+  const conversationId = conversation?.id ?? null;
+  if (conversationId) await addMessage(conversationId, "user", message);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      send({ conversationId, mode: effectiveMode });
+      send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0 });
       send({ sources });
       let answer = "";
       try {
-        for await (const text of streamChat(prompt, { temperature: effectiveMode === "ideia" ? 0.6 : 0.4, maxTokens: effectiveMode === "ideia" ? 1_600 : 900 })) {
-          answer += text;
-          send({ text });
+        if (review?.kind === "textual") {
+          const result = await reviewText(review.text, access.environment.name);
+          send({ review: { ...result, postId: review.postId, slug: review.slug } });
+          answer = [
+            result.resumo || "Revisei o texto.",
+            result.sugestoes.length
+              ? `\n\n${result.sugestoes.length} sugestões: marque as que quiser aplicar e leve ao editor. Nada muda no original sem você salvar.${result.truncated ? " (Revisei só o começo de um texto longo.)" : ""}`
+              : "\n\nNão encontrei mudanças importantes a sugerir.",
+          ].join("");
+          send({ text: answer });
+        } else {
+          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null });
+          // A revisão intelectual usa o modelo de revisão (KALLY_REVIEW_MODEL), se configurado.
+          const model = mode === "revisar" ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: mode === "chat" ? 800 : 1_400, model })) {
+            answer += chunk;
+            send({ text: chunk });
+          }
         }
         send({ done: true });
       } catch (cause) {
         console.error("Kally:", cause instanceof Error ? cause.message : cause);
         send({ error: cause instanceof AiError ? cause.message : "A resposta foi interrompida. Tente novamente." });
       } finally {
-        // O que chegou fica salvo, mesmo se a resposta parou no meio.
-        if (answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
+        // Só conversas salvas guardam a resposta (mesmo parcial).
+        if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
         controller.close();
       }
     },

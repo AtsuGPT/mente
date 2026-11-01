@@ -10,6 +10,7 @@
     "expo": "~58.0.22",
     "expo-audio": "~58.0.11",
     "expo-constants": "~58.0.14",
+    "expo-document-picker": "~58.0.4",
     "expo-file-system": "~58.0.13",
     "expo-font": "~58.0.11",
     "expo-haptics": "~58.0.7",
@@ -45,7 +46,8 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
-    "web:setup": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync(require.resolve('canvaskit-wasm/bin/full/canvaskit.wasm'),'public/canvaskit.wasm')\""
+    "web:setup": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync(require.resolve('canvaskit-wasm/bin/full/canvaskit.wasm'),'public/canvaskit.wasm')\"",
+    "export:web": "npm run web:setup && node scripts/export-web.js"
   },
   "private": true
 }

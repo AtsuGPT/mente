@@ -7,7 +7,7 @@ import { API_URL } from "./config";
  * que respondem em Server-Sent Events: "data: {...}\n\n". Não altera a IA: só consome.
  */
 
-export type StreamEvent = { text?: string; error?: string; done?: boolean; status?: string; conversationId?: string; mode?: string; sources?: { title: string; slug: string; href?: string }[] };
+export type StreamEvent = { text?: string; error?: string; done?: boolean; status?: string; conversationId?: string | null; mode?: string; temporary?: boolean; searched?: boolean; review?: unknown; sources?: { title: string; slug: string; href?: string; kind?: string; url?: string }[] };
 
 export async function streamEvents(path: string, body: unknown, onEvent: (event: StreamEvent) => void, signal?: AbortSignal) {
   let response;

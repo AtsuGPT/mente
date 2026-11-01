@@ -59,6 +59,8 @@ export default function EditorScreen() {
   const isNew = id === "novo";
   // Rascunho vindo da Kally (só ao abrir um novo pensamento).
   const [handoff] = useState(() => (isNew ? takeDraft() : null));
+  // Revisão da Kally aplicada a um pensamento existente: substitui o texto depois de carregar.
+  const [revised] = useState(() => (isNew ? null : takeDraft(id)));
   const navigation = useNavigation();
   const contentRef = useRef<TextInputInstance>(null);
 
@@ -95,7 +97,8 @@ export default function EditorScreen() {
         setTitle(p.title);
         setSlug(p.slug);
         setOriginalSlug(p.slug);
-        setContent(p.content);
+        setContent(revised?.content ?? p.content);
+        if (revised) setDirty(true);
         setIsPrivate(p.private);
         setSelected(p.categories.map((c) => c.id));
         setPublishedLocal(p.publishedAtLocal.replace("T", " "));

@@ -131,7 +131,12 @@ export type MapEdge = { source: string; target: string; kind: "pasta" | "imagem"
 
 export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[]; environment: { id: string; name: string; color: string; icon: string } };
 
-export type KallyMode = "chat" | "ideia";
-export type KallySource = { title: string; slug: string };
+export type KallyMode = "chat" | "ideia" | "revisar" | "aprender";
+/** kind: post/projeto/rascunho/conversa (do ambiente) ou web (externa, com url). */
+export type KallySource = { title: string; slug: string; kind?: "post" | "projeto" | "rascunho" | "conversa" | "web"; url?: string };
+export type KallySuggestion = { tipo: string; trecho: string; sugestao: string; motivo: string };
+export type KallyReview = { resumo: string; sugestoes: KallySuggestion[]; truncated: boolean; postId: string | null; slug: string | null };
+export type KallyAttachment = { name: string; kind: "pdf" | "imagem"; text: string; pages?: number; truncated?: boolean };
+export type KallyImage = { title: string; url: string; thumb: string; author: string; license: string; page: string };
 export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string };
 export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };
