@@ -41,6 +41,42 @@ export async function verifySessionToken(
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Token do aplicativo mobile: enviado em "Authorization: Bearer".     */
+/* Nunca é lido de cookie, então não é enviado sozinho pelo navegador. */
+/* ------------------------------------------------------------------ */
+
+export const MOBILE_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
+
+export type MobilePayload = { role: Role; email?: string };
+
+export async function signMobileToken(payload: MobilePayload, secret: string): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject("mobile")
+    .setIssuedAt()
+    .setExpirationTime(`${MOBILE_TOKEN_MAX_AGE_SECONDS}s`)
+    .sign(key(secret));
+}
+
+export async function verifyMobileToken(
+  token: string | undefined,
+  secret: string | undefined,
+): Promise<MobilePayload | null> {
+  if (!token || !secret || secret.length < 32) return null;
+  try {
+    const { payload } = await jwtVerify(token, key(secret), {
+      algorithms: ["HS256"],
+      subject: "mobile",
+    });
+    const role = payload.role;
+    if (role !== ROLES.GUEST && role !== ROLES.INTIMATE && role !== ROLES.ADMIN) return null;
+    return typeof payload.email === "string" ? { role, email: payload.email } : { role };
+  } catch {
+    return null;
+  }
+}
+
 export async function signAccessToken(role: Role, secret: string): Promise<string> {
   return new SignJWT({ role })
     .setProtectedHeader({ alg: "HS256" })
