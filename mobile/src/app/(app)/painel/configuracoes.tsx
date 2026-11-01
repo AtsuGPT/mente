@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { ApiError } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { pickImage, uploadablePart } from "@/lib/upload";
-import { Avatar } from "@/components/post-card";
-import { AppText, Button, Card } from "@/components/ui/primitives";
+import { EnvironmentForm } from "@/components/environment-form";
+import { EnvironmentGlyph } from "@/components/environment-glyph";
+import { goToEnvironments } from "@/components/environment-header";
+import { AppText, Button, Card, SectionLabel } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
 
-/** Mesma tela de /admin/configuracoes: foto de perfil (JPG, PNG ou WebP, até 700 KB). */
-export default function SettingsScreen() {
-  const { session, refreshSession } = useAuth();
-  const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
+/** Configurações do ambiente (só o proprietário; o servidor confere). */
+export default function EnvironmentSettingsScreen() {
+  const { api, environment, session, refresh } = useCurrentEnvironment();
+  const [busy, setBusy] = useState<"upload" | "remove" | "archive" | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const isOriginal = environment.id === "mente";
 
   async function upload() {
     setMessage(null);
@@ -21,10 +24,10 @@ export default function SettingsScreen() {
       setBusy("upload");
       const { part, name } = await uploadablePart(asset);
       const form = new FormData();
-      form.append("profileImage", part, name);
-      await api.admin.setProfileImage(form);
-      await refreshSession(); // recarrega a sessão com a foto nova
-      setMessage({ ok: true, text: "Foto de perfil atualizada." });
+      form.append("image", part, name);
+      await api.setImage(form);
+      await refresh();
+      setMessage({ ok: true, text: "Foto atualizada." });
     } catch (cause) {
       setMessage({ ok: false, text: cause instanceof Error ? cause.message : "Não foi possível enviar a foto." });
     } finally {
@@ -32,12 +35,12 @@ export default function SettingsScreen() {
     }
   }
 
-  async function remove() {
+  async function removeImage() {
     setBusy("remove");
     setMessage(null);
     try {
-      await api.admin.removeProfileImage();
-      await refreshSession();
+      await api.removeImage();
+      await refresh();
       setMessage({ ok: true, text: "Foto removida." });
     } catch (cause) {
       setMessage({ ok: false, text: cause instanceof Error ? cause.message : "Não foi possível remover." });
@@ -46,19 +49,66 @@ export default function SettingsScreen() {
     }
   }
 
+  function archive() {
+    Alert.alert(`Arquivar ${environment.name}?`, "Ele some da lista dos participantes. Nada é apagado e você pode reativá-lo depois.", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Arquivar",
+        style: "destructive",
+        onPress: async () => {
+          setBusy("archive");
+          try {
+            await api.setArchived(true);
+            goToEnvironments();
+          } catch (cause) {
+            setMessage({ ok: false, text: cause instanceof Error ? cause.message : "Não foi possível arquivar." });
+            setBusy(null);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
-      <Card style={{ alignItems: "center", gap: space.md }}>
-        <Avatar src={session?.profileImage} size={96} />
-        <AppText variant="small" color={colors.muted} style={{ textAlign: "center" }}>
-          Aparece ao lado dos pensamentos no site e no app. JPG, PNG ou WebP, até 700 KB.
-        </AppText>
-      </Card>
-      {message ? <AppText variant="small" color={message.ok ? colors.success : colors.danger}>{message.text}</AppText> : null}
-      <View style={{ gap: space.sm }}>
-        <Button label="Escolher foto" icon="image" loading={busy === "upload"} disabled={!!busy} onPress={() => void upload()} />
-        {session?.profileImage ? <Button label="Remover foto" variant="danger" loading={busy === "remove"} disabled={!!busy} onPress={() => void remove()} /> : null}
-      </View>
-    </ScrollView>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.xl, paddingBottom: space.xxxl }} keyboardShouldPersistTaps="handled">
+        <EnvironmentForm
+          initial={environment}
+          submitLabel="Salvar configurações"
+          onSubmit={async (input) => {
+            try {
+              await api.updateSettings(input);
+              await refresh();
+              setMessage({ ok: true, text: "Configurações salvas." });
+            } catch (cause) {
+              if (cause instanceof ApiError && cause.fieldErrors) return cause.fieldErrors;
+              setMessage({ ok: false, text: cause instanceof Error ? cause.message : "Não foi possível salvar." });
+            }
+          }}
+        />
+
+        <View style={{ gap: space.md }}>
+          <SectionLabel>Foto</SectionLabel>
+          <Card style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+            <EnvironmentGlyph color={environment.color} icon={environment.icon} image={session.image} size={64} />
+            <AppText variant="small" color={colors.muted} style={{ flex: 1 }}>
+              {isOriginal ? "No Minha Mente, é a mesma foto de perfil do site." : "Opcional: aparece no lugar do ícone."} JPG, PNG ou WebP, até 700 KB.
+            </AppText>
+          </Card>
+          <Button label="Escolher foto" icon="image" variant="secondary" loading={busy === "upload"} disabled={!!busy} onPress={() => void upload()} />
+          {session.image ? <Button label="Remover foto" variant="ghost" loading={busy === "remove"} disabled={!!busy} onPress={() => void removeImage()} /> : null}
+        </View>
+
+        {message ? <AppText variant="small" color={message.ok ? colors.success : colors.danger}>{message.text}</AppText> : null}
+
+        {!isOriginal ? (
+          <View style={{ gap: space.md }}>
+            <SectionLabel>Arquivar</SectionLabel>
+            <AppText variant="small" color={colors.muted}>Arquivar esconde o ambiente de todos, menos de você. Nenhum pensamento é apagado.</AppText>
+            <Button label="Arquivar ambiente" variant="danger" loading={busy === "archive"} disabled={!!busy} onPress={archive} />
+          </View>
+        ) : null}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

@@ -4,17 +4,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import Animated, { FadeIn, SlideInDown, SlideOutDown } from "react-native-reanimated";
-import { api } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { absoluteUrl } from "@/lib/config";
 import { formatDateShort, formatNumber } from "@/lib/format";
 import { layoutGraph, type LaidOutNode, type Layout } from "@/lib/graph-layout";
 import type { KnowledgeMapHandle } from "@/components/knowledge-map";
 import { MapCanvas } from "@/components/map-canvas";
+import { EnvironmentHeader } from "@/components/environment-header";
 import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
 
 const kindInfo: Record<LaidOutNode["kind"], { label: string; icon: IconName }> = {
+  ambiente: { label: "Ambiente", icon: "brain" },
   pasta: { label: "Pasta", icon: "folder" },
   pensamento: { label: "Pensamento", icon: "doc" },
   imagem: { label: "Imagem", icon: "image" },
@@ -24,6 +26,7 @@ const PANEL_HEIGHT = 250;
 
 /** Área de arquivos como mapa de conexões: pastas, pensamentos e imagens reais. */
 export default function MapScreen() {
+  const { api } = useCurrentEnvironment();
   const insets = useSafeAreaInsets();
   const [layout, setLayout] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export default function MapScreen() {
   }, [selected, layout]);
   const folders = useMemo(() => layout?.nodes.filter((n) => n.kind === "pasta") ?? [], [layout]);
   const counts = useMemo(() => {
-    const c = { pasta: 0, pensamento: 0, imagem: 0 };
+    const c = { ambiente: 0, pasta: 0, pensamento: 0, imagem: 0 };
     layout?.nodes.forEach((n) => c[n.kind]++);
     return c;
   }, [layout]);
@@ -73,6 +76,7 @@ export default function MapScreen() {
   function open(node: LaidOutNode) {
     if (node.kind === "pensamento") router.push({ pathname: "/post/[slug]", params: { slug: node.slug } });
     else if (node.kind === "pasta") router.push({ pathname: "/categoria/[slug]", params: { slug: node.slug } });
+    else if (node.kind === "ambiente") router.push("/sobre");
     else setViewing(absoluteUrl(node.src));
   }
 
@@ -85,13 +89,10 @@ export default function MapScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={[styles.top, { paddingTop: insets.top + space.md }]}>
         <View style={styles.titleRow}>
-          <AppText variant="label" color={colors.violet300}>Área de arquivos</AppText>
-          <AppText variant="title" style={{ marginTop: 2 }}>Mapa de conexões</AppText>
-          {layout ? (
-            <AppText variant="small" color={colors.faint} style={{ marginTop: 2 }}>
-              {counts.pasta} pastas · {counts.pensamento} pensamentos · {counts.imagem} imagens
-            </AppText>
-          ) : null}
+          <EnvironmentHeader
+            title="Mapa de conexões"
+            subtitle={layout ? `${counts.pasta} pastas · ${counts.pensamento} pensamentos · ${counts.imagem} imagens` : undefined}
+          />
         </View>
         {folders.length ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg }}>
@@ -171,7 +172,7 @@ export default function MapScreen() {
               <AppText variant="small" color={colors.faint}>Rascunhos abrem no editor.</AppText>
             ) : null}
             <Button
-              label={selected.kind === "pensamento" ? (selected.draft ? "Abrir no editor" : "Ler pensamento") : selected.kind === "pasta" ? "Abrir pasta" : "Ver imagem"}
+              label={selected.kind === "pensamento" ? (selected.draft ? "Abrir no editor" : "Ler pensamento") : selected.kind === "pasta" ? "Abrir pasta" : selected.kind === "ambiente" ? "Sobre o ambiente" : "Ver imagem"}
               compact
               onPress={() =>
                 selected.kind === "pensamento" && selected.draft

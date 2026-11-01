@@ -1,9 +1,70 @@
 /**
  * Formatos das respostas de /api/mobile (datas chegam como texto ISO).
- * Espelham os tipos de src/server/posts.ts e src/server/map.ts do backend.
+ * Espelham src/server/{posts,map,environments}.ts do backend.
  */
 
-export type Role = "CONVIDADO" | "INTIMO" | "ADMIN";
+export type MemberRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export type AccessRole = MemberRole | "GUEST";
+
+export type User = { id: string; username: string; displayName: string; legacyKind?: string | null };
+
+export type Permissions = {
+  view: boolean;
+  seePrivate: boolean;
+  publish: boolean;
+  editOwn: boolean;
+  manageContent: boolean;
+  manageMembers: boolean;
+  manageSettings: boolean;
+};
+
+export type EnvironmentInfo = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+  guestAccess: boolean;
+  ownerId: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+};
+
+export type EnvironmentCard = EnvironmentInfo & {
+  role: AccessRole;
+  permissions: Permissions;
+  stats: { posts: number; members: number };
+  image: string | null;
+};
+
+export type EnvironmentSession = { environment: EnvironmentInfo; role: AccessRole; permissions: Permissions; image: string | null };
+
+export type InvitePreview = { ok: true; code: string; role: MemberRole; environment: { name: string; description: string; color: string; icon: string } };
+
+export type Invite = {
+  id: string;
+  code: string;
+  link: string;
+  role: MemberRole;
+  maxUses: number | null;
+  uses: number;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
+export type Member = {
+  userId: string;
+  role: MemberRole;
+  canPublish: boolean | null;
+  canEditOwn: boolean | null;
+  canManageContent: boolean | null;
+  canManageMembers: boolean | null;
+  createdAt: string;
+  user: { username: string; displayName: string };
+  permissions: Permissions;
+};
 
 export type Category = {
   id: string;
@@ -29,13 +90,6 @@ export type PostFull = PostCard & { content: string; updatedAt: string };
 
 export type FeedPage = { posts: PostCard[]; total: number; page: number; pageCount: number; pageSize: number };
 
-export type SessionInfo = {
-  role: Role;
-  isAdmin: boolean;
-  site: { name: string; author: string; authorHandle: string; tagline: string };
-  profileImage: string | null;
-};
-
 export type PostStatus = "DRAFT" | "PUBLISHED";
 
 export type AdminPostRow = {
@@ -47,6 +101,7 @@ export type AdminPostRow = {
   private: boolean;
   publishedAt: string | null;
   updatedAt: string;
+  authorId: string | null;
   categories: Category[];
 };
 
@@ -74,4 +129,4 @@ export type MapNode =
 
 export type MapEdge = { source: string; target: string; kind: "pasta" | "imagem" | "mencao" };
 
-export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[] };
+export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[]; environment: { id: string; name: string; color: string; icon: string } };

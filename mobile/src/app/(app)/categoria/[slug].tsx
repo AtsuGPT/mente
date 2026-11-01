@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { readableAccent } from "@shared/color";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
 import type { Category } from "@/lib/types";
 import { PostCard } from "@/components/post-card";
@@ -13,9 +12,9 @@ import { colors, space } from "@/theme/tokens";
 /** Uma pasta (categoria) e seus pensamentos. */
 export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { session } = useAuth();
+  const { api, environment, session } = useCurrentEnvironment();
   const [category, setCategory] = useState<Category | null>(null);
-  const feed = useFeed({ categoria: slug });
+  const feed = useFeed(api, { categoria: slug });
 
   useEffect(() => {
     api.categories().then((r) => setCategory(r.categories.find((c) => c.slug === slug) ?? null)).catch(() => undefined);
@@ -42,7 +41,7 @@ export default function CategoryScreen() {
             </View>
           ) : undefined
         }
-        renderItem={({ item }) => <PostCard post={item} author={session?.site.author ?? "kayk"} avatar={session?.profileImage} />}
+        renderItem={({ item }) => <PostCard post={item} author={environment.name} avatar={session.image} />}
         ListEmptyComponent={<StateView loading={feed.loading} error={feed.error} onRetry={feed.retry} empty="Ainda não há posts nesta pasta." />}
         ListFooterComponent={feed.loadingMore ? <ActivityIndicator color={colors.violet400} style={{ marginVertical: space.lg }} /> : undefined}
       />

@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
 import type { Category } from "@/lib/types";
 import { PostCard } from "@/components/post-card";
@@ -14,14 +13,14 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Mesmos filtros da página /buscar: texto, pasta e intervalo de datas. */
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
+  const { api, environment, session } = useCurrentEnvironment();
   const [categories, setCategories] = useState<Category[]>([]);
   const [q, setQ] = useState("");
   const [categoria, setCategoria] = useState<string | undefined>();
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [filters, setFilters] = useState<{ q?: string; categoria?: string; de?: string; ate?: string } | null>(null);
-  const feed = useFeed(filters ?? {}, filters !== null);
+  const feed = useFeed(api, filters ?? {}, filters !== null);
 
   useEffect(() => {
     api.categories().then((r) => setCategories(r.categories)).catch(() => undefined);
@@ -64,7 +63,7 @@ export default function SearchScreen() {
           ) : null}
         </View>
       }
-      renderItem={({ item }) => <PostCard post={item} author={session?.site.author ?? "kayk"} avatar={session?.profileImage} />}
+      renderItem={({ item }) => <PostCard post={item} author={environment.name} avatar={session.image} />}
       ListEmptyComponent={filters ? <StateView error={feed.error} onRetry={feed.retry} empty={feed.loading ? undefined : "Nenhum pensamento encontrado."} /> : undefined}
       ListFooterComponent={feed.loadingMore ? <ActivityIndicator color={colors.violet400} style={{ marginVertical: space.lg }} /> : undefined}
     />

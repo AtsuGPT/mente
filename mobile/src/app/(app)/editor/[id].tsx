@@ -3,7 +3,8 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, 
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { readingMinutes, stripMarkdown } from "@shared/text";
 import { slugify } from "@shared/slug";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { formatNumber } from "@/lib/format";
 import type { Category, FieldErrors, PostStatus } from "@/lib/types";
 import { pickImage, uploadablePart } from "@/lib/upload";
@@ -52,6 +53,7 @@ function insertBlock(text: string, sel: Selection, block: string) {
 }
 
 export default function EditorScreen() {
+  const { api } = useCurrentEnvironment();
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === "novo";
   const navigation = useNavigation();
@@ -81,7 +83,7 @@ export default function EditorScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [cats, post] = await Promise.all([api.admin.categories(), isNew ? null : api.admin.post(id)]);
+      const [cats, post] = await Promise.all([api.manageCategories(), isNew ? null : api.managedPost(id)]);
       setCategories(cats.categories);
       if (post) {
         const p = post.post;
@@ -143,7 +145,7 @@ export default function EditorScreen() {
       const { part, name } = await uploadablePart(asset);
       const form = new FormData();
       form.append("image", part, name);
-      const { src } = await api.admin.uploadImage(form);
+      const { src } = await api.uploadImage(form);
       // Mesma regra do editor do site: até 960 px de largura, preservando a proporção.
       const scale = asset.width ? Math.min(1, 960 / asset.width) : 1;
       const width = Math.max(1, Math.round((asset.width || 960) * scale));
@@ -175,12 +177,12 @@ export default function EditorScreen() {
     form.append("intent", intent);
     try {
       if (isNew) {
-        const { id: createdId } = await api.admin.createPost(form);
+        const { id: createdId } = await api.createPost(form);
         setDirty(false);
         router.replace({ pathname: "/editor/[id]", params: { id: createdId } });
         return;
       }
-      await api.admin.updatePost(id, form);
+      await api.updatePost(id, form);
       setDirty(false);
       setOriginalSlug(slug);
       if (intent === "publish") setStatus("PUBLISHED");
@@ -203,7 +205,7 @@ export default function EditorScreen() {
         onPress: async () => {
           setSaving("delete");
           try {
-            await api.admin.deletePost(id);
+            await api.deletePost(id);
             setDirty(false);
             router.back();
           } catch (cause) {
@@ -307,7 +309,7 @@ export default function EditorScreen() {
           <View style={styles.privateRow}>
             <View style={{ flex: 1 }}>
               <AppText variant="uiMedium">Post privado</AppText>
-              <AppText variant="small" color={colors.muted}>Visível apenas para usuários autenticados, não para convidados.</AppText>
+              <AppText variant="small" color={colors.muted}>Só participantes do ambiente veem; visitantes, não.</AppText>
             </View>
             <Switch value={isPrivate} onValueChange={(v) => { setIsPrivate(v); touch(); }} trackColor={{ true: colors.violet600, false: colors.lineStrong }} thumbColor={colors.text} />
           </View>

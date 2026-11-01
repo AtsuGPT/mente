@@ -4,7 +4,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { streamEvents, type StreamEvent } from "@/lib/stream";
 import { Markdown } from "@/components/markdown/markdown";
-import { AppText, Chip, IconButton, Touchable } from "@/components/ui/primitives";
+import { EnvironmentHeader } from "@/components/environment-header";
+import { useCurrentEnvironment } from "@/lib/environment";
+import { AppText, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space, type } from "@/theme/tokens";
 
@@ -21,7 +23,20 @@ const suggestions = [
 let counter = 0;
 const newId = () => `${Date.now()}-${counter++}`;
 
+/** O chat usa a IA, que não foi alterada nesta etapa: ele lê só o ambiente original. */
 export default function AskScreen() {
+  const { environment } = useCurrentEnvironment();
+  const insets = useSafeAreaInsets();
+  if (environment.id === "mente") return <Chat />;
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + space.lg, paddingHorizontal: space.lg }}>
+      <EnvironmentHeader title="Perguntar" />
+      <StateView empty={`O assistente de perguntas ainda responde apenas sobre o ambiente Minha Mente. Em ${environment.name}, use a busca para encontrar pensamentos.`} />
+    </View>
+  );
+}
+
+function Chat() {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");

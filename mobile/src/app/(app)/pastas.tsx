@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { api } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import type { Category } from "@/lib/types";
 import { AppText, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
@@ -9,6 +9,7 @@ import { colors, radius, space } from "@/theme/tokens";
 
 /** Equivalente à página /arquivo do site: pensamentos organizados por assunto. */
 export default function FoldersScreen() {
+  const { api } = useCurrentEnvironment();
   const [categories, setCategories] = useState<(Category & { count: number })[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);

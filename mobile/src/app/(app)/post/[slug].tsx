@@ -3,8 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { readingMinutes, stripMarkdown } from "@shared/text";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { formatDateLong, formatDateShort, formatNumber } from "@/lib/format";
 import type { PostCard, PostFull } from "@/lib/types";
 import { Markdown } from "@/components/markdown/markdown";
@@ -15,7 +14,8 @@ import { colors, space } from "@/theme/tokens";
 
 export default function PostScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { isAdmin } = useAuth();
+  const { api, environment } = useCurrentEnvironment();
+  const [canEdit, setCanEdit] = useState(false);
   const [post, setPost] = useState<PostFull | null>(null);
   const [related, setRelated] = useState<PostCard[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -26,11 +26,12 @@ export default function PostScreen() {
       const result = await api.post(slug);
       setPost(result.post);
       setRelated(result.related);
+      setCanEdit(result.canEdit);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível abrir este pensamento.");
     }
-  }, [slug]);
+  }, [api, slug]);
 
   useEffect(() => {
     void load();
@@ -44,7 +45,7 @@ export default function PostScreen() {
         options={{
           title: post ? `Nº ${formatNumber(post.number)}` : "",
           headerRight: () =>
-            isAdmin && post ? (
+            canEdit && post ? (
               <IconButton name="edit" label="Editar pensamento" color={colors.violet300} onPress={() => router.push({ pathname: "/editor/[id]", params: { id: post.id } })} />
             ) : null,
         }}
@@ -71,7 +72,8 @@ export default function PostScreen() {
             <Divider style={{ marginVertical: space.xl }} />
             <Markdown>{post.content}</Markdown>
 
-            {stripMarkdown(post.content).length > 100 ? <ThoughtAssistant slug={post.slug} revision={post.updatedAt} /> : null}
+            {/* A leitura assistida (IA) não foi alterada nesta etapa: vale só para o ambiente original. */}
+            {environment.id === "mente" && stripMarkdown(post.content).length > 100 ? <ThoughtAssistant slug={post.slug} revision={post.updatedAt} /> : null}
 
             {related.length ? (
               <View style={{ marginTop: space.xxxl }}>

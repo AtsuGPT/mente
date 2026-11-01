@@ -13,6 +13,7 @@ import { InstrumentSans_400Regular } from "@expo-google-fonts/instrument-sans/40
 import { InstrumentSans_500Medium } from "@expo-google-fonts/instrument-sans/500Medium";
 import { InstrumentSans_600SemiBold } from "@expo-google-fonts/instrument-sans/600SemiBold";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { EnvironmentProvider, useEnvironment } from "@/lib/environment";
 import { AppText, Button } from "@/components/ui/primitives";
 import { NeuralBrain } from "@/components/neural-brain";
 import { colors, fonts, space } from "@/theme/tokens";
@@ -53,16 +54,30 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemeProvider value={theme}>
         <AuthProvider>
-          <StatusBar style="light" />
-          <RootStack />
+          <EnvironmentProvider>
+            <StatusBar style="light" />
+            <RootStack />
+          </EnvironmentProvider>
         </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
 
+/** Opções comuns das pilhas de navegação (raiz e dentro do ambiente). */
+export const stackOptions = {
+  headerStyle: { backgroundColor: colors.bg },
+  headerTintColor: colors.violet300,
+  headerTitleStyle: { fontFamily: fonts.sansSemibold, color: colors.text, fontSize: 16 },
+  headerShadowVisible: false,
+  headerBackButtonDisplayMode: "minimal" as const,
+  contentStyle: { backgroundColor: colors.bg },
+  animation: "slide_from_right" as const,
+};
+
 function RootStack() {
-  const { state, isAdmin, retry } = useAuth();
+  const { state, retry } = useAuth();
+  const { current } = useEnvironment();
 
   if (state.status === "loading") {
     return (
@@ -83,34 +98,16 @@ function RootStack() {
     );
   }
 
-  const signedIn = state.status === "signedIn";
+  // Primeiro a central de ambientes; o grupo (app) só existe com um ambiente aberto.
+  // Ao sair do ambiente, o grupo inteiro é desmontado: nada de um ambiente vaza para outro.
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.bg },
-        headerTintColor: colors.violet300,
-        headerTitleStyle: { fontFamily: fonts.sansSemibold, color: colors.text, fontSize: 16 },
-        headerShadowVisible: false,
-        headerBackButtonDisplayMode: "minimal",
-        contentStyle: { backgroundColor: colors.bg },
-        animation: "slide_from_right",
-      }}
-    >
-      <Stack.Protected guard={signedIn}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="post/[slug]" options={{ title: "" }} />
-        <Stack.Screen name="categoria/[slug]" options={{ title: "" }} />
-        <Stack.Screen name="pastas" options={{ title: "Pastas" }} />
-        <Stack.Screen name="sobre" options={{ title: "Sobre" }} />
-        <Stack.Protected guard={isAdmin}>
-          <Stack.Screen name="painel/index" options={{ title: "Painel" }} />
-          <Stack.Screen name="painel/categorias" options={{ title: "Categorias" }} />
-          <Stack.Screen name="painel/configuracoes" options={{ title: "Configurações" }} />
-          <Stack.Screen name="editor/[id]" options={{ title: "", gestureEnabled: false }} />
-        </Stack.Protected>
-      </Stack.Protected>
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
+    <Stack screenOptions={stackOptions}>
+      <Stack.Screen name="index" options={{ headerShown: false, animation: "fade" }} />
+      <Stack.Screen name="login" options={{ headerShown: false, animation: "fade_from_bottom" }} />
+      <Stack.Screen name="cadastro" options={{ title: "Criar conta" }} />
+      <Stack.Screen name="ambiente-novo" options={{ title: "Novo ambiente", presentation: "modal" }} />
+      <Stack.Protected guard={!!current}>
+        <Stack.Screen name="(app)" options={{ headerShown: false, animation: "fade" }} />
       </Stack.Protected>
     </Stack>
   );

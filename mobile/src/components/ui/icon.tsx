@@ -26,7 +26,14 @@ export type IconName =
   | "send"
   | "sparkle"
   | "logout"
-  | "settings";
+  | "settings"
+  | "brain"
+  | "book"
+  | "bulb"
+  | "users"
+  | "key"
+  | "share"
+  | "swap";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
@@ -109,6 +116,28 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
           <Path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" {...p} />
         </>
       )}
+      {name === "brain" && (
+        <>
+          <Path d="M9.5 4.5a3 3 0 0 0-3 3 3 3 0 0 0-2 5.2A3 3 0 0 0 6.5 18a2.8 2.8 0 0 0 3 2.5V4.5ZM14.5 4.5a3 3 0 0 1 3 3 3 3 0 0 1 2 5.2 3 3 0 0 1-2 5.3 2.8 2.8 0 0 1-3 2.5V4.5Z" {...p} />
+          <Path d="M9.5 9H8M9.5 14H7.5M14.5 9H16M14.5 14h2" {...p} />
+        </>
+      )}
+      {name === "book" && <Path d="M12 6.5c-2-1.6-4.6-2-8-2v13c3.4 0 6 .4 8 2 2-1.6 4.6-2 8-2v-13c-3.4 0-6 .4-8 2Zm0 0v13" {...p} />}
+      {name === "bulb" && <Path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3.5Z" {...p} />}
+      {name === "users" && (
+        <>
+          <Circle cx={9} cy={8.5} r={3.2} {...p} />
+          <Path d="M3.5 19c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6M15.5 5.6a3 3 0 0 1 0 5.8M17 14.6c1.8.5 3 1.9 3.5 4.4" {...p} />
+        </>
+      )}
+      {name === "key" && (
+        <>
+          <Circle cx={8} cy={15} r={3.5} {...p} />
+          <Path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2" {...p} />
+        </>
+      )}
+      {name === "share" && <Path d="M12 15V4m0 0L8 8m4-4 4 4M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" {...p} />}
+      {name === "swap" && <Path d="M7 7h12m0 0-3.5-3.5M19 7l-3.5 3.5M17 17H5m0 0 3.5-3.5M5 17l3.5 3.5" {...p} />}
     </Svg>
   );
 }
