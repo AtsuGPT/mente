@@ -3,23 +3,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { API_SOURCE, API_URL } from "@/lib/config";
-import { Avatar } from "@/components/post-card";
+import { useCurrentEnvironment } from "@/lib/environment";
+import { EnvironmentHeader, goToEnvironments } from "@/components/environment-header";
 import { AppText, Button, SectionLabel, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { formatHandle } from "@/lib/format";
 import { colors, radius, space } from "@/theme/tokens";
 
-const roleLabel = { CONVIDADO: "Convidado", INTIMO: "Leitor", ADMIN: "Administrador" } as const;
-const roleHint = {
-  CONVIDADO: "Você vê os pensamentos públicos.",
-  INTIMO: "Você também vê os pensamentos privados.",
-  ADMIN: "Você pode escrever, editar e organizar o arquivo.",
-} as const;
+const ROLE_HINT: Record<string, string> = {
+  OWNER: "Você é o proprietário: controla tudo, inclusive participantes e configurações.",
+  ADMIN: "Você administra o conteúdo e os participantes que o proprietário permitir.",
+  MEMBER: "Você lê, publica e edita os próprios pensamentos.",
+  VIEWER: "Você lê os pensamentos, inclusive os privados.",
+  GUEST: "Você está como visitante: só os pensamentos públicos.",
+};
 
-function Row({ icon, label, href }: { icon: IconName; label: string; href: Href }) {
+function Row({ icon, label, hint, href, onPress }: { icon: IconName; label: string; hint?: string; href?: Href; onPress?: () => void }) {
   return (
-    <Touchable onPress={() => router.push(href)} style={styles.row}>
-      <Icon name={icon} size={20} color={colors.violet300} />
-      <AppText variant="uiMedium" style={{ flex: 1 }}>{label}</AppText>
+    <Touchable accessibilityRole="button" onPress={onPress ?? (() => href && router.push(href))} style={styles.row}>
+      <View style={styles.rowIcon}><Icon name={icon} size={19} color={colors.violet300} /></View>
+      <View style={{ flex: 1 }}>
+        <AppText variant="uiMedium">{label}</AppText>
+        {hint ? <AppText variant="small" color={colors.faint}>{hint}</AppText> : null}
+      </View>
       <View style={{ transform: [{ rotate: "180deg" }] }}>
         <Icon name="back" size={16} color={colors.faint} />
       </View>
@@ -27,65 +33,101 @@ function Row({ icon, label, href }: { icon: IconName; label: string; href: Href 
   );
 }
 
-export default function AccountScreen() {
+/** Tudo o que esta pessoa pode fazer no ambiente atual, mais a conta e a conexão. */
+export default function EnvironmentTab() {
   const insets = useSafeAreaInsets();
-  const { session, role, isAdmin, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { api, environment, permissions, role } = useCurrentEnvironment();
+  const canWrite = permissions.publish || permissions.manageContent;
+
+  function leave() {
+    Alert.alert(`Sair de ${environment.name}?`, "Você deixa de participar e precisará de um novo convite para voltar.", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Sair do ambiente",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.leave();
+            goToEnvironments();
+          } catch (cause) {
+            Alert.alert(environment.name, cause instanceof Error ? cause.message : "Não foi possível sair.");
+          }
+        },
+      },
+    ]);
+  }
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.lg, gap: space.xl }}>
-      <View style={styles.profile}>
-        <Avatar src={session?.profileImage} size={64} />
-        <View style={{ flex: 1 }}>
-          <AppText variant="title">{session?.site.name ?? "Minha Mente"}</AppText>
-          {role ? (
-            <>
-              <AppText variant="label" color={colors.violet300} style={{ marginTop: space.xs }}>{roleLabel[role]}</AppText>
-              <AppText variant="small" color={colors.muted}>{roleHint[role]}</AppText>
-            </>
-          ) : null}
-        </View>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.md, paddingBottom: space.xxxl, gap: space.xl }}>
+      <EnvironmentHeader title="Ambiente" />
+
+      <View style={styles.card}>
+        {environment.description ? <AppText color={colors.muted}>{environment.description}</AppText> : null}
+        <AppText variant="small" color={colors.violet200}>{ROLE_HINT[role]}</AppText>
+        <AppText variant="small" color={colors.faint}>{environment.guestAccess ? "Aberto a visitantes (só os pensamentos públicos)." : "Privado: só participantes."}</AppText>
       </View>
 
       <View style={{ gap: space.sm }}>
-        <SectionLabel>Arquivo</SectionLabel>
+        <SectionLabel>Neste ambiente</SectionLabel>
         <Row icon="folder" label="Pastas" href="/pastas" />
-        <Row icon="doc" label="Sobre o Minha Mente" href="/sobre" />
+        <Row icon="doc" label={environment.id === "mente" ? "Sobre o Minha Mente" : `Sobre ${environment.name}`} href="/sobre" />
+        {role !== "GUEST" ? <Row icon="users" label="Participantes" hint={permissions.manageMembers ? "Convites, papéis e permissões" : undefined} href="/painel/participantes" /> : null}
       </View>
 
-      {isAdmin ? (
+      {canWrite || permissions.manageSettings ? (
         <View style={{ gap: space.sm }}>
-          <SectionLabel>Administração</SectionLabel>
-          <Row icon="edit" label="Pensamentos" href="/painel" />
-          <Row icon="folder" label="Categorias" href="/painel/categorias" />
-          <Row icon="settings" label="Configurações" href="/painel/configuracoes" />
+          <SectionLabel>Gestão</SectionLabel>
+          {canWrite ? <Row icon="edit" label={permissions.manageContent ? "Pensamentos" : "Meus pensamentos"} href="/painel" /> : null}
+          {permissions.manageContent ? <Row icon="folder" label="Categorias" href="/painel/categorias" /> : null}
+          {permissions.manageSettings ? <Row icon="settings" label="Configurações do ambiente" hint="Nome, aparência, acesso e arquivamento" href="/painel/configuracoes" /> : null}
         </View>
       ) : null}
 
       <View style={{ gap: space.sm }}>
+        <SectionLabel>Ambientes</SectionLabel>
+        <Row icon="swap" label="Trocar de ambiente" onPress={goToEnvironments} />
+        {role !== "GUEST" && role !== "OWNER" ? <Row icon="logout" label="Sair deste ambiente" onPress={leave} /> : null}
+      </View>
+
+      <View style={{ gap: space.sm }}>
+        <SectionLabel>Conta</SectionLabel>
+        {user ? (
+          <>
+            <View style={styles.card}>
+              <AppText variant="uiMedium">{user.displayName}</AppText>
+              <AppText variant="small" color={colors.faint}>{formatHandle(user.username)}</AppText>
+            </View>
+            <Button
+              label="Sair da conta"
+              icon="logout"
+              variant="danger"
+              onPress={() =>
+                Alert.alert("Sair da conta?", "Você voltará à central de ambientes.", [
+                  { text: "Cancelar", style: "cancel" },
+                  { text: "Sair", style: "destructive", onPress: () => { goToEnvironments(); void signOut(); } },
+                ])
+              }
+            />
+          </>
+        ) : (
+          <Button label="Entrar ou criar conta" onPress={() => router.push("/login")} />
+        )}
+      </View>
+
+      <View style={{ gap: space.sm }}>
         <SectionLabel>Conexão</SectionLabel>
-        <View style={styles.server}>
+        <View style={styles.card}>
           <AppText variant="small" color={colors.muted}>Servidor ({API_SOURCE})</AppText>
           <AppText variant="uiMedium" selectable>{API_URL}</AppText>
         </View>
       </View>
-
-      <Button
-        label="Sair"
-        icon="logout"
-        variant="danger"
-        onPress={() =>
-          Alert.alert("Sair do Minha Mente?", "Você precisará entrar novamente.", [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Sair", style: "destructive", onPress: () => void signOut() },
-          ])
-        }
-      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  profile: { flexDirection: "row", alignItems: "center", gap: space.lg },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  server: { padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, gap: space.xs },
+  card: { padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, gap: space.xs },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  rowIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet900 },
 });

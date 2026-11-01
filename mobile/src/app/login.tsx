@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions, type TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { router } from "expo-router";
 import { useAuth } from "@/lib/auth";
+import { useEnvironment } from "@/lib/environment";
 import { ApiError } from "@/lib/api";
 import { API_SOURCE, API_URL } from "@/lib/config";
 import { NeuralBrain } from "@/components/neural-brain";
@@ -11,7 +13,8 @@ import { Icon } from "@/components/ui/icon";
 import { colors, fonts, radius, space } from "@/theme/tokens";
 
 export default function LoginScreen() {
-  const { signIn, enterAsGuest, state } = useAuth();
+  const { signIn, state } = useAuth();
+  const { pending: intent } = useEnvironment();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const passwordRef = useRef<TextInputInstance>(null);
@@ -19,23 +22,25 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [pending, setPending] = useState<"login" | "guest" | null>(null);
-  const [error, setError] = useState(state.status === "signedOut" ? state.notice ?? "" : "");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(state.status === "ready" ? state.notice ?? "" : "");
 
-  async function run(kind: "login" | "guest") {
+  async function run() {
     if (pending) return;
-    if (kind === "login" && (!username.trim() || !password)) {
+    if (!username.trim() || !password) {
       setError("Informe usuário e senha.");
       return;
     }
-    setPending(kind);
+    setPending(true);
     setError("");
     try {
-      if (kind === "login") await signIn(username.trim(), password);
-      else await enterAsGuest();
+      await signIn(username.trim(), password);
+      // A central de ambientes retoma o que estava pendente (ambiente ou convite).
+      if (router.canGoBack()) router.back();
+      else router.replace("/");
     } catch (cause) {
       setError(cause instanceof ApiError || cause instanceof Error ? cause.message : "Não foi possível entrar.");
-      setPending(null);
+      setPending(false);
     }
   }
 
@@ -53,7 +58,7 @@ export default function LoginScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.brand}>
-          <AppText variant="label" color={colors.violet300}>Arquivo pessoal · kayk</AppText>
+          <AppText variant="label" color={colors.violet300}>{intent ? `Entre para abrir ${intent.name}` : "Sua conta"}</AppText>
           <AppText variant="display" style={styles.title}>
             Minha <AppText variant="display" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
           </AppText>
@@ -86,7 +91,7 @@ export default function LoginScreen() {
               autoComplete="current-password"
               textContentType="password"
               returnKeyType="go"
-              onSubmitEditing={() => void run("login")}
+              onSubmitEditing={() => void run()}
               maxLength={1024}
               style={{ paddingRight: 52 }}
             />
@@ -107,7 +112,7 @@ export default function LoginScreen() {
             </Animated.View>
           ) : null}
 
-          <Button label="Entrar" icon="send" loading={pending === "login"} disabled={!!pending && pending !== "login"} onPress={() => void run("login")} />
+          <Button label="Entrar" icon="send" loading={pending} onPress={() => void run()} />
 
           <View style={styles.divider}>
             <View style={styles.rule} />
@@ -116,12 +121,12 @@ export default function LoginScreen() {
           </View>
 
           <Button
-            label="Entrar como convidado"
+            label="Criar conta"
             variant="secondary"
-            loading={pending === "guest"}
-            disabled={!!pending && pending !== "guest"}
-            onPress={() => void run("guest")}
+            disabled={pending}
+            onPress={() => router.push("/cadastro")}
           />
+          <Button label="Voltar aos ambientes" variant="ghost" disabled={pending} onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
         </Animated.View>
 
         <AppText variant="small" color={colors.faint} style={styles.server}>

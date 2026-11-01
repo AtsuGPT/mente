@@ -3,38 +3,41 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Vi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
 import type { Category } from "@/lib/types";
-import { Avatar, PostCard } from "@/components/post-card";
+import { EnvironmentHeader } from "@/components/environment-header";
+import { PostCard } from "@/components/post-card";
 import { AppText, Chip, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
-import { colors, fonts, radius, space } from "@/theme/tokens";
+import { colors, radius, space } from "@/theme/tokens";
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
-  const { session, isAdmin } = useAuth();
+  const { api, environment, permissions, session } = useCurrentEnvironment();
   const [categories, setCategories] = useState<(Category & { count: number })[]>([]);
   const [selected, setSelected] = useState<string | undefined>();
-  const feed = useFeed({ categoria: selected });
+  const feed = useFeed(api, { categoria: selected });
+  const canWrite = permissions.publish || permissions.manageContent;
 
   const loadCategories = useCallback(() => {
     api.categories().then((r) => setCategories(r.categories.filter((c) => c.count > 0))).catch(() => undefined);
-  }, []);
+  }, [api]);
   useEffect(loadCategories, [loadCategories]);
 
-  // Volta do editor com algo novo: atualiza sem perder a posição do filtro.
-  const { refresh } = feed;
+  // Ao voltar do editor, atualiza o feed. A função vem por ref: o efeito não depende da
+  // identidade dela (era isso que, antes, disparava o laço de recarregamentos).
+  const refreshRef = useRef(feed.refresh);
+  refreshRef.current = feed.refresh;
   const focusedBefore = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (focusedBefore.current && isAdmin) void refresh();
+      if (focusedBefore.current && canWrite) void refreshRef.current();
       focusedBefore.current = true;
-    }, [isAdmin, refresh]),
+    }, [canWrite]),
   );
 
-  const author = session?.site.author ?? "kayk";
+  const author = environment.name;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -47,26 +50,15 @@ export default function FeedScreen() {
         onEndReached={feed.loadMore}
         ListHeaderComponent={
           <View style={{ gap: space.lg, marginBottom: space.xs }}>
-            <View style={styles.header}>
-              <View style={{ flex: 1 }}>
-                <AppText variant="label" color={colors.violet300}>{author}</AppText>
-                <AppText variant="title" style={{ marginTop: 2 }}>
-                  Minha <AppText variant="title" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
-                </AppText>
-              </View>
-              <Touchable accessibilityLabel="Conta" onPress={() => router.push("/conta")}>
-                <Avatar src={session?.profileImage} size={40} />
-              </Touchable>
-            </View>
+            <EnvironmentHeader title="Pensamentos" subtitle={environment.description || undefined} />
 
             <View style={styles.headingRow}>
-              <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Feed de pensamentos"}</AppText>
-              {!feed.loading ? <AppText variant="label" color={colors.faint}>{feed.total} {feed.total === 1 ? "post" : "posts"}</AppText> : null}
+              <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Feed"}</AppText>
+              {!feed.loading ? <AppText variant="label" color={colors.faint}>{feed.total} {feed.total === 1 ? "pensamento" : "pensamentos"}</AppText> : null}
             </View>
 
             {categories.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }} style={{ marginHorizontal: -space.lg }}>
-                <View style={{ width: space.lg - space.sm }} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg }} style={{ marginHorizontal: -space.lg }}>
                 <Chip label="Todas" selected={!selected} onPress={() => setSelected(undefined)} />
                 {categories.map((category) => (
                   <Chip
@@ -77,14 +69,13 @@ export default function FeedScreen() {
                     onPress={() => setSelected(selected === category.slug ? undefined : category.slug)}
                   />
                 ))}
-                <View style={{ width: space.lg - space.sm }} />
               </ScrollView>
             ) : null}
           </View>
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={index < 6 ? FadeIn.delay(index * 50).duration(300) : undefined}>
-            <PostCard post={item} author={author} avatar={session?.profileImage} />
+            <PostCard post={item} author={author} avatar={session.image} />
           </Animated.View>
         )}
         ListEmptyComponent={
@@ -92,13 +83,13 @@ export default function FeedScreen() {
             loading={feed.loading}
             error={feed.error}
             onRetry={feed.retry}
-            empty={selected ? "Ainda não há posts nesta pasta." : "Ainda não há pensamentos publicados."}
+            empty={selected ? "Ainda não há pensamentos nesta pasta." : canWrite ? "Nenhum pensamento ainda. Toque em + para escrever o primeiro." : "Ainda não há pensamentos publicados aqui."}
           />
         }
         ListFooterComponent={feed.loadingMore ? <ActivityIndicator color={colors.violet400} style={{ marginVertical: space.lg }} /> : undefined}
       />
 
-      {isAdmin ? (
+      {canWrite ? (
         <Touchable
           accessibilityRole="button"
           accessibilityLabel="Novo pensamento"
@@ -114,14 +105,13 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: space.md },
   headingRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   fab: {
     position: "absolute",
     right: space.lg,
     bottom: space.lg,
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     borderRadius: radius.pill,
     backgroundColor: colors.violet600,
     borderWidth: 1,

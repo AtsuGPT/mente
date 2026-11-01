@@ -4,11 +4,11 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, fonts } from "@/theme/tokens";
 
 const tabs: { name: string; title: string; icon: IconName }[] = [
-  { name: "index", title: "Início", icon: "home" },
+  { name: "feed", title: "Início", icon: "home" },
   { name: "buscar", title: "Buscar", icon: "search" },
   { name: "mapa", title: "Mapa", icon: "map" },
   { name: "perguntar", title: "Perguntar", icon: "chat" },
-  { name: "conta", title: "Conta", icon: "user" },
+  { name: "conta", title: "Ambiente", icon: "settings" },
 ];
 
 export default function TabsLayout() {

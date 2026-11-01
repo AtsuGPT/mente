@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { router, Stack, useFocusEffect } from "expo-router";
-import { api } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import { formatDateShort, formatNumber } from "@/lib/format";
 import type { AdminPostRow, Category } from "@/lib/types";
 import { AppText, Chip, IconButton, StateView, TextField, Touchable } from "@/components/ui/primitives";
@@ -18,6 +18,7 @@ function statusOf(post: AdminPostRow) {
 
 /** Lista do painel (/admin do site): rascunhos, publicados e agendados. */
 export default function AdminPostsScreen() {
+  const { api } = useCurrentEnvironment();
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("all");
@@ -36,7 +37,7 @@ export default function AdminPostsScreen() {
     async (target: number) => {
       const id = ++request.current;
       try {
-        const result = await api.admin.posts({ q: query || undefined, status, categoria, pagina: target });
+        const result = await api.managePosts({ q: query || undefined, status, categoria, pagina: target });
         if (id !== request.current) return;
         setPosts((current) => (target === 1 ? result.posts : [...current, ...result.posts]));
         setPage(result.page);
@@ -56,7 +57,7 @@ export default function AdminPostsScreen() {
   );
 
   useEffect(() => {
-    api.admin.categories().then((r) => setCategories(r.categories)).catch(() => undefined);
+    api.manageCategories().then((r) => setCategories(r.categories)).catch(() => undefined);
   }, []);
 
   // Recarrega ao voltar do editor.

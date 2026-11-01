@@ -19,3 +19,6 @@ function safe(format: (date: Date) => string, value: string | Date | null | unde
 export const formatDateShort = (value: string | Date | null | undefined) => safe(shortFormat, value);
 export const formatDateLong = (value: string | Date | null | undefined) => safe(longFormat, value);
 export { formatNumber };
+
+/** "@nome" para contas novas; a conta antiga do site usa o e-mail como nome e fica sem o @. */
+export const formatHandle = (username: string) => (username.includes("@") ? username : `@${username}`);

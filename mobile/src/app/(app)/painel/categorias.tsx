@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { contrastRatio, HEX_COLOR, readableAccent } from "@shared/color";
 import { slugify } from "@shared/slug";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { useCurrentEnvironment } from "@/lib/environment";
 import type { Category, FieldErrors } from "@/lib/types";
 import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { colors, radius, space } from "@/theme/tokens";
@@ -12,6 +13,7 @@ const empty: Draft = { name: "", slug: "", description: "", color: "#7C5CE0", po
 
 /** Mesma tela de /admin/categorias: criar, editar, ordenar e excluir. */
 export default function AdminCategoriesScreen() {
+  const { api } = useCurrentEnvironment();
   const [categories, setCategories] = useState<(Category & { count: number })[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | "nova" | null>(null);
@@ -22,7 +24,7 @@ export default function AdminCategoriesScreen() {
 
   const load = useCallback(async () => {
     try {
-      setCategories((await api.admin.categories()).categories);
+      setCategories((await api.manageCategories()).categories);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar.");
@@ -46,8 +48,8 @@ export default function AdminCategoriesScreen() {
     const form = new FormData();
     for (const [key, value] of Object.entries(draft)) form.append(key, value);
     try {
-      if (editing === "nova") await api.admin.createCategory(form);
-      else if (editing) await api.admin.updateCategory(editing, form);
+      if (editing === "nova") await api.createCategory(form);
+      else if (editing) await api.updateCategory(editing, form);
       setEditing(null);
       await load();
     } catch (cause) {
@@ -66,7 +68,7 @@ export default function AdminCategoriesScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await api.admin.deleteCategory(category.id);
+            await api.deleteCategory(category.id);
             setEditing(null);
             await load();
           } catch (cause) {

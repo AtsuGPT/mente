@@ -1,27 +1,27 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, setAuthToken, setUnauthorizedHandler } from "./api";
 import { deleteItem, getItem, setItem } from "./secure-storage";
-import type { Role, SessionInfo } from "./types";
+import type { User } from "./types";
 
-const TOKEN_KEY = "minha-mente.token";
+/**
+ * Sessão da pessoa (não do ambiente). Sem conta, o app não manda token e o
+ * servidor a trata como visitante: só lê ambientes que aceitam convidados.
+ */
+
+const TOKEN_KEY = "minha-mente.token.v2";
 
 type AuthState =
   | { status: "loading" }
-  | { status: "signedOut"; notice?: string }
-  | { status: "offline"; message: string }
-  | { status: "signedIn"; session: SessionInfo };
+  | { status: "ready"; user: User | null; notice?: string }
+  | { status: "offline"; message: string };
 
 type AuthContextValue = {
   state: AuthState;
-  role: Role | null;
-  isAdmin: boolean;
-  session: SessionInfo | null;
+  user: User | null;
   signIn: (username: string, password: string) => Promise<void>;
-  enterAsGuest: () => Promise<void>;
+  register: (input: { username: string; displayName: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
   retry: () => Promise<void>;
-  /** Atualiza os dados da sessão (ex.: foto nova) sem passar pela tela de carregamento. */
-  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(async (notice?: string) => {
     setAuthToken(null);
     await deleteItem(TOKEN_KEY);
-    setState({ status: "signedOut", notice });
+    setState({ status: "ready", user: null, notice });
   }, []);
 
   /** Confere o token com o backend; sem rede, mantém o token e oferece nova tentativa. */
@@ -40,12 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "loading" });
     const token = await getItem(TOKEN_KEY);
     if (!token) {
-      setState({ status: "signedOut" });
+      setState({ status: "ready", user: null });
       return;
     }
     setAuthToken(token);
     try {
-      setState({ status: "signedIn", session: await api.session() });
+      setState({ status: "ready", user: (await api.me()).user });
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) await clear("Sua sessão expirou. Entre novamente.");
       else setState({ status: "offline", message: cause instanceof Error ? cause.message : "Sem conexão com o servidor." });
@@ -58,26 +58,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, [clear, restore]);
 
-  const start = useCallback(async (token: string) => {
+  const start = useCallback(async (token: string, user: User) => {
     setAuthToken(token);
     await setItem(TOKEN_KEY, token);
-    setState({ status: "signedIn", session: await api.session() });
+    setState({ status: "ready", user });
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => {
-    const session = state.status === "signedIn" ? state.session : null;
-    return {
+  const value = useMemo<AuthContextValue>(
+    () => ({
       state,
-      session,
-      role: session?.role ?? null,
-      isAdmin: !!session?.isAdmin,
-      signIn: async (username, password) => start((await api.login(username, password)).token),
-      enterAsGuest: async () => start((await api.guest()).token),
+      user: state.status === "ready" ? state.user : null,
+      signIn: async (username, password) => {
+        const result = await api.login(username, password);
+        await start(result.token, result.user);
+      },
+      register: async (input) => {
+        const result = await api.register(input);
+        await start(result.token, result.user);
+      },
       signOut: () => clear(),
       retry: restore,
-      refreshSession: async () => setState({ status: "signedIn", session: await api.session() }),
-    };
-  }, [state, start, clear, restore]);
+    }),
+    [state, start, clear, restore],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
