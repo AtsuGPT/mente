@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   rolePill: { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   actions: { marginTop: space.xxl, gap: space.sm },
   backdrop: { flex: 1, backgroundColor: "rgba(5,4,9,0.6)" },
-  sheet: { padding: space.xl, paddingTop: space.md, borderTopLeftRadius: radius.xl + 6, borderTopRightRadius: radius.xl + 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.violet800 },
+  sheet: { width: "100%", maxWidth: 480, alignSelf: "center", padding: space.xl, paddingTop: space.md, borderTopLeftRadius: radius.xl + 6, borderTopRightRadius: radius.xl + 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.violet800 },
   grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong, marginBottom: space.lg },
   preview: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.lg, padding: space.md, borderRadius: radius.lg, borderWidth: 1, backgroundColor: colors.bg },
 });

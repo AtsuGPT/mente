@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { DarkTheme, Stack, ThemeProvider, type Theme } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -33,6 +33,24 @@ const theme: Theme = {
   },
 };
 
+/**
+ * Na web (minhamente.space/app) o app fica numa coluna com largura de celular no centro da
+ * janela; esticado na tela inteira as proporções do layout ficavam erradas. No celular não muda nada.
+ */
+const WEB_MAX_WIDTH = 480;
+function WebFrame({ children }: { children: React.ReactNode }) {
+  // O fundo da própria página também fica escuro (ao rolar além do fim e atrás dos modais).
+  useEffect(() => {
+    if (Platform.OS === "web") document.body.style.backgroundColor = colors.bg;
+  }, []);
+  if (Platform.OS !== "web") return <>{children}</>;
+  return (
+    <View style={styles.webOuter}>
+      <View style={styles.webColumn}>{children}</View>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     Newsreader_400Regular,
@@ -56,7 +74,9 @@ export default function RootLayout() {
         <AuthProvider>
           <EnvironmentProvider>
             <StatusBar style="light" />
-            <RootStack />
+            <WebFrame>
+              <RootStack />
+            </WebFrame>
           </EnvironmentProvider>
         </AuthProvider>
       </ThemeProvider>
@@ -112,3 +132,8 @@ function RootStack() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  webOuter: { flex: 1, alignItems: "center", backgroundColor: colors.bg },
+  webColumn: { flex: 1, width: "100%", maxWidth: WEB_MAX_WIDTH, overflow: "hidden", borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+});
