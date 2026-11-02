@@ -21,8 +21,11 @@ function devServerHost(): string | null {
   return host;
 }
 
-/** Domínios dos túneis do Expo (o antigo *.exp.direct e o atual *.on.expo.app). */
-const isExpoTunnel = (host: string) => host.endsWith(".exp.direct") || host.endsWith(".on.expo.app");
+/**
+ * Túnel do Expo (*.exp.direct, *.on.expo.app ou outro domínio que venha a usar): qualquer
+ * endereço que não seja um IP da rede local. Na mesma Wi-Fi o Expo Go recebe o IP do computador.
+ */
+const isExpoTunnel = (host: string) => !/^\d{1,3}(\.\d{1,3}){3}$/.test(host) && !host.endsWith(".local");
 
 function resolveApiUrl() {
   const explicit = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
