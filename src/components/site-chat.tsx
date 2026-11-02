@@ -64,7 +64,7 @@ const DEV_PERSONAS: [string, string][] = [["livre", "Só minhas instruções"], 
 
 export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role; categories?: Category[] }) {
   const isAdmin = role === "ADMIN";
-  const canDev = role !== "CONVIDADO";
+  const canDev = role === "ADMIN";
   const canAttach = role === "ADMIN" || role === "INTIMO";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -143,7 +143,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
   function devCommand(content: string) {
     setDraft("");
     if (!canDev) {
-      setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", local: true, content: "O modo desenvolvedor está disponível para quem entrou com usuário e senha." }]);
+      setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", local: true, content: "O modo desenvolvedor está disponível só para o administrador." }]);
       return;
     }
     const arg = content.replace(/^\/dev\s*/i, "").trim();

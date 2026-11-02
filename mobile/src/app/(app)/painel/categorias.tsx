@@ -7,6 +7,7 @@ import { useCurrentEnvironment } from "@/lib/environment";
 import type { Category, FieldErrors } from "@/lib/types";
 import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { colors, radius, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 type Draft = { name: string; slug: string; description: string; color: string; position: string };
 const empty: Draft = { name: "", slug: "", description: "", color: "#7C5CE0", position: "0" };
@@ -85,6 +86,7 @@ export default function AdminCategoriesScreen() {
   if (!categories) return <StateView loading={!error} error={error} onRetry={() => void load()} />;
 
   return (
+    <KeyboardScreen header>
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xxxl }} keyboardShouldPersistTaps="handled">
       {categories.map((category) => (
         <View key={category.id}>
@@ -102,6 +104,7 @@ export default function AdminCategoriesScreen() {
 
       {editing === "nova" ? renderForm() : <Button label="Nova categoria" icon="plus" variant="secondary" onPress={() => open()} />}
     </ScrollView>
+    </KeyboardScreen>
   );
 
   // Função (não componente): um componente declarado aqui seria recriado a cada

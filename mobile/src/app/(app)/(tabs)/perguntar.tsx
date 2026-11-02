@@ -20,6 +20,7 @@ import { AmbientGlow } from "@/components/ambient-glow";
 import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space, type } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /**
  * Kally: assistente de aprendizagem do ambiente atual, numa tela só para conversar,
@@ -122,6 +123,9 @@ function Kally() {
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
+  // Modo Desenvolvedor: só para o administrador da plataforma (o servidor também confere).
+  const isAdmin = useAuth().user?.legacyKind === "ADMIN";
+  const devOn = dev.active && isAdmin;
   const [devSheet, setDevSheet] = useState(false);
   const list = useRef<FlatList<Message>>(null);
   const attachSeq = useRef(0);
@@ -139,6 +143,7 @@ function Kally() {
 
   /** /dev, /dev on, /dev off (ou "padrão"), /dev <instruções>. Tratado aqui; nada vai ao modelo. */
   function devCommand(content: string) {
+    if (!isAdmin) return notice("O modo desenvolvedor está disponível só para o administrador.");
     const arg = content.replace(/^\/dev\s*/i, "").trim();
     if (/^(off|desligar|padr[aã]o|sair)$/i.test(arg)) {
       setDev({ ...dev, active: false });
@@ -289,7 +294,7 @@ function Kally() {
       web,
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
-      dev: dev.active ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
+      dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -337,17 +342,17 @@ function Kally() {
   const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardScreen style={{ backgroundColor: colors.bg }}>
       <AmbientGlow intensity={0.55} />
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <View style={{ flex: 1 }}>
-          <EnvironmentHeader title={dev.active ? "Kally · dev" : "Kally"} subtitle={dev.active ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
+          <EnvironmentHeader title={devOn ? "Kally · dev" : "Kally"} subtitle={devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
         </View>
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
         {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
 
-      {dev.active ? (
+      {devOn ? (
         <View style={styles.devBar}>
           <Icon name="settings" size={14} color={colors.warning} />
           <AppText variant="small" color={colors.warning} style={{ flex: 1 }}>Modo desenvolvedor ativo: personalidade definida por você.</AppText>
@@ -459,6 +464,7 @@ function Kally() {
         <Pressable style={styles.backdrop} onPress={() => setModeMenu(false)}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
+            {isAdmin ? (
             <Touchable onPress={() => { setModeMenu(false); setDevSheet(true); }} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
               <Icon name="settings" size={18} color={dev.active ? colors.warning : colors.muted} />
               <View style={{ flex: 1 }}>
@@ -466,6 +472,7 @@ function Kally() {
                 <AppText variant="small" color={colors.faint}>Personalidade e estilo definidos por você (/dev)</AppText>
               </View>
             </Touchable>
+            ) : null}
             {available.map((m) => (
               <Touchable key={m.mode} onPress={() => { setMode(m.mode); setModeMenu(false); }} style={[styles.modeRow, m.mode === mode && styles.modeRowOn]}>
                 <Icon name={m.icon} size={18} color={m.mode === mode ? colors.violet200 : colors.muted} />
@@ -513,7 +520,7 @@ function Kally() {
           </Pressable>
         </Pressable>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }
 
@@ -526,6 +533,7 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
   }, [visible, value]);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardScreen>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg, gap: space.sm }]}>
           <AppText variant="title">Modo desenvolvedor</AppText>
@@ -558,6 +566,7 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardScreen>
     </Modal>
   );
 }

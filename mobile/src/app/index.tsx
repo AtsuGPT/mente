@@ -14,6 +14,7 @@ import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "
 import { Icon } from "@/components/ui/icon";
 import { formatHandle } from "@/lib/format";
 import { colors, fonts, radius, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante" };
 
@@ -294,6 +295,7 @@ function AddEnvironmentSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardScreen>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
         <View style={styles.grabber} />
@@ -332,6 +334,7 @@ function AddEnvironmentSheet({
           <Button label="Cancelar" variant="ghost" onPress={onClose} />
         </View>
       </View>
+      </KeyboardScreen>
     </Modal>
   );
 }

@@ -7,6 +7,7 @@ import { useEnvironment } from "@/lib/environment";
 import type { FieldErrors } from "@/lib/types";
 import { AppText, Button, TextField } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Criar conta. Depois de criada, a pessoa já entra e volta à central de ambientes. */
 export default function RegisterScreen() {
@@ -42,7 +43,7 @@ export default function RegisterScreen() {
   const err = (field: string) => errors[field]?.[0];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+    <KeyboardScreen header>
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
         <View>
           <AppText variant="title">Sua conta no Minha Mente</AppText>
@@ -67,6 +68,6 @@ export default function RegisterScreen() {
         {message && !Object.keys(errors).length ? <AppText variant="small" color={colors.danger}>{message}</AppText> : null}
         <Button label="Criar conta" icon="check" loading={busy} onPress={() => void submit()} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }

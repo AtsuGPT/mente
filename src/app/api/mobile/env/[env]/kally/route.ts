@@ -20,6 +20,7 @@ import {
 } from "@/server/kally";
 import { searchWeb, type WebResult } from "@/server/web-search";
 import { devModel, parseDevSettings } from "@/server/kally-dev";
+import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -86,8 +87,11 @@ export async function POST(request: Request, context: EnvContext) {
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
   const casual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   // Modo Desenvolvedor: só muda o prompt (personalidade/estilo). Permissões e ambiente continuam os mesmos.
-  const dev = parseDevSettings(body.dev);
-  if (!allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
+  // Só o administrador da plataforma usa o modo; para as outras contas o pedido é ignorado.
+  const platformAdmin = (await findUserById(userId))?.legacyKind === "ADMIN";
+  const dev = platformAdmin ? parseDevSettings(body.dev) : null;
+  // Administrador da plataforma e proprietários do ambiente usam a Kally sem o limite por pessoa.
+  if (!platformAdmin && access.role !== "OWNER" && !allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
 
   // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado).
   const history = conversation
