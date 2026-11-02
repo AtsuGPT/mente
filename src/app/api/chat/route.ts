@@ -182,8 +182,8 @@ export async function POST(request: Request) {
   if (messages.at(-1)?.role !== "user") return jsonError("A última mensagem precisa ser sua pergunta.", 400);
 
   const options = body as { attachments?: unknown; webSearch?: unknown; autonomy?: unknown; post?: unknown; skipPostIntent?: unknown; dev?: unknown };
-  // Modo Desenvolvedor: só para quem entrou com conta; muda apenas o prompt da conversa.
-  const dev = role === "CONVIDADO" ? null : parseDevSettings(options.dev);
+  // Modo Desenvolvedor: só para o administrador; muda apenas o prompt da conversa.
+  const dev = role === "ADMIN" ? parseDevSettings(options.dev) : null;
   const attachmentIds = Array.isArray(options.attachments)
     ? options.attachments.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 10)
     : [];

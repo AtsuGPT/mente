@@ -8,6 +8,7 @@ import { EnvironmentGlyph } from "@/components/environment-glyph";
 import { goToEnvironments } from "@/components/environment-header";
 import { AppText, Button, Card, SectionLabel } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Configurações do ambiente (só o proprietário; o servidor confere). */
 export default function EnvironmentSettingsScreen() {
@@ -70,7 +71,7 @@ export default function EnvironmentSettingsScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+    <KeyboardScreen header>
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.xl, paddingBottom: space.xxxl }} keyboardShouldPersistTaps="handled">
         <EnvironmentForm
           initial={environment}
@@ -109,6 +110,6 @@ export default function EnvironmentSettingsScreen() {
           </View>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }

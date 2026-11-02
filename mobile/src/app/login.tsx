@@ -11,6 +11,7 @@ import { NeuralBrain } from "@/components/neural-brain";
 import { AppText, Button, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, fonts, radius, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 export default function LoginScreen() {
   const { signIn, state } = useAuth();
@@ -47,7 +48,7 @@ export default function LoginScreen() {
   const illustration = Math.min(width - space.xxl * 2, 340);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardScreen style={{ backgroundColor: colors.bg }}>
       <View pointerEvents="none" style={styles.glow} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -133,7 +134,7 @@ export default function LoginScreen() {
           Servidor ({API_SOURCE}): {API_URL.replace(/^https?:\/\//, "")}
         </AppText>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }
 

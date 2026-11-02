@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { EnvironmentForm } from "@/components/environment-form";
 import { AppText, Button, StateView } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Criar um ambiente: quem cria vira o proprietário. */
 export default function NewEnvironmentScreen() {
@@ -20,7 +21,7 @@ export default function NewEnvironmentScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+    <KeyboardScreen header>
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
         <AppText color={colors.muted}>Um ambiente é um espaço seu: pensamentos, pastas e mapa próprios, com quem você convidar.</AppText>
         <EnvironmentForm
@@ -36,6 +37,6 @@ export default function NewEnvironmentScreen() {
           }}
         />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }

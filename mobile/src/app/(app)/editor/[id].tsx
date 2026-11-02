@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
+import { Alert, Dimensions, Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { readingMinutes, stripMarkdown } from "@shared/text";
 import { slugify } from "@shared/slug";
@@ -12,6 +12,7 @@ import { Markdown } from "@/components/markdown/markdown";
 import { AppText, Button, Chip, SectionLabel, TextField, Touchable } from "@/components/ui/primitives";
 import { colors, fonts, radius, space } from "@/theme/tokens";
 import { takeDraft } from "@/lib/draft-handoff";
+import { KeyboardScreen } from "@/components/keyboard-screen";
 
 type Intent = "save" | "publish" | "unpublish";
 type Selection = { start: number; end: number };
@@ -115,13 +116,30 @@ export default function EditorScreen() {
     void load();
   }, [load]);
 
-  // Como no site: avisa antes de sair com alterações não salvas.
+  // Como no site: avisa antes de sair com alterações não salvas. "Descartar" desliga o aviso
+  // e só depois (já sem a proteção ativa) executa a saída pedida; reenviar a ação com a
+  // proteção ainda ligada fazia o aviso voltar sem fechar o editor.
+  const [pendingLeave, setPendingLeave] = useState<{ action: Parameters<typeof navigation.dispatch>[0] } | null>(null);
   usePreventRemove(dirty && !saving, ({ data }) => {
+    const discard = () => {
+      setDirty(false);
+      setPendingLeave({ action: data.action });
+    };
+    // Na web o Alert do React Native não aparece: usa a confirmação do navegador.
+    if (Platform.OS === "web") {
+      if (window.confirm("Descartar alterações? Há mudanças que ainda não foram salvas.")) discard();
+      return;
+    }
     Alert.alert("Descartar alterações?", "Há mudanças que ainda não foram salvas.", [
       { text: "Continuar editando", style: "cancel" },
-      { text: "Descartar", style: "destructive", onPress: () => navigation.dispatch(data.action) },
+      { text: "Descartar", style: "destructive", onPress: discard },
     ]);
   });
+  useEffect(() => {
+    if (!pendingLeave || dirty) return;
+    setPendingLeave(null);
+    navigation.dispatch(pendingLeave.action);
+  }, [pendingLeave, dirty, navigation]);
 
   const touch = () => {
     setDirty(true);
@@ -244,7 +262,7 @@ export default function EditorScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+    <KeyboardScreen header>
       <Stack.Screen options={{ title: isNew ? "Novo pensamento" : number ? `Editar · Nº ${formatNumber(number)}` : "Editar" }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.statusRow}>
@@ -389,7 +407,7 @@ export default function EditorScreen() {
           {!isNew ? <Button label="Excluir pensamento" icon="trash" variant="danger" disabled={!!saving} loading={saving === "delete"} onPress={confirmDelete} style={{ marginTop: space.lg }} /> : null}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   );
 }
 
@@ -405,6 +423,8 @@ const styles = StyleSheet.create({
   toolAccent: { borderColor: colors.violet700, backgroundColor: colors.violet950 },
   contentInput: {
     minHeight: 320,
+    // Com altura máxima o campo rola por dentro e o cursor continua acima do teclado.
+    maxHeight: Math.round(Dimensions.get("window").height * 0.45),
     fontFamily: fonts.serif,
     fontSize: 17,
     lineHeight: 26,
