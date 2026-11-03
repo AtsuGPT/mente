@@ -6,17 +6,21 @@ import type { CompetenceId } from "./competences/types";
 /**
  * Pipeline da Kally em duas etapas, com UM modelo carregado por vez (server/ai/model-manager.ts):
  *
- *   interpretador (llama3.2 3B) → só quando as regras não bastam: identifica a competência,
- *                                  a intenção, os pontos da pessoa e uma estrutura de resposta;
- *   executor (qwen3 4B)          → escreve a resposta, guiado pela interpretação.
+ *   interpretador → só quando as regras não bastam: identifica a competência, a intenção, os
+ *                   pontos da pessoa e uma estrutura de resposta;
+ *   executor      → escreve a resposta, guiado pela interpretação.
+ *
+ * Os dois são o qwen3 4B por padrão. Na avaliação (eval/kally/RELATORIO.md), interpretar com o
+ * llama3.2 3B empatou em qualidade (3,00 × 2,89 em 9 casos longos), mas cada pedido pagava ~11 s
+ * de troca de modelo e o primeiro texto saía ~10 s mais tarde. Com o mesmo modelo, nada é
+ * descarregado. O llama3.2 continua possível em KALLY_INTERPRETER_MODEL.
  *
  * Na maioria das mensagens a competência já é conhecida (modo escolhido, /comando, regras de
- * detectIntent, papo casual) e o pedido vai direto ao executor, sem troca de modelo: o executor
- * fica carregado e só o interpretador entra e sai.
+ * detectIntent, papo casual) e o pedido vai direto ao executor.
  *
  *   KALLY_PIPELINE           = "admin" (só o administrador da plataforma) | "on" (todos) | desligado
  *   KALLY_EXECUTOR_MODEL     = padrão qwen3:4b-instruct-2507-q4_K_M
- *   KALLY_INTERPRETER_MODEL  = padrão llama3.2:latest
+ *   KALLY_INTERPRETER_MODEL  = padrão: o mesmo do executor
  */
 
 export type Competence = "estudo" | "post" | "analise" | "orientacao" | "conversa";
@@ -35,7 +39,9 @@ const DEPTHS: Interpretation["profundidade"][] = ["breve", "media", "aprofundada
 export type Pipeline = { executor: string; interpreter: string | null };
 
 const EXECUTOR = () => process.env.KALLY_EXECUTOR_MODEL || "qwen3:4b-instruct-2507-q4_K_M";
-const INTERPRETER = () => process.env.KALLY_INTERPRETER_MODEL || "llama3.2:latest";
+const INTERPRETER = () => process.env.KALLY_INTERPRETER_MODEL || EXECUTOR();
+// As configurações da avaliação com o Llama usam sempre o llama3.2, seja qual for o padrão.
+const LLAMA = "llama3.2:latest";
 
 export function pipelineFor(platformAdmin: boolean): Pipeline | null {
   const setting = process.env.KALLY_PIPELINE;
@@ -54,11 +60,11 @@ export function evalPipeline(config: (typeof EVAL_CONFIGS)[number]): Pipeline | 
     case "producao":
       return null;
     case "llama":
-      return { executor: INTERPRETER(), interpreter: null };
+      return { executor: LLAMA, interpreter: null };
     case "qwen":
       return { executor: EXECUTOR(), interpreter: null };
     case "llama-qwen":
-      return { executor: EXECUTOR(), interpreter: INTERPRETER() };
+      return { executor: EXECUTOR(), interpreter: LLAMA };
     case "qwen-qwen":
       return { executor: EXECUTOR(), interpreter: EXECUTOR() };
   }
