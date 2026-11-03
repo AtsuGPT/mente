@@ -1,4 +1,5 @@
 import "server-only";
+import { acquireModel, runtimeOptions, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
 
 /**
  * Provedor de IA da Kally, configurado só no servidor (.env). O app nunca fala com o
@@ -30,6 +31,8 @@ export type AiOptions = {
   sameContext?: boolean;
   /** Recebe as métricas que o Ollama devolve no fim da resposta (só no streaming). */
   onStats?: (stats: GenerationStats) => void;
+  /** Recebe a espera na fila e as trocas de modelo feitas pelo gerenciador central. */
+  onLease?: (info: LeaseInfo) => void;
 };
 
 /** Métricas do Ollama para uma resposta (tempos em segundos). */
@@ -44,6 +47,8 @@ export type GenerationStats = {
   totalSeconds: number;
   thinkingChars: number;
 };
+
+export type { LeaseInfo };
 
 export const defaultChatModel = () => config().model;
 
@@ -85,6 +90,9 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
   if (!baseUrl) throw new AiError("A IA não está configurada no servidor (AI_BASE_URL).", 503);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  // Mesmo contexto da Kally do site (OLLAMA_NUM_CTX): com valores diferentes o Ollama
+  // recarrega o modelo a cada troca entre as duas. Só para o modelo de conversa.
+  const numCtx = model === config().model || options.sameContext ? Number(process.env.OLLAMA_NUM_CTX) || 8_192 : undefined;
 
   const body =
     provider === "ollama"
@@ -97,9 +105,8 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
           options: {
             temperature: options.temperature,
             num_predict: options.maxTokens,
-            // Mesmo contexto da Kally do site (OLLAMA_NUM_CTX): com valores diferentes o Ollama
-            // recarrega o modelo a cada troca entre as duas. Só para o modelo de conversa.
-            ...(model === config().model || options.sameContext ? { num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 8_192 } : {}),
+            ...(numCtx ? { num_ctx: numCtx } : {}),
+            ...runtimeOptions(model),
           },
         }
       : {
@@ -111,29 +118,47 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
           ...(options.json ? { response_format: { type: "json_object" } } : {}),
         };
   const url = provider === "ollama" ? `${baseUrl}/api/chat` : `${baseUrl}/v1/chat/completions`;
+  const timeoutMs = options.timeoutMs ?? 120_000;
+
+  // Um modelo de texto por vez (gerenciador central); a vez volta quando a resposta termina.
+  let lease: Lease | null = null;
+  if (provider === "ollama") {
+    try {
+      lease = await acquireModel(baseUrl, model, { numCtx, maxMs: timeoutMs + 5_000 });
+    } catch (cause) {
+      throw new AiError(cause instanceof Error ? cause.message : "A IA está ocupada. Tente de novo em instantes.", 503);
+    }
+    if (lease) options.onLease?.(lease.info);
+  }
 
   let response: Response;
   try {
-    response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(options.timeoutMs ?? 120_000) });
+    response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
   } catch (cause) {
+    lease?.release();
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
     throw new AiError(timedOut ? "A IA demorou demais para responder. Tente novamente." : "Não consegui conectar ao provedor de IA do servidor.", timedOut ? 504 : 503);
   }
   if (!response.ok) {
+    lease?.release();
     // O corpo pode trazer detalhes do provedor: fica só no log do servidor.
     console.error("AI provider error:", response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O provedor de IA não conseguiu responder. Confira o modelo configurado.", 502);
   }
-  return { response, provider };
+  return { response, provider, lease };
 }
 
 /** Resposta completa, de uma vez. */
 export async function completeChat(messages: AiMessage[], options: AiOptions = {}): Promise<string> {
-  const { response, provider } = await request(messages, options, false);
-  const data = (await response.json()) as { message?: { content?: string }; choices?: { message?: { content?: string } }[] };
-  const text = provider === "ollama" ? data.message?.content : data.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || !text.trim()) throw new AiError("A IA retornou uma resposta vazia.", 502);
-  return text.trim();
+  const { response, provider, lease } = await request(messages, options, false);
+  try {
+    const data = (await response.json()) as { message?: { content?: string }; choices?: { message?: { content?: string } }[] };
+    const text = provider === "ollama" ? data.message?.content : data.choices?.[0]?.message?.content;
+    if (typeof text !== "string" || !text.trim()) throw new AiError("A IA retornou uma resposta vazia.", 502);
+    return text.trim();
+  } finally {
+    lease?.release();
+  }
 }
 
 /** Resposta em pedaços de texto, à medida que o modelo gera. */
@@ -146,11 +171,19 @@ export async function* streamChat(messages: AiMessage[], options: AiOptions = {}
  * e devolve os pedaços de texto para ler depois.
  */
 export async function openChatStream(messages: AiMessage[], options: AiOptions = {}): Promise<AsyncGenerator<string>> {
-  const { response, provider } = await request(messages, options, true);
-  return readStream(response, provider, options.model || config().model, options.onStats);
+  const { response, provider, lease } = await request(messages, options, true);
+  return readStream(response, provider, options.model || config().model, options.onStats, lease);
 }
 
-async function* readStream(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void): AsyncGenerator<string> {
+async function* readStream(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void, lease?: Lease | null): AsyncGenerator<string> {
+  try {
+    yield* readEvents(response, provider, model, onStats);
+  } finally {
+    lease?.release();
+  }
+}
+
+async function* readEvents(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void): AsyncGenerator<string> {
   let thinkingChars = 0;
   const reader = response.body?.getReader();
   if (!reader) throw new AiError("A IA não enviou resposta.", 502);
@@ -214,6 +247,10 @@ export const visionModel = () => process.env.AI_VISION_MODEL || "gemma3:4b";
  * Vetores de significado para a memória da Kally. Sempre pelo Ollama local ou pelo
  * provedor configurado (/api/embed ou /v1/embeddings). Quem chama trata a falha e
  * volta para a busca por palavras.
+ *
+ * No Ollama, o modelo de embeddings roda na CPU (num_gpu 0): na placa ele disputa a VRAM
+ * e o Ollama tira o modelo de texto da memória para carregá-lo (medido: o qwen3:4b inteiro
+ * na placa saía a cada busca). Na CPU uma busca leva ~0,1 s. AI_EMBED_ON_GPU=1 volta à placa.
  */
 export async function embed(texts: string[]): Promise<number[][]> {
   if (!texts.length) return [];
@@ -222,7 +259,10 @@ export async function embed(texts: string[]): Promise<number[][]> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   const url = provider === "ollama" ? `${baseUrl}/api/embed` : `${baseUrl}/v1/embeddings`;
-  const body = provider === "ollama" ? { model, input: texts, keep_alive: process.env.AI_KEEP_ALIVE || "30m" } : { model, input: texts };
+  const body =
+    provider === "ollama"
+      ? { model, input: texts, keep_alive: process.env.AI_KEEP_ALIVE || "30m", options: process.env.AI_EMBED_ON_GPU === "1" ? { num_ctx: 2_048 } : { num_ctx: 2_048, num_gpu: 0 } }
+      : { model, input: texts };
   const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
   if (!response.ok) throw new AiError("O modelo de embeddings não respondeu.", 502);
   const data = (await response.json()) as { embeddings?: number[][]; data?: { embedding: number[] }[] };

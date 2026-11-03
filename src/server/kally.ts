@@ -133,6 +133,8 @@ export function buildPrompt(input: {
   reviewText?: string | null;
   /** Modo Desenvolvedor: substitui a personalidade padrão (identity e o tom do modo Conversar). */
   dev?: DevSettings | null;
+  /** Interpretação prévia do pedido (pipeline: interpretador → executor). */
+  guide?: string | null;
 }): AiMessage[] {
   const found = input.posts.some((p) => p.kind !== "conversa");
   const system = input.dev
@@ -142,6 +144,7 @@ export function buildPrompt(input: {
         ...(input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)),
       ]
     : [...identity(input.environmentName), ...modeInstructions(input.mode, found, input.categories)];
+  if (input.guide) system.push(input.guide);
   const history = input.history.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo

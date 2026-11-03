@@ -1,4 +1,5 @@
 import "server-only";
+import { acquireModel, runtimeOptions, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
 
 /**
  * Chamadas ao Ollama usadas pela Kally (chat, criação de posts, anexos).
@@ -43,6 +44,8 @@ type ChatOptions = {
   numCtx?: number | null;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Recebe a espera na fila e as trocas de modelo feitas pelo gerenciador central. */
+  onLease?: (info: LeaseInfo) => void;
 };
 
 function requestSignal(options: ChatOptions) {
@@ -50,12 +53,26 @@ function requestSignal(options: ChatOptions) {
   return options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
 }
 
-function modelOptions(options: ChatOptions) {
+/** Pede a vez do modelo ao gerenciador central (um modelo de texto carregado por vez). */
+async function modelTurn(model: string, options: ChatOptions): Promise<Lease | null> {
+  const { baseUrl, numCtx } = ollamaConfig();
+  let lease: Lease | null;
+  try {
+    lease = await acquireModel(baseUrl, model, { numCtx: options.numCtx === null ? undefined : options.numCtx ?? numCtx, maxMs: (options.timeoutMs ?? 180_000) + 5_000 });
+  } catch (cause) {
+    throw new OllamaError(cause instanceof Error ? cause.message : "A IA está ocupada. Tente de novo em instantes.", 503);
+  }
+  if (lease) options.onLease?.(lease.info);
+  return lease;
+}
+
+function modelOptions(options: ChatOptions, model: string) {
   const { numCtx } = ollamaConfig();
   return {
     ...(options.numCtx === null ? {} : { num_ctx: options.numCtx ?? numCtx }),
     ...(options.numPredict ? { num_predict: options.numPredict } : {}),
     ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+    ...runtimeOptions(model),
   };
 }
 
@@ -69,13 +86,28 @@ export async function streamOllamaChat(
   options: ChatOptions = {},
 ): Promise<{ text: string; doneReason: string }> {
   const { baseUrl, model } = ollamaConfig();
+  const lease = await modelTurn(options.model ?? model, options);
+  try {
+    return await streamWithLease(baseUrl, options.model ?? model, messages, onToken, options);
+  } finally {
+    lease?.release();
+  }
+}
+
+async function streamWithLease(
+  baseUrl: string,
+  model: string,
+  messages: OllamaMessage[],
+  onToken: (token: string) => void,
+  options: ChatOptions,
+): Promise<{ text: string; doneReason: string }> {
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: requestSignal(options),
-      body: JSON.stringify({ model: options.model ?? model, stream: true, messages, keep_alive: KEEP_ALIVE(), options: modelOptions(options) }),
+      body: JSON.stringify({ model, stream: true, messages, keep_alive: KEEP_ALIVE(), options: modelOptions(options, model) }),
     });
   } catch (error) {
     throw connectionError(error);
@@ -157,6 +189,15 @@ export async function ollamaJson<T>(
   options: ChatOptions = {},
 ): Promise<T | null> {
   const { baseUrl, model } = ollamaConfig();
+  const lease = await modelTurn(options.model ?? model, options);
+  try {
+    return await jsonWithLease<T>(baseUrl, options.model ?? model, messages, schema, options);
+  } finally {
+    lease?.release();
+  }
+}
+
+async function jsonWithLease<T>(baseUrl: string, model: string, messages: OllamaMessage[], schema: Record<string, unknown>, options: ChatOptions): Promise<T | null> {
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/api/chat`, {
@@ -164,12 +205,12 @@ export async function ollamaJson<T>(
       headers: { "Content-Type": "application/json" },
       signal: requestSignal(options),
       body: JSON.stringify({
-        model: options.model ?? model,
+        model,
         stream: false,
         format: schema,
         messages,
         keep_alive: KEEP_ALIVE(),
-        options: { ...modelOptions(options), temperature: options.temperature ?? 0.2 },
+        options: { ...modelOptions(options, model), temperature: options.temperature ?? 0.2 },
       }),
     });
   } catch (error) {
