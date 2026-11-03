@@ -133,7 +133,21 @@ export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[]; environment: { 
 
 export type KallyMode = "auto" | "chat" | "ideia" | "revisar" | "aprender";
 /** kind: post/projeto/rascunho/conversa (do ambiente) ou web (externa, com url). */
-export type KallySource = { title: string; slug: string; kind?: "post" | "projeto" | "rascunho" | "conversa" | "web"; url?: string };
+export type KallySource = { title: string; slug: string; kind?: "post" | "projeto" | "rascunho" | "conversa" | "web" | "documento" | "referencia"; url?: string };
+/** Documento das bases da Kally: pessoal (só da pessoa) ou institucional (de referência, para todos). */
+export type KallyDocument = {
+  id: string;
+  scope: "pessoal" | "institucional";
+  title: string;
+  origin: string;
+  kind: string;
+  chars: number;
+  status: "processando" | "pronto" | "erro";
+  detail: string;
+  createdAt: string;
+  updatedAt: string;
+  _count: { chunks: number };
+};
 export type KallySuggestion = { tipo: string; trecho: string; sugestao: string; motivo: string };
 export type KallyReview = { resumo: string; sugestoes: KallySuggestion[]; truncated: boolean; postId: string | null; slug: string | null };
 export type KallyAttachment = { name: string; kind: "pdf" | "imagem" | "texto" | "docx" | "csv" | "audio"; text: string; pages?: number; truncated?: boolean };

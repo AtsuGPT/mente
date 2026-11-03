@@ -16,6 +16,7 @@ import type {
   PostCard,
   KallyAttachment,
   KallyConversation,
+  KallyDocument,
   KallyImage,
   KallyMessage,
   PostFull,
@@ -116,6 +117,12 @@ export const api = {
   register: (input: { username: string; displayName: string; password: string }) =>
     request<TokenResponse>("/api/mobile/auth/register", { method: "POST", json: input }),
   me: () => request<{ user: User }>("/api/mobile/me"),
+
+  /** Bases de documentos da Kally (da pessoa, não de um ambiente). */
+  kallyDocuments: () => request<{ documents: KallyDocument[]; canManageInstitutional: boolean; enabled: boolean }>("/api/mobile/kally/documentos"),
+  addKallyDocument: (form: FormData) =>
+    request<{ id: string; status: KallyDocument["status"]; reused: boolean; detail: string }>("/api/mobile/kally/documentos", { method: "POST", form, timeoutMs: 4 * 60_000 }),
+  deleteKallyDocument: (id: string) => request<{ ok: true }>(`/api/mobile/kally/documentos/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   environments: () => request<{ mine: EnvironmentCard[]; open: EnvironmentCard[] }>("/api/mobile/environments"),
   createEnvironment: (input: EnvironmentInput) =>

@@ -13,7 +13,7 @@ import { acquireModel, runtimeOptions, type Lease, type LeaseInfo } from "@/serv
  *   AI_MODEL     modelo. Padrão: OLLAMA_MODEL ou llama3.2:latest.
  *   AI_API_KEY   chave, se o provedor exigir. Nunca é enviada ao app.
  *   AI_VISION_MODEL  modelo que lê imagens (Ollama). Padrão: gemma3:4b.
- *   AI_EMBED_MODEL   modelo de embeddings da memória da Kally. Padrão: nomic-embed-text.
+ *   AI_EMBED_MODEL   modelo de embeddings da memória da Kally. Padrão: qwen3-embedding:0.6b (ver EMBED_PROFILES).
  *   AI_KEEP_ALIVE    quanto tempo o Ollama mantém o modelo carregado (padrão 30m): sem isso,
  *                    cada pergunta depois de 5 minutos parada esperava o modelo recarregar.
  */
@@ -255,7 +255,7 @@ export const visionModel = () => process.env.AI_VISION_MODEL || "gemma3:4b";
 export async function embed(texts: string[]): Promise<number[][]> {
   if (!texts.length) return [];
   const { provider, baseUrl, apiKey } = config();
-  const model = process.env.AI_EMBED_MODEL || "nomic-embed-text";
+  const model = embedProfile().model;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   const url = provider === "ollama" ? `${baseUrl}/api/embed` : `${baseUrl}/v1/embeddings`;
@@ -269,4 +269,63 @@ export async function embed(texts: string[]): Promise<number[][]> {
   const vectors = provider === "ollama" ? data.embeddings : data.data?.map((d) => d.embedding);
   if (!vectors || vectors.length !== texts.length) throw new AiError("O modelo de embeddings respondeu em formato inesperado.", 502);
   return vectors;
+}
+
+/**
+ * Perfil do modelo de embeddings: os prefixos que o modelo espera e a escala das notas
+ * (cosseno), medida em português com os posts reais e os exemplos da Kally.
+ *
+ *   qwen3-embedding:0.6b (padrão): post certo em 1º em 14 de 15 perguntas; pergunta sem
+ *     relação nenhuma fica em ~0,25 (máx. 0,30) e a resposta certa em ~0,62.
+ *   nomic-embed-text: 8 de 15; pergunta sem relação ~0,60, quase igual à certa (~0,69).
+ *
+ * floor = nota de "sem relação"; min = a partir de onde o significado conta; span = faixa
+ * que leva a nota de floor a 1; weight = peso do significado contra as palavras em comum.
+ */
+export type EmbedProfile = { model: string; query: string; document: string; floor: number; min: number; span: number; weight: number; conversationMin: number };
+const EMBED_PROFILES: Record<string, Omit<EmbedProfile, "model">> = {
+  "qwen3-embedding:0.6b": {
+    query: "Instruct: Given a search query in Portuguese, retrieve relevant passages that answer the query\nQuery: ",
+    document: "",
+    floor: 0.3,
+    min: 0.4,
+    span: 0.3,
+    weight: 0.7,
+    conversationMin: 0.55,
+  },
+  "nomic-embed-text:latest": { query: "search_query: ", document: "search_document: ", floor: 0.62, min: 0.665, span: 0.13, weight: 0.55, conversationMin: 0.72 },
+};
+
+export function embedProfile(): EmbedProfile {
+  const raw = process.env.AI_EMBED_MODEL || "qwen3-embedding:0.6b";
+  const model = raw.includes(":") ? raw : `${raw}:latest`;
+  // Modelo sem perfil medido: sem prefixos e com a escala do qwen3 (ajuste KALLY_SEMANTIC_MIN se precisar).
+  const profile = EMBED_PROFILES[model] ?? { ...EMBED_PROFILES["qwen3-embedding:0.6b"], query: "", document: "" };
+  const min = Number(process.env.KALLY_SEMANTIC_MIN) || profile.min;
+  return { model, ...profile, min };
+}
+
+// Vetores das últimas perguntas, só em memória e por poucos minutos: a mesma mensagem é
+// buscada na memória do ambiente, nos exemplos e nas bases de documentos. Nunca vai para disco.
+const queryCache = new Map<string, { vector: number[]; at: number }>();
+const QUERY_CACHE_MS = 3 * 60_000;
+
+/** Vetores de perguntas (com o prefixo de busca do modelo). */
+export async function embedQueries(texts: string[]): Promise<number[][]> {
+  const { model, query } = embedProfile();
+  const now = Date.now();
+  for (const [k, v] of queryCache) if (now - v.at > QUERY_CACHE_MS) queryCache.delete(k);
+  const keys = texts.map((t) => `${model}\n${t}`);
+  const missing = texts.filter((_, i) => !queryCache.has(keys[i]));
+  if (missing.length) {
+    const vectors = await embed(missing.map((t) => query + t));
+    missing.forEach((t, i) => queryCache.set(`${model}\n${t}`, { vector: vectors[i], at: now }));
+  }
+  return keys.map((k) => queryCache.get(k)!.vector);
+}
+
+/** Vetores de textos a indexar (com o prefixo de documento do modelo). */
+export function embedDocuments(texts: string[]): Promise<number[][]> {
+  const { document } = embedProfile();
+  return embed(texts.map((t) => document + t));
 }

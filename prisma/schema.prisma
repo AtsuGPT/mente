@@ -45,6 +45,7 @@ model User {
   invitesCreated    Invite[]
   posts             Post[]
   kallyConversations KallyConversation[]
+  kallyDocuments     KallyDocument[]
 }
 
 model Environment {
@@ -239,4 +240,50 @@ model KallyChunk {
 
   @@unique([kind, refId, chunk])
   @@index([environmentId, kind])
+}
+
+/// Base de conhecimento da Kally (RAG). Não é treino: os trechos são consultados na hora da
+/// pergunta e entram no contexto com a origem. "institucional" vale para todos e só o
+/// administrador da plataforma alimenta; "pessoal" pertence a uma pessoa e só ela consulta.
+model KallyDocument {
+  id         String   @id @default(cuid())
+  /// "institucional" ou "pessoal".
+  scope      String
+  /// Dona do documento pessoal (nulo no institucional).
+  userId     String?
+  title      String
+  /// Origem identificável: nome do arquivo ou referência informada por quem enviou.
+  origin     String
+  /// pdf, docx, texto, markdown, csv.
+  kind       String
+  /// sha256 do texto extraído: o mesmo conteúdo não é reindexado.
+  hash       String
+  chars      Int
+  /// Modelo de embeddings dos trechos; trocar de modelo exige reindexar.
+  embedModel String
+  /// "processando", "pronto" ou "erro".
+  status     String   @default("processando")
+  detail     String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user   User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks KallyDocumentChunk[]
+
+  @@index([scope, userId])
+}
+
+model KallyDocumentChunk {
+  id         String @id @default(cuid())
+  documentId String
+  position   Int
+  /// Onde o trecho está no documento: "p. 3", "texto", "linhas 2–40".
+  label      String
+  text       String
+  /// Vetor Float32 em bytes (4 bytes por dimensão).
+  vector     Bytes
+
+  document KallyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
 }

@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { embed } from "@/server/ai";
+import { embedProfile, embedQueries } from "@/server/ai";
 import { analise } from "./analise";
 import { estudo } from "./estudo";
 import { post } from "./post";
@@ -18,10 +18,7 @@ export const COMPETENCES: Record<CompetenceId, CompetenceSpec> = { estudo, post,
  * nunca é gravado.
  */
 const CACHE_FILE = () => path.join(process.cwd(), ".cache", "kally-exemplos.json");
-const embedModel = () => process.env.AI_EMBED_MODEL || "nomic-embed-text";
-const key = (text: string) => createHash("sha256").update(`${embedModel()}\n${text}`).digest("hex");
-// Mesmo prefixo dos dois lados: aqui se compara pedido com pedido.
-const asQuery = (text: string) => `search_query: ${text}`;
+const key = (text: string) => createHash("sha256").update(`${embedProfile().model}\n${text}`).digest("hex");
 
 const store = globalThis as typeof globalThis & { __kallyExampleVectors?: Map<string, number[]> };
 
@@ -38,7 +35,8 @@ async function exampleVectors(examples: ReferenceExample[]): Promise<number[][]>
   const cache = store.__kallyExampleVectors;
   const missing = examples.filter((e) => !cache.has(key(e.pedido)));
   if (missing.length) {
-    const vectors = await embed(missing.map((e) => asQuery(e.pedido)));
+    // Prefixo de pergunta dos dois lados: aqui se compara pedido com pedido.
+    const vectors = await embedQueries(missing.map((e) => e.pedido));
     missing.forEach((e, i) => cache.set(key(e.pedido), vectors[i]));
     await mkdir(path.dirname(CACHE_FILE()), { recursive: true });
     await writeFile(CACHE_FILE(), JSON.stringify(Object.fromEntries(cache)), "utf8").catch(() => undefined);
@@ -71,7 +69,7 @@ export async function selectExamples(id: CompetenceId, query: string, options: {
   let ranked: { example: ReferenceExample; score: number }[];
   let by: "embeddings" | "palavras" = "embeddings";
   try {
-    const [vectors, [queryVector]] = await Promise.all([exampleVectors(exemplos), embed([asQuery(query.slice(0, 2_000))])]);
+    const [vectors, [queryVector]] = await Promise.all([exampleVectors(exemplos), embedQueries([query.slice(0, 2_000)])]);
     ranked = exemplos.map((example, i) => ({ example, score: cosine(queryVector, vectors[i]) }));
   } catch {
     by = "palavras";

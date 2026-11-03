@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { stripMarkdown } from "@/lib/text";
-import { embed } from "./ai";
+import { embedDocuments, embedProfile, embedQueries } from "./ai";
 import { publiclyVisible, scopeFilter } from "./categories";
 import type { Scope } from "./scope";
 
@@ -35,10 +35,8 @@ export type Retrieved = {
 
 const MAX_CANDIDATES = 400;
 const CHUNK = 900;
-// Com o nomic-embed-text, textos sem relação já ficam perto de 0,62; temas de fato ligados
-// passam de ~0,67. Abaixo do mínimo, o significado não conta (conversa solta não puxa posts).
-const SEMANTIC_MIN = Number(process.env.KALLY_SEMANTIC_MIN || 0.665);
-const SEMANTIC_FLOOR = 0.62;
+// A escala das notas depende do modelo de embeddings (embedProfile em server/ai.ts): abaixo do
+// mínimo, o significado não conta (conversa solta não puxa posts).
 
 const STOP_WORDS = new Set([
   "a", "as", "o", "os", "um", "uma", "uns", "umas", "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas",
@@ -51,7 +49,9 @@ const STOP_WORDS = new Set([
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("pt-BR");
 const terms = (text: string) => [...new Set(normalize(text).match(/[\p{L}\p{N}]{3,}/gu) ?? [])].filter((t) => !STOP_WORDS.has(t)).slice(0, 12);
-const hashOf = (text: string) => createHash("sha1").update(text).digest("hex");
+// O modelo entra no hash: trocar de modelo reindexa tudo, e vetores de modelos diferentes nunca se misturam.
+const hashOf = (text: string) => createHash("sha1").update(`${embedProfile().model}
+${text}`).digest("hex");
 
 /** Texto indexável do pensamento: título, pastas, corpo e as descrições das imagens. */
 function documentText(post: { title: string; content: string; categories: { name: string }[] }) {
@@ -78,6 +78,8 @@ function chunks(text: string): string[] {
 }
 
 function cosine(a: number[], b: number[]) {
+  // Vetor de outro modelo (ainda não reindexado): não compara.
+  if (a.length !== b.length) return 0;
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
@@ -89,7 +91,14 @@ function cosine(a: number[], b: number[]) {
 
 type Doc = { refId: string; kind: "post" | "conversa"; userId: string | null; text: string };
 
-/** Recalcula só o que mudou e remove o que não existe mais. Falha do modelo = sem índice. */
+const indexing = globalThis as typeof globalThis & { __kallyIndexing?: Set<string> };
+
+/**
+ * Recalcula só o que mudou e remove o que não existe mais. Falha do modelo = sem índice.
+ * Poucos textos novos (o caso comum) são indexados na hora. Muitos (primeira vez ou troca de
+ * modelo: ~1,3 s por trecho na CPU) vão para segundo plano, para a pergunta não esperar
+ * minutos; enquanto isso a busca usa o que já está indexado com o modelo atual.
+ */
 async function syncIndex(environmentId: string, docs: Doc[], kind: "post" | "conversa", userId?: string) {
   const existing = await db.kallyChunk.findMany({
     where: { environmentId, kind, ...(kind === "conversa" ? { userId } : {}) },
@@ -101,18 +110,30 @@ async function syncIndex(environmentId: string, docs: Doc[], kind: "post" | "con
   const stale = existing.filter((e) => !live.has(e.refId)).map((e) => e.refId);
   if (stale.length) await db.kallyChunk.deleteMany({ where: { environmentId, kind, refId: { in: stale } } });
 
-  for (const doc of docs) {
-    const hash = hashOf(doc.text);
-    if (known.get(doc.refId) === hash) continue;
-    const parts = chunks(doc.text);
-    const vectors = await embed(parts.map((p) => `search_document: ${p}`));
-    await db.$transaction([
-      db.kallyChunk.deleteMany({ where: { kind, refId: doc.refId } }),
-      db.kallyChunk.createMany({
-        data: parts.map((text, chunk) => ({ environmentId, kind, refId: doc.refId, userId: doc.userId, chunk, hash, text, vector: JSON.stringify(vectors[chunk]) })),
-      }),
-    ]);
-  }
+  const pending = docs.filter((doc) => known.get(doc.refId) !== hashOf(doc.text));
+  if (!pending.length) return;
+  const run = async () => {
+    for (const doc of pending) {
+      const hash = hashOf(doc.text);
+      const parts = chunks(doc.text);
+      const vectors = await embedDocuments(parts);
+      await db.$transaction([
+        db.kallyChunk.deleteMany({ where: { kind, refId: doc.refId } }),
+        db.kallyChunk.createMany({
+          data: parts.map((text, chunk) => ({ environmentId, kind, refId: doc.refId, userId: doc.userId, chunk, hash, text, vector: JSON.stringify(vectors[chunk]) })),
+        }),
+      ]);
+    }
+  };
+  if (pending.length <= 3) return run();
+  const key = `${environmentId}:${kind}:${userId ?? ""}`;
+  indexing.__kallyIndexing ??= new Set();
+  if (indexing.__kallyIndexing.has(key)) return;
+  indexing.__kallyIndexing.add(key);
+  console.info(`Kally memory: reindexando ${pending.length} textos em segundo plano (${kind}).`);
+  void run()
+    .catch((cause) => console.error("Kally memory: reindexação falhou:", cause instanceof Error ? cause.message : cause))
+    .finally(() => indexing.__kallyIndexing?.delete(key));
 }
 
 /**
@@ -145,7 +166,7 @@ export async function recall(
       take: MAX_CANDIDATES,
     });
     await syncIndex(scope.environmentId, allPublished.map((p) => ({ refId: p.id, kind: "post" as const, userId: null, text: documentText(p) })), "post");
-    [queryVector] = await embed([`search_query: ${query}`]);
+    [queryVector] = await embedQueries([query]);
     const rows = await db.kallyChunk.findMany({ where: { environmentId: scope.environmentId, kind: "post", refId: { in: posts.map((p) => p.id) } }, select: { refId: true, text: true, vector: true } });
     semantic = new Map();
     for (const row of rows) {
@@ -158,6 +179,7 @@ export async function recall(
   }
 
   const words = terms(query);
+  const profile = embedProfile();
   const scored = posts.map((post) => {
     const title = normalize(post.title);
     const cats = normalize(post.categories.map((c) => c.name).join(" "));
@@ -165,9 +187,9 @@ export async function recall(
     let lexical = 0;
     for (const term of words) lexical += (title.includes(term) ? 5 : 0) + (cats.includes(term) ? 3 : 0) + (text.includes(term) ? 1 : 0);
     const sem = semantic.get(post.id);
-    const meaning = sem && sem.score >= SEMANTIC_MIN ? Math.min((sem.score - SEMANTIC_FLOOR) / 0.13, 1) : 0;
-    // Palavras no título/pasta pesam bastante: o nomic-embed-text entende pouco português.
-    const score = meaning * 0.55 + Math.min(lexical / 8, 1) * 0.45;
+    const meaning = sem && sem.score >= profile.min ? Math.min((sem.score - profile.floor) / profile.span, 1) : 0;
+    // Com um modelo fraco em português (nomic), as palavras no título/pasta pesam mais (weight menor).
+    const score = meaning * profile.weight + Math.min(lexical / 8, 1) * (1 - profile.weight);
     return { post, score, excerpt: sem?.text ?? stripMarkdown(post.content).slice(0, CHUNK) };
   });
 
@@ -220,7 +242,7 @@ export async function recall(
       }
       const titles = new Map(conversations.map((c) => [c.id, c.title]));
       [...best.entries()]
-        .filter(([, v]) => v.score >= 0.72)
+        .filter(([, v]) => v.score >= profile.conversationMin)
         .sort((a, b) => b[1].score - a[1].score)
         .slice(0, 2)
         .forEach(([id, v]) => results.push({ kind: "conversa", title: titles.get(id) ?? "Conversa", slug: id, categories: [], excerpt: v.text.slice(0, 700), score: v.score * 0.5, related: [] }));

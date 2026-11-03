@@ -1,6 +1,7 @@
 import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
+import { searchDocuments } from "@/server/kally/documents";
 import { competenceFor, competenceMode, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
@@ -189,17 +190,26 @@ export async function POST(request: Request, context: EnvContext) {
     const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
     web = await searchWeb(webQuery, 4);
   }
+  // Bases de documentos (pipeline): a institucional e a pessoal de quem pergunta. Num post pessoal
+  // só entram os documentos da própria pessoa (referências externas não são fala dela).
+  const documentSearch = pipeline && !casual
+    ? await searchDocuments({ userId, query, limit: 4, institutional: competence !== "post" }).catch((cause) => {
+        console.error("Kally documentos: busca indisponível:", cause instanceof Error ? cause.message : cause);
+        return null;
+      })
+    : null;
+  const documents = documentSearch?.hits ?? [];
   const retrievalMs = Date.now() - retrievalStarted;
-  const sources = toSources(posts, web);
+  const sources = toSources(posts, web, documents);
 
   const canDraft = wantsDraft(competence, message, access.permissions.publish);
-  // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, e anexo).
-  // Só o tema não basta: o rascunho seria inventado, então a Kally pergunta primeiro.
+  // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, anexo e
+  // documentos dela). Só o tema não basta: o rascunho seria inventado, então a Kally pergunta.
   const ownWords = [raw.replace(/^\/post\s*/i, ""), ...history.filter((m) => m.role === "user").map((m) => m.content)].join(" ").trim();
-  const thinMaterial = competence === "post" && !attachment && ownWords.length < 140;
+  const thinMaterial = competence === "post" && !attachment && !documents.length && ownWords.length < 140;
   const categories = mode === "ideia" || canDraft ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
-  // Com anexo ou texto para revisar, o contexto já vai cheio: um exemplo só.
-  const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review ? 1 : 2 }) : null;
+  // Com anexo, texto para revisar ou trechos de documentos, o contexto já vai cheio: um exemplo só.
+  const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review || documents.length ? 1 : 2 }) : null;
   const examples: ReferenceExample[] = exampleSelection?.examples ?? [];
 
   if (!conversation && body.save === true) {
@@ -239,8 +249,8 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade, thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide })
-            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual });
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade, thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents })
+            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
@@ -306,6 +316,9 @@ export async function POST(request: Request, context: EnvContext) {
             examplesMs: exampleSelection?.ms ?? null,
             examplesBy: exampleSelection?.by ?? null,
             canDraft,
+            // origem dos trechos usados (sem o texto): base e documento
+            documents: documents.map((d) => ({ scope: d.scope, id: d.documentId, label: d.label, score: Math.round(d.score * 1000) / 1000 })),
+            documentsMs: documentSearch?.ms ?? null,
             thinMaterial,
             casual,
             skipMemory,

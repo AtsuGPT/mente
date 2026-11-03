@@ -253,16 +253,8 @@ export async function processAttachment(file: File, owner: string, options: { al
     extraction = await imageExtraction(new Uint8Array(await file.arrayBuffer()));
   } else {
     if (file.size > MAX_DOCUMENT_BYTES) return { ok: false, error: "Documentos devem ter no máximo 15 MB.", status: 413 };
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (extension === "pdf") extraction = await pdfExtraction(bytes);
-    else if (extension === "docx") extraction = await docxExtraction(bytes);
-    else if (["txt", "md", "markdown", "csv", "tsv"].includes(extension)) {
-      const decoded = decodeText(bytes);
-      const kind = extension === "csv" || extension === "tsv" ? "csv" : extension === "txt" ? "texto" : "markdown";
-      if ("error" in decoded) extraction = { kind, status: "unreadable", detail: decoded.error, sections: [] };
-      else if (kind === "csv") extraction = csvExtraction(decoded.text);
-      else extraction = { kind, status: "ready", detail: kind === "markdown" ? "Markdown lido integralmente." : "Texto lido integralmente.", sections: [{ label: "texto", text: decoded.text }] };
-    } else {
+    const document = await extractDocument(new Uint8Array(await file.arrayBuffer()), extension);
+    if (!document) {
       return finish(name, owner, {
         kind: "texto",
         status: "unsupported",
@@ -270,9 +262,27 @@ export async function processAttachment(file: File, owner: string, options: { al
         sections: [],
       });
     }
+    extraction = document;
   }
   return finish(name, owner, extraction);
 }
+
+/**
+ * Texto de um documento (PDF por página, DOCX, TXT, MD, CSV), com o rótulo de onde cada parte
+ * está. null = formato não suportado. Usado nos anexos e na base de documentos da Kally.
+ */
+export async function extractDocument(bytes: Uint8Array, extension: string): Promise<Extraction | null> {
+  if (extension === "pdf") return pdfExtraction(bytes);
+  if (extension === "docx") return docxExtraction(bytes);
+  if (!["txt", "md", "markdown", "csv", "tsv"].includes(extension)) return null;
+  const decoded = decodeText(bytes);
+  const kind = extension === "csv" || extension === "tsv" ? "csv" : extension === "txt" ? "texto" : "markdown";
+  if ("error" in decoded) return { kind, status: "unreadable", detail: decoded.error, sections: [] };
+  if (kind === "csv") return csvExtraction(decoded.text);
+  return { kind, status: "ready", detail: kind === "markdown" ? "Markdown lido integralmente." : "Texto lido integralmente.", sections: [{ label: "texto", text: decoded.text }] };
+}
+
+export { extensionOf, UNSUPPORTED_HINTS };
 
 function finish(name: string, owner: string, extraction: Extraction): ProcessResult {
   prune();
