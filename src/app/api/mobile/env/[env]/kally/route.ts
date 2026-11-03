@@ -1,4 +1,6 @@
-import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats } from "@/server/ai";
+import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { logPerf, memorySampler } from "@/server/ai/perf";
+import { competenceMode, interpret, interpretationGuide, needsInterpretation, pipelineFor, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -62,6 +64,7 @@ const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slic
  * { review }? → { text }... → { done }.
  */
 export async function POST(request: Request, context: EnvContext) {
+  const startedAt = Date.now();
   const access = await envAccess(context);
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
@@ -111,6 +114,20 @@ export async function POST(request: Request, context: EnvContext) {
         })()
       : null;
 
+  // Pipeline (KALLY_PIPELINE): a competência vem das regras acima ou, quando elas não bastam,
+  // do interpretador; depois o executor responde. Um modelo carregado por vez (model-manager).
+  const pipeline = dev ? null : pipelineFor(platformAdmin);
+  const sampler = memorySampler();
+  let interpretation: Interpretation | null = null;
+  let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
+  if (pipeline && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
+    const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
+    const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
+    interpretation = r.result;
+    interpreterReport = { ...r.lease, model: pipeline.interpreter, ms: r.ms, ok: !!r.result, competencia: r.result?.competencia ?? null };
+    if (interpretation) mode = competenceMode(interpretation, { publish: access.permissions.publish, textToReview: message.length > 400 });
+  }
+
   // Texto para revisar: só o que esta pessoa pode ler (rascunho próprio/editável, publicado visível ou colado).
   let review: { kind: "textual" | "intelectual"; text: string; postId: string | null; slug: string | null } | null = null;
   if (mode === "revisar") {
@@ -138,6 +155,7 @@ export async function POST(request: Request, context: EnvContext) {
   const query = review ? review.text.slice(0, 800) : attachment ? `${message} ${attachment.text.slice(0, 600)}` : message.length < 40 ? `${lastUser} ${message}` : message;
   // Conversas anteriores só entram em Conversar e Aprender: na revisão e na ideia elas se misturariam ao texto da pessoa.
   const withConversations = mode === "chat" || mode === "aprender";
+  const retrievalStarted = Date.now();
   // Papo casual não consulta a memória (mais rápido e sem puxar assunto do nada); revisão
   // sem texto também não (a Kally só pede o texto, em vez de "revisar" posts soltos).
   const posts = casual || (mode === "revisar" && !review)
@@ -161,6 +179,7 @@ export async function POST(request: Request, context: EnvContext) {
     const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
     web = await searchWeb(webQuery, 4);
   }
+  const retrievalMs = Date.now() - retrievalStarted;
   const sources = toSources(posts, web);
   const categories = mode === "ideia" ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
 
@@ -178,6 +197,14 @@ export async function POST(request: Request, context: EnvContext) {
       send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
       send({ sources });
       let answer = "";
+      // Desempenho deste pedido (logs/kally-perf.jsonl).
+      let modelName: string | null = null;
+      let stats = null as GenerationStats | null;
+      let lease = null as LeaseInfo | null;
+      let generationStarted = 0;
+      let generationEnded = 0;
+      let firstText = 0;
+      let failed: string | null = null;
       try {
         if (review?.kind === "textual") {
           const result = await reviewText(review.text, access.environment.name);
@@ -190,35 +217,95 @@ export async function POST(request: Request, context: EnvContext) {
           ].join("");
           send({ text: answer });
         } else {
-          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev });
-          // A revisão intelectual usa o modelo de revisão (KALLY_REVIEW_MODEL), se configurado.
-          const model = dev ? devModel(dev) : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
-          // Modo dev: diz qual modelo responde e mede tudo (mesmo contexto e mesmo limite para qualquer modelo).
-          const modelName = model || defaultChatModel();
-          let stats: GenerationStats | null = null;
-          if (dev) send({ model: modelName });
-          const started = Date.now();
-          let firstText = 0;
-          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens: dev ? 4_096 : casual ? 320 : mode === "chat" ? 800 : 1_400, model, ...(dev ? { sameContext: true, timeoutMs: 600_000, onStats: (s: GenerationStats) => (stats = s) } : {}) })) {
+          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide: interpretation ? interpretationGuide(interpretation) : null });
+          // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
+          const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          modelName = model || defaultChatModel();
+          // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
+          const showStats = !!dev || (!!pipeline && platformAdmin);
+          if (showStats) send({ model: modelName });
+          generationStarted = Date.now();
+          const maxTokens = dev ? 4_096 : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
+          // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
+          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true } : {};
+          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
             if (!firstText) firstText = Date.now();
             answer += chunk;
             send({ text: chunk });
           }
-          if (dev) {
-            const memory = await ollamaMemory(modelName);
-            const report = { ...(stats ?? { model: modelName }), firstTextSeconds: firstText ? Math.round((firstText - started) / 100) / 10 : null, wallSeconds: Math.round((Date.now() - started) / 100) / 10, memory };
-            console.info("Kally dev:", JSON.stringify(report));
+          generationEnded = Date.now();
+          if (showStats) {
+            const seconds = (ms: number) => Math.round(ms / 100) / 10;
+            const report = {
+              ...(stats ?? { model: modelName }),
+              firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
+              wallSeconds: seconds(generationEnded - generationStarted),
+              memory: await ollamaMemory(modelName),
+              ...(pipeline
+                ? {
+                    pipeline: {
+                      interpreted: !!interpreterReport,
+                      competence: interpretation?.competencia ?? null,
+                      interpreterSeconds: interpreterReport ? seconds(interpreterReport.ms) : 0,
+                      // trocas de modelo: a do interpretador (se houve) e a de volta ao executor
+                      swapSeconds: seconds((interpreterReport?.unloadMs ?? 0) + (interpreterReport?.loadMs ?? 0) + (lease?.unloadMs ?? 0) + (lease?.loadMs ?? 0)),
+                      queueSeconds: seconds((interpreterReport?.queueMs ?? 0) + (lease?.queueMs ?? 0)),
+                      firstTextTotalSeconds: firstText ? seconds(firstText - startedAt) : null,
+                      totalSeconds: seconds(generationEnded - startedAt),
+                    },
+                  }
+                : {}),
+            };
+            if (dev) console.info("Kally dev:", JSON.stringify(report));
             send({ stats: report });
           }
         }
         send({ done: true });
       } catch (cause) {
-        console.error("Kally:", cause instanceof Error ? cause.message : cause);
+        failed = cause instanceof Error ? cause.message : String(cause);
+        console.error("Kally:", failed);
         send({ error: cause instanceof AiError ? cause.message : "A resposta foi interrompida. Tente novamente." });
       } finally {
         // Só conversas salvas guardam a resposta (mesmo parcial).
         if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
         controller.close();
+        const memory = sampler.stop();
+        void (async () =>
+          logPerf({
+            route: "app",
+            pipeline: !!pipeline,
+            dev: !!dev,
+            mode,
+            competence: interpretation?.competencia ?? null,
+            casual,
+            messageChars: message.length,
+            historyMessages: history.length,
+            retrieved: posts.length,
+            web: web.length,
+            retrievalMs,
+            interpreter: interpreterReport,
+            executor: modelName
+              ? {
+                  model: modelName,
+                  queueMs: lease?.queueMs ?? null,
+                  unloaded: lease?.unloaded ?? [],
+                  unloadMs: lease?.unloadMs ?? null,
+                  loadMs: lease?.loadMs ?? null,
+                  promptTokens: stats?.promptTokens ?? null,
+                  promptSeconds: stats?.promptSeconds ?? null,
+                  outputTokens: stats?.outputTokens ?? null,
+                  tokensPerSecond: stats?.tokensPerSecond ?? null,
+                  generationMs: generationEnded ? generationEnded - generationStarted : null,
+                  memory: await ollamaMemory(modelName),
+                }
+              : null,
+            // tempo percebido: do pedido chegar ao primeiro texto e ao fim da resposta
+            firstTextMs: firstText ? firstText - startedAt : null,
+            totalMs: (generationEnded || Date.now()) - startedAt,
+            minFreeRamGB: memory.minFreeRamGB,
+            peakVramMiB: memory.peakVramMiB,
+            error: failed,
+          }))();
       }
     },
   });

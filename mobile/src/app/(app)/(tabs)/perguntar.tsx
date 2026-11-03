@@ -58,6 +58,8 @@ type DevStats = {
   firstTextSeconds?: number | null;
   wallSeconds?: number;
   memory?: { totalGB: number; vramGB: number; cpuGB: number; context: number } | null;
+  /** pipeline interpretador → executor (só para o administrador) */
+  pipeline?: { interpreted: boolean; competence: string | null; interpreterSeconds: number; swapSeconds: number; queueSeconds: number; totalSeconds: number };
 };
 type ReviewKind = "textual" | "intelectual";
 
@@ -633,6 +635,10 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
       {item.stats ? (
         <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>
           {[
+            item.stats.pipeline ? (item.stats.pipeline.interpreted ? `interpretou${item.stats.pipeline.competence ? ` (${item.stats.pipeline.competence})` : ""} ${item.stats.pipeline.interpreterSeconds}s` : "direto ao executor") : "",
+            item.stats.pipeline?.swapSeconds ? `trocas ${item.stats.pipeline.swapSeconds}s` : "",
+            item.stats.pipeline?.queueSeconds ? `fila ${item.stats.pipeline.queueSeconds}s` : "",
+            item.stats.pipeline ? `total ${item.stats.pipeline.totalSeconds}s` : "",
             item.stats.loadSeconds ? `carga ${item.stats.loadSeconds}s` : "",
             item.stats.firstTextSeconds != null ? `1º texto ${item.stats.firstTextSeconds}s` : "",
             item.stats.tokensPerSecond ? `${item.stats.tokensPerSecond} tok/s (${item.stats.outputTokens} tokens)` : "",

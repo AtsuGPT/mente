@@ -16,3 +16,6 @@ npm-debug.log*
 # App web exportado (mobile: npm run export:web)
 /public/app/
 __pycache__/
+
+# Registro de desempenho da Kally (server/ai/perf.ts)
+/logs/
