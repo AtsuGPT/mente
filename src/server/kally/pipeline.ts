@@ -1,6 +1,7 @@
 import "server-only";
 import { ollamaJson } from "@/server/ai/ollama";
 import type { LeaseInfo } from "@/server/ai/model-manager";
+import type { CompetenceId } from "./competences/types";
 
 /**
  * Pipeline da Kally em duas etapas, com UM modelo carregado por vez (server/ai/model-manager.ts):
@@ -125,7 +126,42 @@ export async function interpret(
   }
 }
 
-/** Modo da Kally que atende cada competência (as instruções próprias de cada uma vêm depois). */
+// Pedidos curtos (sem interpretador) que já dizem a competência. Ficam de fora "o que você acha"
+// e "faz sentido?": em papo comum elas virariam uma análise formal.
+const ANALYSIS_RULE = /\banalis[ae]r?\b|\bcritique\b|\bcriticamente\b|\bavali(e|ar)\b|\bse sustenta\b|\besse argumento\b|\bplano de estudos?\b|\bcronograma de estudos?\b|\bme orient[ae]\b|\bpor onde come[çc]o\b|\bcomo (eu )?(organizo|estudo)\b/;
+const STUDY_RULE = /\b(me )?expli(ca|que|car)\b|\b(material|texto|resumo|apostila|post) (de estudo|did[aá]tico|explicando)|\bcomo funciona\b|\bdiferen[çc]a entre\b/;
+const STUDY_POST_RULE = /\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
+
+/**
+ * Competência do pedido (competences/): da interpretação, se houve; senão do modo e das regras
+ * acima. null = conversa ou aprendizagem guiada, com o prompt de sempre.
+ */
+export function competenceFor(input: { mode: string; interpretation: Interpretation | null; message: string; reviewKind: "textual" | "intelectual" | null }): CompetenceId | null {
+  const i = input.interpretation;
+  if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" ? null : "analise";
+  const m = input.message.toLowerCase();
+  if (input.mode === "ideia") return STUDY_POST_RULE.test(m) ? "estudo" : "post";
+  // Revisão textual (sugestões trecho a trecho) segue o fluxo próprio; sem texto, a Kally só pede o texto.
+  if (input.mode === "revisar") return input.reviewKind === "intelectual" ? "analise" : null;
+  if (ANALYSIS_RULE.test(m)) return "analise";
+  if (input.mode === "aprender") return null;
+  return STUDY_RULE.test(m) ? "estudo" : null;
+}
+
+/**
+ * A pessoa fala dos próprios textos ("meus posts", "o que escrevi", "no ambiente"). Mais estrito
+ * que o wantsMemory de detectIntent, que também aceita "analise" e "relaciona" soltos.
+ */
+export const refersToOwnPosts = (message: string) =>
+  /\b(meus?|minhas?|nossos?) (posts?|textos?|pensamentos?|ideias|rascunhos?|projetos?)\b|o que (eu )?(escrevi|publiquei|pensei)|\bno ambiente\b|\bnos (posts|pensamentos|textos)\b/i.test(message);
+
+/** A pessoa pediu um post publicável (e pode publicar): a resposta vem como <rascunho>. */
+export function wantsDraft(competence: CompetenceId | null, message: string, canPublish: boolean) {
+  if (!canPublish || !competence || competence === "analise") return false;
+  return competence === "post" || /\b(post|publica\w*|postar|blog)\b/i.test(message);
+}
+
+/** Modo da Kally que atende cada competência (rótulo no app e o que a busca na memória inclui). */
 export function competenceMode(i: Interpretation, can: { publish: boolean; textToReview: boolean }): "chat" | "ideia" | "revisar" | "aprender" {
   switch (i.competencia) {
     case "post":

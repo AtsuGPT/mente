@@ -1,11 +1,13 @@
 import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { logPerf, memorySampler } from "@/server/ai/perf";
-import { competenceMode, interpret, interpretationGuide, needsInterpretation, pipelineFor, type Interpretation } from "@/server/kally/pipeline";
+import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
+import { competenceFor, competenceMode, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
 import {
   addMessage,
+  buildCompetencePrompt,
   buildPrompt,
   createConversation,
   detectIntent,
@@ -88,7 +90,7 @@ export async function POST(request: Request, context: EnvContext) {
   const hasReviewPayload = !!body.review && typeof body.review === "object";
   let mode: Exclude<KallyMode, "auto"> = postCommand ? "ideia" : requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
-  const casual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
+  const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   // Modo Desenvolvedor: só muda o prompt (personalidade/estilo). Permissões e ambiente continuam os mesmos.
   // Só o administrador da plataforma usa o modo; para as outras contas o pedido é ignorado.
   const platformAdmin = (await findUserById(userId))?.legacyKind === "ADMIN";
@@ -150,6 +152,14 @@ export async function POST(request: Request, context: EnvContext) {
     // Sem texto: a Kally pede, com naturalidade, que a pessoa cole ou escolha um pensamento.
   }
 
+  // Competência (só no pipeline): instruções, critérios e exemplos próprios de estudo, post e análise.
+  // Pedido explícito ("me explica…", "analise…") não é papo casual, mesmo curto e sem "?".
+  const competence = pipeline ? competenceFor({ mode, interpretation, message, reviewKind: review?.kind ?? null }) : null;
+  const casual = ruleCasual && !competence;
+  // Texto de estudo e análise de algo externo: os posts do ambiente só entram se a pessoa se referir
+  // a eles. Com a busca atual, posts pouco relacionados entravam e o modelo forçava a relação.
+  const skipMemory = (competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message);
+
   // Memória do ambiente: pela mensagem (curta? junta com a anterior), pelo texto revisado ou pelo anexo.
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
   const query = review ? review.text.slice(0, 800) : attachment ? `${message} ${attachment.text.slice(0, 600)}` : message.length < 40 ? `${lastUser} ${message}` : message;
@@ -158,7 +168,7 @@ export async function POST(request: Request, context: EnvContext) {
   const retrievalStarted = Date.now();
   // Papo casual não consulta a memória (mais rápido e sem puxar assunto do nada); revisão
   // sem texto também não (a Kally só pede o texto, em vez de "revisar" posts soltos).
-  const posts = casual || (mode === "revisar" && !review)
+  const posts = casual || skipMemory || (mode === "revisar" && !review)
     ? []
     : (
         await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
@@ -181,7 +191,16 @@ export async function POST(request: Request, context: EnvContext) {
   }
   const retrievalMs = Date.now() - retrievalStarted;
   const sources = toSources(posts, web);
-  const categories = mode === "ideia" ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
+
+  const canDraft = wantsDraft(competence, message, access.permissions.publish);
+  // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, e anexo).
+  // Só o tema não basta: o rascunho seria inventado, então a Kally pergunta primeiro.
+  const ownWords = [raw.replace(/^\/post\s*/i, ""), ...history.filter((m) => m.role === "user").map((m) => m.content)].join(" ").trim();
+  const thinMaterial = competence === "post" && !attachment && ownWords.length < 140;
+  const categories = mode === "ideia" || canDraft ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
+  // Com anexo ou texto para revisar, o contexto já vai cheio: um exemplo só.
+  const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review ? 1 : 2 }) : null;
+  const examples: ReferenceExample[] = exampleSelection?.examples ?? [];
 
   if (!conversation && body.save === true) {
     const created = await createConversation(access.environment.id, userId, mode, review?.text.split("\n")[0].replace(/^#\s*/, "Revisão: ") || message);
@@ -217,7 +236,11 @@ export async function POST(request: Request, context: EnvContext) {
           ].join("");
           send({ text: answer });
         } else {
-          const prompt = buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide: interpretation ? interpretationGuide(interpretation) : null });
+          const guide = interpretation ? interpretationGuide(interpretation) : null;
+          const spec = competence ? COMPETENCES[competence] : null;
+          const prompt = spec
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade, thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide })
+            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
@@ -225,10 +248,11 @@ export async function POST(request: Request, context: EnvContext) {
           const showStats = !!dev || (!!pipeline && platformAdmin);
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
-          const maxTokens = dev ? 4_096 : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
+          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
+          const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.45;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
-          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true } : {};
-          for await (const chunk of streamChat(prompt, { temperature: mode === "ideia" ? 0.6 : 0.45, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
+          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
+          for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
             if (!firstText) firstText = Date.now();
             answer += chunk;
             send({ text: chunk });
@@ -245,7 +269,7 @@ export async function POST(request: Request, context: EnvContext) {
                 ? {
                     pipeline: {
                       interpreted: !!interpreterReport,
-                      competence: interpretation?.competencia ?? null,
+                      competence,
                       interpreterSeconds: interpreterReport ? seconds(interpreterReport.ms) : 0,
                       // trocas de modelo: a do interpretador (se houve) e a de volta ao executor
                       swapSeconds: seconds((interpreterReport?.unloadMs ?? 0) + (interpreterReport?.loadMs ?? 0) + (lease?.unloadMs ?? 0) + (lease?.loadMs ?? 0)),
@@ -276,8 +300,15 @@ export async function POST(request: Request, context: EnvContext) {
             pipeline: !!pipeline,
             dev: !!dev,
             mode,
-            competence: interpretation?.competencia ?? null,
+            competence,
+            interpreted: interpretation?.competencia ?? null,
+            examples: examples.map((e) => e.id),
+            examplesMs: exampleSelection?.ms ?? null,
+            examplesBy: exampleSelection?.by ?? null,
+            canDraft,
+            thinMaterial,
             casual,
+            skipMemory,
             messageChars: message.length,
             historyMessages: history.length,
             retrieved: posts.length,
