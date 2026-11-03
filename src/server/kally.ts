@@ -115,10 +115,10 @@ function modeInstructions(mode: KallyMode, found: boolean, categories: string[])
 }
 
 /** Regra das bases de documentos: só entra no prompt quando há trechos delas. */
-const DOCUMENT_RULE =
+export const DOCUMENT_RULE =
   "Material [I…] vem da base institucional (documentos de referência) e [D…] dos documentos da própria pessoa. Ao usar, diga de onde veio e cite o título e a parte (ex.: \"Título\", p. 3). Não atribua a eles o que não está no trecho.";
 
-function documentsBlock(documents: DocumentHit[]) {
+export function documentsBlock(documents: DocumentHit[]) {
   const reference = documents.filter((d) => d.scope === "institucional");
   const own = documents.filter((d) => d.scope === "pessoal");
   const line = (d: DocumentHit, tag: string) => `[${tag}] "${d.title}" (origem: ${d.origin}${d.label && d.label !== "texto" ? `, ${d.label}` : ""})\n${d.text}`;
@@ -245,12 +245,15 @@ export function buildCompetencePrompt(input: {
   guide?: string | null;
   /** Trechos das bases de documentos (no post, só os da própria pessoa). */
   documents?: DocumentHit[];
+  /** Kally do site: identidade e regras do arquivo no lugar das do app */
+  identity?: string[];
+  /** Kally do site: material já formatado (posts com href, anexos, internet, documentos) */
+  materialText?: string;
 }): AiMessage[] {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    `Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`,
-    ...MATERIAL_RULES,
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
@@ -274,7 +277,9 @@ export function buildCompetencePrompt(input: {
 
   // Post da pessoa: outros pensamentos entram só como títulos (o texto deles se misturaria aos argumentos dela).
   let material: string;
-  if (c.id === "post") {
+  if (input.materialText !== undefined) {
+    material = input.materialText;
+  } else if (c.id === "post") {
     const internal = input.posts.filter((p) => p.kind !== "conversa");
     material = [
       internal.length ? `REFERÊNCIAS INTERNAS que talvez se relacionem (só títulos; NÃO são falas da pessoa): ${internal.map((p) => `"${p.title}"`).join("; ")}.` : "",

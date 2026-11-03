@@ -398,7 +398,7 @@ export function detectSearchType(text: string): SearchType {
   return "geral";
 }
 
-async function planQueries(request: string, context: string): Promise<QueryPlan> {
+async function planQueries(request: string, context: string, model?: string): Promise<QueryPlan> {
   const fallback = fallbackQuery(request) || request.slice(0, 160);
   try {
     const plan = await ollamaJson<{ consultas?: unknown; consulta_academica_en?: unknown; tipo?: unknown }>(
@@ -410,7 +410,8 @@ async function planQueries(request: string, context: string): Promise<QueryPlan>
         { role: "user", content: `${context ? `Contexto da conversa:\n${context.slice(0, 1_500)}\n\n` : ""}Pedido de pesquisa: ${request.slice(0, 1_500)}` },
       ],
       QUERY_SCHEMA,
-      { numPredict: 200, timeoutMs: 45_000, numCtx: 4_096 },
+      // Mesmo contexto da conversa: outro num_ctx faria o Ollama recarregar o modelo duas vezes por pesquisa.
+      { numPredict: 200, timeoutMs: 45_000, model },
     );
     const consultas = Array.isArray(plan?.consultas)
       ? plan.consultas.filter((item): item is string => typeof item === "string" && item.trim().length > 2).map((item) => item.trim().slice(0, 160)).slice(0, 3)
@@ -485,9 +486,9 @@ export type ResearchResult = {
  * Interpreta o pedido, formula consultas, pesquisa em fontes gerais e
  * especializadas, lê as páginas principais e devolve trechos com referência.
  */
-export async function researchWeb(request: string, context = "", options: { budgetPerSource?: number } = {}): Promise<ResearchResult> {
+export async function researchWeb(request: string, context = "", options: { budgetPerSource?: number; model?: string } = {}): Promise<ResearchResult> {
   const budget = options.budgetPerSource ?? 2_400;
-  const plan = await planQueries(request, context);
+  const plan = await planQueries(request, context, options.model);
   const notes: string[] = [];
 
   const general = Promise.all(plan.consultas.map((query) => generalSearch(query, plan.tipo === "noticias")));
