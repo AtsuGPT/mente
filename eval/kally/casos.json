@@ -1,0 +1,134 @@
+{
+  "sobre": "Casos de avaliação da Kally (Etapa 6). Inéditos: não aparecem nos 30 exemplos de referência (src/server/kally/competences) nem nos testes das etapas anteriores, e o servidor nunca os lê. 'precisa' foi escrito antes de gerar qualquer resposta e serve de âncora para as notas.",
+  "casos": [
+    {
+      "id": "A1",
+      "competencia": "estudo",
+      "tipo": "longo",
+      "mensagem": "Tenho prova de química orgânica semana que vem e não entendo isomeria. Preciso de um texto de estudo explicando a diferença entre isomeria plana e espacial, com os tipos principais de cada uma, exemplos de moléculas e como identificar na prova sem me confundir. Nível ensino médio.",
+      "precisa": "Isômeros = mesma fórmula molecular, estruturas diferentes. Plana: cadeia, posição, função, compensação (metameria), tautomeria. Espacial: geométrica (cis/trans, exige ligação dupla ou ciclo com ligantes diferentes em cada carbono) e óptica (carbono quiral, enantiômeros, desvio da luz polarizada). Exemplos corretos (ex.: butano/metilpropano; propan-1-ol/propan-2-ol; etanol/éter dimetílico; but-2-eno cis/trans; ácido lático). Roteiro de identificação."
+    },
+    {
+      "id": "A2",
+      "competencia": "estudo",
+      "tipo": "longo",
+      "mensagem": "Quero escrever um post técnico para iniciantes explicando o que é uma API REST: o que são recursos, os métodos HTTP principais (GET, POST, PUT, DELETE), os códigos de status mais comuns e o que significa ser 'sem estado'. Pode ter exemplos de requisições, mas sem ficar raso nem complicado demais.",
+      "precisa": "Recurso identificado por URL; métodos com semântica correta (GET lê, POST cria, PUT substitui/atualiza, DELETE remove; idempotência de GET/PUT/DELETE); status 200, 201, 204, 400, 401, 403, 404, 500 com significado certo; sem estado = cada requisição traz tudo o que o servidor precisa (ex.: token), o servidor não guarda sessão entre requisições. Exemplos de requisição plausíveis. Formato de post (rascunho), já que pediu post."
+    },
+    {
+      "id": "A3",
+      "competencia": "estudo",
+      "tipo": "longo",
+      "mensagem": "Meu professor de história pediu para eu entender as causas da Primeira Guerra Mundial além do assassinato do arquiduque. Pode montar um material de estudo explicando os fatores de longo prazo, como alianças, imperialismo, nacionalismo e corrida armamentista, e como eles se conectam ao estopim?",
+      "precisa": "Tríplice Aliança (Alemanha, Áustria-Hungria, Itália) e Tríplice Entente (França, Rússia, Reino Unido); imperialismo e disputas coloniais (ex.: crises marroquinas); nacionalismos (pan-eslavismo, revanchismo francês pela Alsácia-Lorena, Bálcãs); corrida armamentista (naval anglo-alemã); assassinato de Francisco Ferdinando em Sarajevo (1914) por nacionalista sérvio; ultimato austríaco à Sérvia e reação em cadeia das alianças. Datas e nomes corretos."
+    },
+    {
+      "id": "A4",
+      "competencia": "estudo",
+      "tipo": "curto",
+      "mensagem": "Me explica o que é juros compostos com um exemplo.",
+      "precisa": "Juros sobre juros: M = C(1 + i)^n; contraste com juros simples; exemplo numérico com contas certas (ex.: R$ 1.000 a 10% ao mês por 3 meses = R$ 1.331); efeito ao longo do tempo."
+    },
+    {
+      "id": "A5",
+      "competencia": "estudo",
+      "tipo": "curto",
+      "mensagem": "Qual a diferença entre DNA e RNA?",
+      "precisa": "Açúcar (desoxirribose x ribose); bases (timina x uracila; A, C, G nos dois); fita dupla x geralmente simples; funções (armazenar informação x expressão gênica: RNAm, RNAt, RNAr); localização (DNA no núcleo e mitocôndrias; RNA no núcleo e citoplasma). Sem erros."
+    },
+    {
+      "id": "B1",
+      "competencia": "post",
+      "tipo": "longo",
+      "mensagem": "Faz um ano que eu parei de beber. Não foi por nenhum problema grave, só percebi que eu bebia pra aguentar situações sociais. No começo as festas ficaram estranhas, eu não sabia o que fazer com as mãos e saía cedo. Hoje eu percebo que algumas amizades eram só de bar e acabaram, e tudo bem. Outras ficaram mais fortes porque a gente passou a conversar de verdade. Quero escrever sobre isso.",
+      "precisa": "Rascunho em primeira pessoa com todos os pontos: um ano sem beber; motivo (aguentar situações sociais, sem problema grave); festas estranhas, mãos, sair cedo; amizades de bar que acabaram (e tudo bem); outras mais fortes pela conversa de verdade. Nenhum fato ou reflexão inventada; sem lição de moral; uma pergunta no máximo depois."
+    },
+    {
+      "id": "B2",
+      "competencia": "post",
+      "tipo": "longo",
+      "mensagem": "Eu cuido da minha mãe que tem Alzheimer há dois anos. Tem dias que ela não lembra meu nome, mas lembra todas as músicas da juventude dela, e quando eu coloco essas músicas ela canta e sorri. Aprendi que a memória afetiva fica mesmo quando a outra vai embora. Também aprendi a pedir ajuda, coisa que eu nunca fazia. Queria transformar isso num texto pra outras pessoas que cuidam de alguém.",
+      "precisa": "Rascunho fiel e sensível: dois anos cuidando; não lembra o nome; lembra as músicas, canta e sorri; memória afetiva fica; aprendeu a pedir ajuda; dirigido a quem cuida de alguém (o leitor que ela quer alcançar). Sem inventar diagnósticos, cenas ou conselhos médicos; sem gênero da pessoa não revelado."
+    },
+    {
+      "id": "B3",
+      "competencia": "post",
+      "tipo": "longo",
+      "mensagem": "Acho que a gente romantiza demais a ideia de 'fazer o que ama'. Eu transformei meu hobby de fotografia em trabalho e, depois de um tempo, comecei a fotografar só pelo dinheiro e perdi o prazer. Hoje eu voltei a ter um emprego normal e a fotografia virou hobby de novo, e eu gosto mais dela assim. Quero um post meio provocativo sobre isso.",
+      "precisa": "Tese provocativa (romantização de 'fazer o que ama'); a história: hobby virou trabalho, fotografar pelo dinheiro, perda do prazer, volta ao emprego normal, fotografia de novo como hobby e mais prazerosa. Tom provocativo pedido. Nada inventado."
+    },
+    {
+      "id": "B4",
+      "competencia": "post",
+      "tipo": "curto",
+      "mensagem": "/post minha primeira viagem sozinha",
+      "precisa": "Só o tema foi dado: NÃO escrever rascunho inventado; uma frase de entendimento e UMA pergunta que traga a matéria (o que aconteceu, por que foi marcante)."
+    },
+    {
+      "id": "B5",
+      "competencia": "post",
+      "tipo": "curto",
+      "mensagem": "Quero escrever um post: depois de um burnout no ano passado, aprendi a dizer não no trabalho. No começo eu me sentia culpado, mas percebi que ninguém morreu e minha vida melhorou muito.",
+      "precisa": "Rascunho curto e fiel: burnout no ano passado; aprendeu a dizer não no trabalho; culpa no começo; 'ninguém morreu'; vida melhorou. Sem inventar cenas, sintomas ou conselhos; tamanho proporcional ao pouco material (ou uma pergunta para aprofundar, se escrever pouco)."
+    },
+    {
+      "id": "C1",
+      "competencia": "analise",
+      "tipo": "longo",
+      "mensagem": "Li num post que 'quem acorda às 5 da manhã é mais bem-sucedido, porque os grandes CEOs fazem isso'. Muita gente compartilhou sem questionar. Quero uma análise crítica desse argumento: ele se sustenta? Quais são os problemas de raciocínio e o que dá para dizer de forma justa sobre acordar cedo?",
+      "precisa": "Reconstrução; viés de sobrevivência/amostra selecionada (só se olha CEOs de sucesso); correlação x causalidade; apelo à autoridade/exemplo; cronotipos diferentes e sono total importam mais que o horário; o que procede (rotina e tempo sem interrupção podem ajudar algumas pessoas); conclusão justa. Sem dados inventados."
+    },
+    {
+      "id": "C2",
+      "competencia": "analise",
+      "tipo": "longo",
+      "mensagem": "Revisa criticamente este parágrafo meu: 'A educação a distância é inferior à presencial porque os alunos não têm disciplina sozinhos. Todo mundo que eu conheço que fez EAD desistiu ou aprendeu menos. Por isso, o governo deveria proibir cursos superiores totalmente a distância.' Quero saber onde o argumento está fraco e como melhorar.",
+      "precisa": "Generalização a partir de amostra pessoal (evidência anedótica); generalização sobre 'os alunos'; salto para a proposta (proibir) sem considerar alternativas (regulação, qualidade, apoio); falta de definição de 'inferior'; o que procede (evasão e autodisciplina são desafios reais); sugestões concretas de reescrita. Sem dados inventados."
+    },
+    {
+      "id": "C3",
+      "competencia": "analise",
+      "tipo": "longo",
+      "mensagem": "Vou começar a estudar para concurso público de nível médio, com português, matemática básica, informática e conhecimentos gerais. Trabalho o dia todo e tenho umas 2 horas por dia nos dias úteis e 4 horas no sábado. Tenho 4 meses até a prova. Me orienta a montar um plano de estudo realista, dizendo o que priorizar e como revisar.",
+      "precisa": "Usa o tempo informado (≈14 h/semana, ~16 semanas); prioriza pelo peso no edital (recomenda conferir o edital, não inventa pesos); distribuição semanal plausível; revisão espaçada; questões de provas anteriores; simulados; fase final de revisão; realista para quem trabalha."
+    },
+    {
+      "id": "C4",
+      "competencia": "analise",
+      "tipo": "curto",
+      "mensagem": "Avalie a ideia de que redes sociais deveriam exigir documento de identidade para criar conta.",
+      "precisa": "Argumentos a favor (responsabilização, menos perfis falsos e golpes) e contra (privacidade e vazamento de dados, exclusão de quem não tem documento, risco a anonimato legítimo de vítimas e denunciantes, eficácia limitada); alternativas intermediárias; avaliação equilibrada com posição fundamentada."
+    },
+    {
+      "id": "C5",
+      "competencia": "analise",
+      "tipo": "curto",
+      "mensagem": "Analise criticamente: 'se a vacina não é 100% eficaz, então não serve para nada'.",
+      "precisa": "Falso dilema/falácia do nirvana (perfeito x inútil); eficácia como redução de risco; proteção contra casos graves; efeito coletivo; analogia válida (cinto de segurança). Sem números inventados."
+    },
+    {
+      "id": "D1",
+      "competencia": "estudo",
+      "tipo": "documento",
+      "documentos": ["lgpd-bases-legais.md (institucional)"],
+      "mensagem": "Quais são as bases legais para tratar dados pessoais na LGPD? Explique cada uma com um exemplo.",
+      "precisa": "As 10 bases do art. 7º da Lei 13.709/2018, corretas e completas (consentimento; obrigação legal ou regulatória; políticas públicas; estudos por órgão de pesquisa; execução de contrato; exercício regular de direitos em processo; proteção da vida; tutela da saúde; legítimo interesse; proteção do crédito), cada uma com exemplo plausível; cita o documento de referência."
+    },
+    {
+      "id": "D2",
+      "competencia": "analise",
+      "tipo": "documento",
+      "documentos": ["programa-introducao-programacao.md (pessoal)"],
+      "mensagem": "Com base no programa da disciplina de Introdução à Programação que eu salvei, monte um plano de estudo para 6 semanas, com 1 hora por dia.",
+      "precisa": "Plano ancorado nas 6 unidades do programa salvo, na ordem dos pré-requisitos, com 7 h por semana; prática em Python; preparação para a prova prática da semana 6 e a lista de exercícios; cita o documento."
+    },
+    {
+      "id": "D3",
+      "competencia": "post",
+      "tipo": "documento",
+      "documentos": ["corrida-anotacoes.txt (pessoal)"],
+      "mensagem": "/post a partir das minhas anotações sobre corrida",
+      "precisa": "Rascunho fiel às anotações salvas: começou em março pela ansiedade; primeiras semanas difíceis (5 minutos); alternar caminhada e corrida; 5 km em junho, chorou no fim; o que mudou foi perceber que consegue algo difícil aos poucos; corre de manhã cedo, o silêncio virou seu momento. Nada inventado além disso."
+    }
+  ]
+}

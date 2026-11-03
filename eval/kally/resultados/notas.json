@@ -1,0 +1,578 @@
+{
+  "A1": {
+    "A": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "posição certa; exemplo de função errado (etanoal/etanona); faltam cadeia, compensação e tautomeria; definições confusas"
+    },
+    "B": {
+      "fidelidade": 2,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "confunde plana com só posição; espacial correta (cis-trans e óptica com 2-butanol); sem erros graves de exemplo"
+    },
+    "C": {
+      "fidelidade": 1,
+      "profundidade": 1,
+      "coerencia": 1,
+      "precisao": 0,
+      "clareza": 2,
+      "geral": 0,
+      "nota": "tipos inventados (lineares, cíclicos, aromáticos), exemplos sem sentido (C6H12 benzeno), cortada"
+    },
+    "D": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 3,
+      "geral": 1,
+      "nota": "mesmo exemplo de função errado, diz que cis/trans são isômeros planos (contradição), definição de função contraditória"
+    }
+  },
+  "A2": {
+    "A": {
+      "fidelidade": 5,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "post completo e correto; sem idempotência; um erro comum duvidoso (token para DELETE)"
+    },
+    "B": {
+      "fidelidade": 5,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 5,
+      "geral": 4,
+      "nota": "post completo e correto, claro; sem idempotência"
+    },
+    "C": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "sigla errada (State of Resource), sem estado explicado errado, só 3 códigos, títulos e referências dentro do rascunho"
+    },
+    "D": {
+      "fidelidade": 3,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "conteúdo bom mas não veio como post; diz que precisa reenviar login e senha a cada requisição"
+    }
+  },
+  "A3": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "blocos certos e encadeamento plausível; Áustria-Hácia; nacionalismo e imperialismo vagos, sem Sarajevo/data"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 4,
+      "geral": 2,
+      "nota": "Rússia e Itália nos dois blocos; data errada (6 de junho); França declara guerra antes da Rússia"
+    },
+    "C": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 2,
+      "precisao": 0,
+      "clareza": 3,
+      "geral": 1,
+      "nota": "inventa Guerra do Congo França x Áustria e números do exército; data errada; Rússia aliada da Áustria"
+    },
+    "D": {
+      "fidelidade": 3,
+      "profundidade": 1,
+      "coerencia": 3,
+      "precisao": 4,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "blocos certos, sem erros, mas genérico e repetitivo, sem ligação concreta com o estopim"
+    }
+  },
+  "A4": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 2,
+      "coerencia": 4,
+      "precisao": 5,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "exemplo certo (1.331), sem fórmula nem contraste com juros simples"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 4,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "começa com \"assistant\" (vazamento); definição fraca; exemplo certo; sem fórmula"
+    },
+    "C": {
+      "fidelidade": 5,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 5,
+      "geral": 4,
+      "nota": "fórmula, contraste, exemplo certo (1.157,63); um erro comum contraditório"
+    }
+  },
+  "A5": {
+    "A": {
+      "fidelidade": 1,
+      "profundidade": 0,
+      "coerencia": 2,
+      "precisao": 0,
+      "clareza": 2,
+      "geral": 0,
+      "nota": "uma frase, errada (grupo de hidrogênio)"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "começa com \"assistant\"; base gama-aminobutírico no DNA; nomes deformados; erros comuns contraditórios"
+    },
+    "C": {
+      "fidelidade": 5,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 5,
+      "geral": 4,
+      "nota": "correta no essencial (fita, uracila, mRNA, ribossomos); chama desoxirribose de base; não cita tRNA/rRNA"
+    }
+  },
+  "B1": {
+    "A": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 3,
+      "geral": 3,
+      "nota": "todos os pontos; várias reflexões inventadas e algumas confusas; comentário final em 3ª pessoa"
+    },
+    "B": {
+      "fidelidade": 2,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 2,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "bem desenvolvido, mas inventa cenas e uma tese no título (era pra me proteger)"
+    },
+    "C": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "mais enxuto e fiel; ainda acrescenta \"antes que percebessem\" e o escudo"
+    },
+    "D": {
+      "fidelidade": 1,
+      "profundidade": 1,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 3,
+      "geral": 1,
+      "nota": "não escreveu; entendeu o motivo ao contrário"
+    }
+  },
+  "B2": {
+    "A": {
+      "fidelidade": 2,
+      "profundidade": 3,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "inventa cenas e conselhos genéricos, assume gênero masculino, sonrisa, sem a estrutura de post"
+    },
+    "B": {
+      "fidelidade": 1,
+      "profundidade": 1,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "não escreve; efusiva, citação vazia [P…], emoji, duas perguntas"
+    },
+    "C": {
+      "fidelidade": 4,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "fiel e com todos os pontos, mas curto e termina repetindo o pedido dentro do post"
+    },
+    "D": {
+      "fidelidade": 4,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "fiel, curto; também termina repetindo o pedido; não fala ao leitor cuidador"
+    }
+  },
+  "B3": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "fiel, todos os pontos, fechamento curto; provocação moderada"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "bem desenvolvido; estende a tese além do que a pessoa disse e acrescenta detalhes"
+    },
+    "C": {
+      "fidelidade": 2,
+      "profundidade": 1,
+      "coerencia": 1,
+      "precisao": 2,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "sem formato de post, confuso (felicidade muda de lado), inventa sentimentos"
+    },
+    "D": {
+      "fidelidade": 2,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 1,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "conversa em vez de post, citação inventada (como dizia um velho), emoji"
+    }
+  },
+  "B4": {
+    "A": {
+      "fidelidade": 5,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 5,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "não inventa; uma pergunta que traz a matéria; entendimento especula um pouco"
+    },
+    "B": {
+      "fidelidade": 4,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 5,
+      "clareza": 3,
+      "geral": 3,
+      "nota": "não inventa; começa com assistant; duas perguntas"
+    },
+    "C": {
+      "fidelidade": 0,
+      "profundidade": 1,
+      "coerencia": 3,
+      "precisao": 0,
+      "clareza": 3,
+      "geral": 0,
+      "nota": "inventa a viagem inteira (aeroporto, hotel, turistas)"
+    }
+  },
+  "B5": {
+    "A": {
+      "fidelidade": 2,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "genérico, inventa um ano de burnout, gênero trocado, agenda no fim, títulos dentro do rascunho"
+    },
+    "B": {
+      "fidelidade": 2,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 2,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "começa com assistant; gênero misturado; muitas reflexões e perguntas inventadas"
+    },
+    "C": {
+      "fidelidade": 3,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 5,
+      "geral": 4,
+      "nota": "todos os pontos e boa forma; inventa detalhes (reuniões, a equipe não parou) e uma lição no fim"
+    }
+  },
+  "C1": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "boa estrutura; amostra não representativa; afirma sem base que a maioria dos CEOs não acorda às 5; circularidade mal aplicada"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "genérica; termo errado (raciocínio não indutivo); alguns pontos válidos (turnos, filhos)"
+    },
+    "C": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "falsa causa e generalização certas; falso dilema forçado; afirmação sem base sobre quem acorda cedo"
+    },
+    "D": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "reconstrução, falhas, versão mais forte e resposta; sem afirmações inventadas; sem viés de sobrevivência e cronotipo"
+    }
+  },
+  "C2": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 2,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "cobre os pontos e a versão mais forte, mas inventa um estudo da USP com 70% como exemplo"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "tom de conversa com emojis e analogias forçadas; reescrita razoável; três perguntas"
+    },
+    "C": {
+      "fidelidade": 5,
+      "profundidade": 5,
+      "coerencia": 4,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "completa: amostra pessoal, termo ambíguo, conclusão excessiva, alternativas, versão mais forte; usa X% sem inventar"
+    },
+    "D": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "genérica, espanholismos (Pérdida, Proponer), estatística desigual sem sentido"
+    }
+  },
+  "C3": {
+    "A": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 2,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 2,
+      "nota": "critica o próprio pedido (falhas de raciocínio no pedido), uma matéria por mês, redação para nível médio, sem edital nem contas de horas"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "genérico; 1h+1h+1h em 2 horas; sem edital nem simulados; três perguntas"
+    },
+    "C": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 3,
+      "precisao": 2,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "plano semanal concreto e caderno de erros; pesos inventados (30/30/20/20) e contas de dias erradas"
+    },
+    "D": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 2,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "tom efusivo com emojis; blocos confusos; prioridades sem base; sábado bem dividido"
+    }
+  },
+  "C4": {
+    "A": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "estruturada, exclusão e alternativas; esquece privacidade e vazamento de dados; sem posição final clara"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 3,
+      "geral": 2,
+      "nota": "começa com assistant; privacidade e eficácia certas; desvia para controle de idade"
+    },
+    "C": {
+      "fidelidade": 3,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 2,
+      "clareza": 3,
+      "geral": 1,
+      "nota": "abre com opinião (boa sugestão), sugere CPF como alternativa, cortada no fim"
+    }
+  },
+  "C5": {
+    "A": {
+      "fidelidade": 5,
+      "profundidade": 4,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "falso dilema e redução de risco certos; exemplo da gripe razoável; afirma que 70% pode ser mais útil que 100%"
+    },
+    "B": {
+      "fidelidade": 3,
+      "profundidade": 3,
+      "coerencia": 2,
+      "precisao": 3,
+      "clareza": 2,
+      "geral": 2,
+      "nota": "começa com assistant; copia a estrutura do exemplo da meritocracia (parte normativa); 5% ou 5%"
+    },
+    "C": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 3,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "correta no essencial (redução de risco e gravidade), sem nomear a falácia; confunde eficácia com cobertura"
+    }
+  },
+  "D1": {
+    "A": {
+      "fidelidade": 1,
+      "profundidade": 1,
+      "coerencia": 2,
+      "precisao": 0,
+      "clareza": 2,
+      "geral": 0,
+      "nota": "inventa números de artigo e bases inexistentes (Legítima Interest, Automação de processos)"
+    },
+    "B": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 5,
+      "geral": 4,
+      "nota": "nove das dez bases certas com exemplos bons; trocou a proteção do crédito por um item vazio; não nomeia a fonte no texto"
+    }
+  },
+  "D2": {
+    "A": {
+      "fidelidade": 2,
+      "profundidade": 2,
+      "coerencia": 2,
+      "precisao": 2,
+      "clareza": 2,
+      "geral": 1,
+      "nota": "admite não ter o programa, plano genérico, cortado, espanholismo"
+    },
+    "B": {
+      "fidelidade": 4,
+      "profundidade": 4,
+      "coerencia": 3,
+      "precisao": 4,
+      "clareza": 4,
+      "geral": 4,
+      "nota": "segue as 6 unidades na ordem, com a lista e a prova; seções de análise sem sentido num plano; sem divisão diária explícita"
+    }
+  },
+  "D3": {
+    "A": {
+      "fidelidade": 0,
+      "profundidade": 1,
+      "coerencia": 2,
+      "precisao": 0,
+      "clareza": 2,
+      "geral": 0,
+      "nota": "ignora as anotações e inventa tudo; perguntas dentro do post"
+    },
+    "B": {
+      "fidelidade": 4,
+      "profundidade": 3,
+      "coerencia": 4,
+      "precisao": 3,
+      "clareza": 4,
+      "geral": 3,
+      "nota": "todos os fatos das anotações, mas o 1º parágrafo copia as notas e o resto acrescenta reflexões"
+    }
+  }
+}
