@@ -42,7 +42,7 @@
   "scripts": {
     "start": "expo start",
     "lan": "expo start --lan",
-    "tunnel": "expo start --tunnel",
+    "tunnel": "expo start --tunnel ngrok",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
