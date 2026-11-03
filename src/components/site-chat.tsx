@@ -20,6 +20,7 @@ import {
 
 type Source = { title: string; slug: string; href: string };
 type AttachmentSource = { ref: string; name: string; status: AttachmentStatus; detail: string };
+type DocumentSource = { ref: string; title: string; origin: string };
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -27,6 +28,8 @@ type ChatMessage = {
   sources?: Source[];
   webSources?: WebSource[];
   attachmentSources?: AttachmentSource[];
+  /** trechos da base institucional usados na resposta */
+  documentSources?: DocumentSource[];
   attachments?: AttachmentInfo[];
   choices?: { label: string; message: string }[];
   confirmPost?: string;
@@ -306,6 +309,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
           sources?: Source[];
           webSources?: WebSource[];
           attachmentSources?: AttachmentSource[];
+          documentSources?: DocumentSource[];
           attachmentsExpired?: string[];
           progress?: string;
           choices?: { label: string; message: string }[];
@@ -320,6 +324,7 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
         if (event.sources) updateAssistant((message) => ({ ...message, sources: event.sources }));
         if (event.webSources) updateAssistant((message) => ({ ...message, webSources: event.webSources }));
         if (event.attachmentSources) updateAssistant((message) => ({ ...message, attachmentSources: event.attachmentSources }));
+        if (event.documentSources) updateAssistant((message) => ({ ...message, documentSources: event.documentSources }));
         if (event.choices) updateAssistant((message) => ({ ...message, choices: event.choices }));
         if (event.intent?.kind === "confirm_post") {
           const idea = event.intent.idea;
@@ -543,6 +548,14 @@ export function SiteChat({ role = "CONVIDADO", categories = [] }: { role?: Role;
                 <span className="label">Anexos consultados</span>
                 {message.attachmentSources.map((source) => (
                   <span key={source.ref} className={`kally-file-chip ${statusTone(source.status)}`} title={source.detail}>[{source.ref}] {source.name} · {statusLabel(source.status)}</span>
+                ))}
+              </div>
+            ) : null}
+            {message.documentSources?.length ? (
+              <div className="site-chat-sources" aria-label="Documentos de referência consultados">
+                <span className="label">Documentos de referência</span>
+                {message.documentSources.map((source) => (
+                  <span key={source.ref} className="kally-file-chip" title={source.origin}>[{source.ref}] {source.title}</span>
                 ))}
               </div>
             ) : null}

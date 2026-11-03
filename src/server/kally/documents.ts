@@ -133,7 +133,8 @@ export async function deleteDocument(id: string, userId: string, platformAdmin: 
 /**
  * Trechos mais relevantes das bases da pessoa: a pessoal dela e a institucional. Os vetores
  * ficam em memória por versão do documento (updatedAt); documento atualizado é relido do banco.
- * No máximo dois trechos por documento, para a resposta não depender de uma fonte só.
+ * No máximo três trechos por documento (com dois, o fim de uma lista longa ficava de fora: a LGPD
+ * saía com nove das dez bases), para a resposta não depender de uma fonte só.
  */
 export async function searchDocuments(input: { userId: string; query: string; limit?: number; institutional?: boolean; personal?: boolean }): Promise<{ hits: DocumentHit[]; ms: number }> {
   const started = Date.now();
@@ -183,7 +184,7 @@ export async function searchDocuments(input: { userId: string; query: string; li
   const hits: DocumentHit[] = [];
   for (const hit of scored) {
     const used = perDocument.get(hit.documentId) ?? 0;
-    if (used >= 2) continue;
+    if (used >= 3) continue;
     perDocument.set(hit.documentId, used + 1);
     hits.push(hit);
     if (hits.length >= (input.limit ?? 4)) break;

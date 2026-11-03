@@ -94,6 +94,8 @@ export type PostContext = {
   archiveLinks: { title: string; href: string }[];
   categories: string[];
   signal?: AbortSignal;
+  /** modelo do pipeline (executor); sem ele, o padrão do Ollama (OLLAMA_MODEL) */
+  model?: string;
 };
 
 function materialBlock(workspace: PostWorkspace, context: PostContext) {
@@ -137,7 +139,7 @@ function matchCategory(name: string, categories: string[]) {
 }
 
 async function streamText(messages: OllamaMessage[], emit: Emit, context: PostContext, numPredict = 900) {
-  const result = await streamOllamaChat(messages, (token) => emit({ text: token }), { numPredict, temperature: 0.6, signal: context.signal });
+  const result = await streamOllamaChat(messages, (token) => emit({ text: token }), { numPredict, temperature: 0.6, signal: context.signal, model: context.model });
   return result.text;
 }
 
@@ -223,7 +225,7 @@ async function planPost(workspace: PostWorkspace, context: PostContext): Promise
       },
     ],
     PLAN_SCHEMA,
-    { numPredict: 1_400, timeoutMs: 150_000, signal: context.signal },
+    { numPredict: 1_400, timeoutMs: 150_000, signal: context.signal, model: context.model },
   );
 
   const structure = (response?.estrutura ?? [])
@@ -333,7 +335,7 @@ async function writeDraft(workspace: PostWorkspace, plan: PostPlan, context: Pos
           content += token;
           emit({ draftText: token });
         },
-        { numPredict: tokens, temperature: 0.7, maxContinuations: 2, signal: context.signal },
+        { numPredict: tokens, temperature: 0.7, maxContinuations: 2, signal: context.signal, model: context.model },
       );
       truncated ||= result.truncated;
     }
@@ -350,7 +352,7 @@ async function writeDraft(workspace: PostWorkspace, plan: PostPlan, context: Pos
         content += token;
         emit({ draftText: token });
       },
-      { numPredict: tokens + 800, temperature: 0.7, maxContinuations: 3, signal: context.signal },
+      { numPredict: tokens + 800, temperature: 0.7, maxContinuations: 3, signal: context.signal, model: context.model },
     );
     truncated = result.truncated;
   }
@@ -429,7 +431,7 @@ async function reviseDraft(workspace: PostWorkspace, instruction: string, contex
         { role: "user", content: `Título atual: ${draft.title}\nPedido do usuário: ${instruction}\nTexto (início): ${draft.content.slice(0, 4_000)}` },
       ],
       { type: "object", properties: { titulo: { type: "string" } }, required: ["titulo"] },
-      { numPredict: 80, timeoutMs: 45_000, signal: context.signal },
+      { numPredict: 80, timeoutMs: 45_000, signal: context.signal, model: context.model },
     );
     if (response?.titulo?.trim()) title = response.titulo.trim().replace(/^["'#\s]+|["'\s]+$/g, "").slice(0, 200);
     const titleOnly = !/\b(secao|parte|texto|conclusao|introducao|paragrafo|conteudo|aprofund|curt|long|exemplo|argument|corpo)\b/.test(value);
@@ -471,7 +473,7 @@ async function reviseDraft(workspace: PostWorkspace, instruction: string, contex
         rewritten += token;
         emit({ draftText: token });
       },
-      { numPredict: DEPTH_TOKENS[depth], temperature: 0.6, maxContinuations: 2, signal: context.signal },
+      { numPredict: DEPTH_TOKENS[depth], temperature: 0.6, maxContinuations: 2, signal: context.signal, model: context.model },
     );
     const tail = after ? `\n\n${after}` : "";
     if (tail) emit({ draftText: tail });
@@ -496,7 +498,7 @@ async function reviseDraft(workspace: PostWorkspace, instruction: string, contex
       content += token;
       emit({ draftText: token });
     },
-    { numPredict: Math.max(DEPTH_TOKENS[depth] + 1_200, 3_000), temperature: 0.6, maxContinuations: 4, signal: context.signal },
+    { numPredict: Math.max(DEPTH_TOKENS[depth] + 1_200, 3_000), temperature: 0.6, maxContinuations: 4, signal: context.signal, model: context.model },
   );
   content = cleanSection(content);
   emit({ draftDone: { title, category: draft.category, content } });
