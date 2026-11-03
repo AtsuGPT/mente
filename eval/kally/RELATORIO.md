@@ -89,7 +89,8 @@ Por critério, em todos os casos: produção → qwen.
 Em ordem de prioridade (qualidade, custo, velocidade, memória):
 
 1. **Levar o pipeline para produção com o qwen3 4B como executor**, competências e bases. A nota média subiu de 1,33 para 3,06 (de 0,33 para 3,67 com documentos). O custo é zero. A resposta completa fica mais lenta (mediana de 23 s contra 10 s), porque é mais longa e o Qwen gera 33 tok/s contra 44.
-2. **Interpretador: usar o próprio Qwen (`qwen-qwen`) como padrão**, mantendo o Llama como opção (`KALLY_INTERPRETER_MODEL`). A qualidade empatou; o Qwen elimina as trocas de modelo e dá o primeiro texto ~10 s mais cedo. Isso diverge do desenho original (Llama interpretando). A decisão é sua; ela muda uma variável e nenhum código.
+2. **Interpretador: usar o próprio Qwen (`qwen-qwen`) como padrão**, mantendo o Llama como opção (`KALLY_INTERPRETER_MODEL`). A qualidade empatou; o Qwen elimina as trocas de modelo e dá o primeiro texto ~10 s mais cedo. Isso diverge do desenho original (Llama interpretando).
+   **Decisão (3/11/2026): Qwen→Qwen.** Agora é o padrão do código. Conferido num pedido longo: interpretado pelo Qwen, sem nenhuma troca de modelo, primeiro texto em 16,7 s.
 3. **Alimentar a base institucional** com materiais de referência dos assuntos estudados no Minha Mente. É o que mais corrige a precisão.
 4. **Ajustes pequenos já identificados:**
    - separar o formato de análise do formato de plano na competência C;
