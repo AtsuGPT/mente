@@ -32,13 +32,36 @@ export type Interpretation = {
 const COMPETENCES: Competence[] = ["estudo", "post", "analise", "orientacao", "conversa"];
 const DEPTHS: Interpretation["profundidade"][] = ["breve", "media", "aprofundada"];
 
-export function pipelineFor(platformAdmin: boolean): { executor: string; interpreter: string } | null {
+export type Pipeline = { executor: string; interpreter: string | null };
+
+const EXECUTOR = () => process.env.KALLY_EXECUTOR_MODEL || "qwen3:4b-instruct-2507-q4_K_M";
+const INTERPRETER = () => process.env.KALLY_INTERPRETER_MODEL || "llama3.2:latest";
+
+export function pipelineFor(platformAdmin: boolean): Pipeline | null {
   const setting = process.env.KALLY_PIPELINE;
   if (setting !== "on" && !(setting === "admin" && platformAdmin)) return null;
-  return {
-    executor: process.env.KALLY_EXECUTOR_MODEL || "qwen3:4b-instruct-2507-q4_K_M",
-    interpreter: process.env.KALLY_INTERPRETER_MODEL || "llama3.2:latest",
-  };
+  return { executor: EXECUTOR(), interpreter: INTERPRETER() };
+}
+
+/**
+ * Configurações comparadas na avaliação (Etapa 6). Só valem com KALLY_EVAL=1 (servidor de
+ * testes) e para o administrador: "producao" é a Kally de antes (llama3.2, prompts antigos,
+ * sem competências nem bases); as outras usam competências e bases, mudando os modelos.
+ */
+export const EVAL_CONFIGS = ["producao", "llama", "qwen", "llama-qwen", "qwen-qwen"] as const;
+export function evalPipeline(config: (typeof EVAL_CONFIGS)[number]): Pipeline | null {
+  switch (config) {
+    case "producao":
+      return null;
+    case "llama":
+      return { executor: INTERPRETER(), interpreter: null };
+    case "qwen":
+      return { executor: EXECUTOR(), interpreter: null };
+    case "llama-qwen":
+      return { executor: EXECUTOR(), interpreter: INTERPRETER() };
+    case "qwen-qwen":
+      return { executor: EXECUTOR(), interpreter: EXECUTOR() };
+  }
 }
 
 /**

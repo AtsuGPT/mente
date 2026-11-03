@@ -1,0 +1,98 @@
+{
+  "A1": {
+    "A": "qwen-qwen",
+    "B": "qwen",
+    "C": "producao",
+    "D": "llama-qwen"
+  },
+  "A2": {
+    "A": "llama-qwen",
+    "B": "qwen",
+    "C": "producao",
+    "D": "qwen-qwen"
+  },
+  "A3": {
+    "A": "llama-qwen",
+    "B": "qwen",
+    "C": "qwen-qwen",
+    "D": "producao"
+  },
+  "A4": {
+    "A": "producao",
+    "B": "llama",
+    "C": "qwen"
+  },
+  "A5": {
+    "A": "producao",
+    "B": "llama",
+    "C": "qwen"
+  },
+  "B1": {
+    "A": "qwen-qwen",
+    "B": "qwen",
+    "C": "llama-qwen",
+    "D": "producao"
+  },
+  "B2": {
+    "A": "producao",
+    "B": "qwen",
+    "C": "llama-qwen",
+    "D": "qwen-qwen"
+  },
+  "B3": {
+    "A": "llama-qwen",
+    "B": "qwen-qwen",
+    "C": "producao",
+    "D": "qwen"
+  },
+  "B4": {
+    "A": "qwen",
+    "B": "llama",
+    "C": "producao"
+  },
+  "B5": {
+    "A": "producao",
+    "B": "llama",
+    "C": "qwen"
+  },
+  "C1": {
+    "A": "llama-qwen",
+    "B": "producao",
+    "C": "qwen",
+    "D": "qwen-qwen"
+  },
+  "C2": {
+    "A": "llama-qwen",
+    "B": "qwen",
+    "C": "qwen-qwen",
+    "D": "producao"
+  },
+  "C3": {
+    "A": "llama-qwen",
+    "B": "producao",
+    "C": "qwen-qwen",
+    "D": "qwen"
+  },
+  "C4": {
+    "A": "qwen",
+    "B": "llama",
+    "C": "producao"
+  },
+  "C5": {
+    "A": "qwen",
+    "B": "llama",
+    "C": "producao"
+  },
+  "D1": {
+    "A": "producao",
+    "B": "qwen"
+  },
+  "D2": {
+    "A": "producao",
+    "B": "qwen"
+  },
+  "D3": {
+    "A": "producao",
+    "B": "qwen"
+  }
+}

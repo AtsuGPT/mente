@@ -2,7 +2,7 @@ import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationSta
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
-import { competenceFor, competenceMode, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
+import { competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -119,11 +119,13 @@ export async function POST(request: Request, context: EnvContext) {
 
   // Pipeline (KALLY_PIPELINE): a competência vem das regras acima ou, quando elas não bastam,
   // do interpretador; depois o executor responde. Um modelo carregado por vez (model-manager).
-  const pipeline = dev ? null : pipelineFor(platformAdmin);
+  // Avaliação (Etapa 6): escolhe a configuração por pedido, só no servidor de testes e só para o administrador.
+  const evalConfig = process.env.KALLY_EVAL === "1" && platformAdmin && EVAL_CONFIGS.includes(body.evalConfig as never) ? (body.evalConfig as (typeof EVAL_CONFIGS)[number]) : null;
+  const pipeline = dev ? null : evalConfig ? evalPipeline(evalConfig) : pipelineFor(platformAdmin);
   const sampler = memorySampler();
   let interpretation: Interpretation | null = null;
   let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
-  if (pipeline && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
+  if (pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
     const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
     const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
     interpretation = r.result;
@@ -255,7 +257,7 @@ export async function POST(request: Request, context: EnvContext) {
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
-          const showStats = !!dev || (!!pipeline && platformAdmin);
+          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig;
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
           const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
@@ -307,6 +309,7 @@ export async function POST(request: Request, context: EnvContext) {
         void (async () =>
           logPerf({
             route: "app",
+            evalConfig,
             pipeline: !!pipeline,
             dev: !!dev,
             mode,
