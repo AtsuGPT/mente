@@ -19,3 +19,5 @@ __pycache__/
 
 # Registro de desempenho da Kally (server/ai/perf.ts)
 /logs/
+# Vetores dos exemplos de referência da Kally (server/kally/competences)
+/.cache/
