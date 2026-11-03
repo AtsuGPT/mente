@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { streamEvents } from "@/lib/stream";
+import { api as accountApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { applySuggestions, extractDraft, handOffDraft } from "@/lib/draft-handoff";
@@ -72,7 +73,19 @@ const MODES: { mode: KallyMode; label: string; hint: string; icon: IconName; nee
 ];
 const modeLabel = (mode?: string) => MODES.find((m) => m.mode === mode)?.label;
 
-type PendingAttachment = { id: number; name: string; localUri?: string; isImage: boolean; status: "processing" | "ready" | "error"; result?: KallyAttachment; error?: string };
+type PendingAttachment = {
+  id: number;
+  name: string;
+  localUri?: string;
+  isImage: boolean;
+  status: "processing" | "ready" | "error";
+  result?: KallyAttachment;
+  error?: string;
+  /** o arquivo, para salvar na base pessoal se a pessoa quiser */
+  part?: Blob;
+  saved?: "saving" | "saved" | "reused" | "error";
+  saveError?: string;
+};
 
 const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
 
@@ -118,6 +131,8 @@ function Kally() {
   const [loading, setLoading] = useState(false);
   const [web, setWeb] = useState(false);
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
+  // A Kally desta pessoa consulta a base de documentos? (o servidor decide; hoje, o pipeline em teste)
+  const [baseEnabled, setBaseEnabled] = useState(false);
   const [queued, setQueued] = useState<string | null>(null);
   const [reviewKind, setReviewKind] = useState<ReviewKind>("intelectual");
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
@@ -126,8 +141,13 @@ function Kally() {
   const [showHistory, setShowHistory] = useState(false);
   const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
   // Modo Desenvolvedor: só para o administrador da plataforma (o servidor também confere).
-  const isAdmin = useAuth().user?.legacyKind === "ADMIN";
+  const signedUser = useAuth().user;
+  const isAdmin = signedUser?.legacyKind === "ADMIN";
   const devOn = dev.active && isAdmin;
+  useEffect(() => {
+    if (!signedUser) return setBaseEnabled(false);
+    accountApi.kallyDocuments().then((r) => setBaseEnabled(r.enabled), () => setBaseEnabled(false));
+  }, [signedUser]);
   const [devSheet, setDevSheet] = useState(false);
   const list = useRef<FlatList<Message>>(null);
   const attachSeq = useRef(0);
@@ -216,12 +236,28 @@ function Kally() {
   /** Começa a processar o anexo na hora (em segundo plano); a pessoa segue escrevendo. */
   function processAttachment(part: Blob, name: string, localUri: string | undefined, isImage: boolean) {
     const id = ++attachSeq.current;
-    setAttachment({ id, name, localUri, isImage, status: "processing" });
+    setAttachment({ id, name, localUri, isImage, status: "processing", part });
     const form = new FormData();
     form.append("file", part, name);
     api.kallyAttachment(form).then(
       (result) => setAttachment((a) => (a?.id === id ? { ...a, status: "ready", result } : a)),
       (cause) => setAttachment((a) => (a?.id === id ? { ...a, status: "error", error: cause instanceof Error ? cause.message : "Não consegui ler o anexo." } : a)),
+    );
+  }
+
+  /**
+   * Anexos são temporários: valem só para a mensagem. Salvar na base pessoal faz a Kally
+   * consultar o documento nas próximas perguntas (só para esta pessoa).
+   */
+  function saveToBase() {
+    const current = attachment;
+    if (!current?.part) return;
+    setAttachment((a) => (a?.id === current.id ? { ...a, saved: "saving" } : a));
+    const form = new FormData();
+    form.append("file", current.part, current.name);
+    accountApi.addKallyDocument(form).then(
+      (r) => setAttachment((a) => (a?.id === current.id ? { ...a, saved: r.reused ? "reused" : "saved" } : a)),
+      (cause) => setAttachment((a) => (a?.id === current.id ? { ...a, saved: "error", saveError: cause instanceof Error ? cause.message : "Não consegui salvar na base." } : a)),
     );
   }
 
@@ -406,6 +442,18 @@ function Kally() {
                   ? attachment.error
                   : `Pronto · ${ATTACH_LABEL[attachment.result!.kind]}${attachment.result!.pages ? ` · ${attachment.result!.pages} pág.` : ""}${attachment.result!.truncated ? " (parcial)" : ""}`}
             </AppText>
+            {/* Só documentos (não imagem nem áudio) vão para a base; o anexo continua temporário se a pessoa não salvar. */}
+            {baseEnabled && attachment.status === "ready" && !attachment.isImage && attachment.result?.kind !== "audio" ? (
+              attachment.saved === "saved" || attachment.saved === "reused" ? (
+                <AppText variant="small" color={colors.success}>{attachment.saved === "reused" ? "Já estava na sua base" : "Salvo na sua base: a Kally vai consultá-lo"}</AppText>
+              ) : attachment.saved === "error" ? (
+                <AppText variant="small" color={colors.danger} numberOfLines={2}>{attachment.saveError}</AppText>
+              ) : (
+                <Touchable onPress={saveToBase} disabled={attachment.saved === "saving"} accessibilityLabel="Salvar o anexo na sua base de documentos">
+                  <AppText variant="small" color={colors.violet300}>{attachment.saved === "saving" ? "Salvando na sua base…" : "Salvar na minha base"}</AppText>
+                </Touchable>
+              )
+            ) : null}
           </View>
           {attachment.status === "processing" ? <ActivityIndicator color={colors.violet300} /> : null}
           <IconButton name="close" label="Remover anexo" color={colors.muted} onPress={() => { setAttachment(null); setQueued(null); }} />
@@ -611,7 +659,9 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
 const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending: boolean }) {
   const isUser = item.role === "user";
   const { before, draft, after } = isUser ? { before: item.content, draft: null, after: "" } : extractDraft(item.content);
-  const internal = item.sources?.filter((s) => s.kind !== "web") ?? [];
+  const isDocument = (s: KallySource) => s.kind === "documento" || s.kind === "referencia";
+  const internal = item.sources?.filter((s) => s.kind !== "web" && !isDocument(s)) ?? [];
+  const documents = item.sources?.filter(isDocument) ?? [];
   const external = item.sources?.filter((s) => s.kind === "web") ?? [];
   return (
     <Animated.View entering={FadeInDown.duration(220)} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
@@ -657,6 +707,17 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
                 {source.kind === "projeto" ? " · projeto" : source.kind === "rascunho" ? " · rascunho" : source.kind === "conversa" ? " · conversa anterior" : ""}
               </AppText>
             </Touchable>
+          ))}
+        </View>
+      ) : null}
+      {documents.length ? (
+        <View style={styles.sources}>
+          <AppText variant="label" color={colors.faint}>Das suas bases</AppText>
+          {documents.map((source) => (
+            <AppText key={`${source.kind}-${source.slug}`} variant="small" color={colors.muted}>
+              {source.title}
+              {source.kind === "referencia" ? " · referência" : " · seu documento"}
+            </AppText>
           ))}
         </View>
       ) : null}

@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 import { useAuth } from "@/lib/auth";
+import { api as accountApi } from "@/lib/api";
 import { API_SOURCE, API_URL } from "@/lib/config";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { EnvironmentHeader, goToEnvironments } from "@/components/environment-header";
@@ -39,6 +41,12 @@ export default function EnvironmentTab() {
   const { user, signOut } = useAuth();
   const { api, environment, permissions, role } = useCurrentEnvironment();
   const canWrite = permissions.publish || permissions.manageContent;
+  // A base de documentos aparece quando a Kally desta pessoa a consulta (o servidor decide).
+  const [baseEnabled, setBaseEnabled] = useState(false);
+  useEffect(() => {
+    if (!user) return setBaseEnabled(false);
+    accountApi.kallyDocuments().then((r) => setBaseEnabled(r.enabled || r.documents.length > 0), () => setBaseEnabled(false));
+  }, [user]);
 
   function leave() {
     Alert.alert(`Sair de ${environment.name}?`, "Você deixa de participar e precisará de um novo convite para voltar.", [
@@ -98,6 +106,7 @@ export default function EnvironmentTab() {
               <AppText variant="uiMedium">{user.displayName}</AppText>
               <AppText variant="small" color={colors.faint}>{formatHandle(user.username)}</AppText>
             </View>
+            {baseEnabled ? <Row icon="doc" label="Base de documentos da Kally" hint="PDFs, artigos e notas que a Kally consulta só para você" href="/base" /> : null}
             <Button
               label="Sair da conta"
               icon="logout"
