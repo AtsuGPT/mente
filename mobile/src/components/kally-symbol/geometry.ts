@@ -10,11 +10,12 @@
  *  - px, py: posição do dedo/ponteiro em relação ao centro do símbolo (-1..1, suavizada)
  *  - pa: o quanto o dedo está presente (0..1, suavizado)
  *  - energy: "energia" de digitação (sobe a cada tecla e decai sozinha, 0..1)
+ *  - spin: fase acumulada do giro (anda mais rápido enquanto a pessoa digita); padrão = t
  */
 
 export type KallySymbolKind = "constelacao" | "onda" | "orbita" | "cacho";
 
-export type SymbolInput = { t: number; px: number; py: number; pa: number; energy: number };
+export type SymbolInput = { t: number; px: number; py: number; pa: number; energy: number; spin?: number };
 
 /** Como pintar cada camada: gradiente roxo, cor do fundo (recorte) ou brilho claro. */
 export type LayerFill = "grad" | "deep" | "bg" | "hi";
@@ -31,13 +32,12 @@ export const LAYERS: Record<KallySymbolKind, LayerSpec[]> = {
   constelacao: [{ fill: "grad" }],
   onda: [{ fill: "grad" }],
   orbita: [
-    { fill: "grad" }, // anel 1
-    { fill: "grad" }, // anel 2
-    { fill: "bg" }, // recorte em volta do olho
+    { fill: "deep", opacity: 0.7 }, // anel 1, parte de trás
+    { fill: "deep", opacity: 0.7 }, // anel 2, parte de trás
     { fill: "grad", evenOdd: true }, // contorno do olho
-    { fill: "deep" }, // íris
-    { fill: "bg" }, // pupila
-    { fill: "hi" }, // brilho
+    { fill: "grad" }, // pupila
+    { fill: "grad" }, // anel 1, parte da frente
+    { fill: "grad" }, // anel 2, parte da frente
   ],
   cacho: [
     { fill: "deep", opacity: 0.75 }, // voltas de trás
@@ -141,35 +141,56 @@ function onda({ t, px, pa, energy }: SymbolInput): string[] {
 
 /* ---------- 3. Órbita com olho ---------- */
 
-/** Anel elíptico afinado, com uma abertura num dos lados; mais grosso nas pontas. */
-function ring(cx: number, cy: number, a: number, b: number, rot: number, width: number, gapAt: number, gap: number) {
+/**
+ * Anel elíptico afinado em volta do centro, com uma abertura que percorre o anel.
+ * Devolve duas partes: a de trás (passa atrás do olho) e a da frente, para dar profundidade.
+ */
+function orbitRing(a: number, b: number, rot: number, width: number, gapAt: number, gap: number): [string, string] {
   "worklet";
   const cos = Math.cos(rot);
   const sin = Math.sin(rot);
-  const N = 120;
+  const N = 140;
   const start = gapAt + gap;
   const span = TAU - 2 * gap;
   const outer: string[] = [];
   const inner: string[] = [];
+  const isFront: boolean[] = [];
   for (let i = 0; i <= N; i++) {
     const u = i / N;
     const phi = start + span * u;
     const ex = a * Math.cos(phi);
     const ey = b * Math.sin(phi);
-    // normal da elipse
     let nx = b * Math.cos(phi);
     let ny = a * Math.sin(phi);
     const nl = Math.hypot(nx, ny) || 1;
     nx /= nl;
     ny /= nl;
-    const taper = smooth(0, 0.16, u) * smooth(1, 0.84, u);
+    // afina nas pontas da abertura; mais grosso nas extremidades do anel
+    const taper = smooth(0, 0.18, u) * smooth(1, 0.82, u);
     const w = width * (0.3 + 0.7 * Math.abs(Math.cos(phi)) ** 1.4) * taper;
-    const o = [ex + nx * w * 0.5, ey + ny * w * 0.5];
-    const n = [ex - nx * w * 0.5, ey - ny * w * 0.5];
-    outer.push(`${f(cx + o[0] * cos - o[1] * sin)} ${f(cy + o[0] * sin + o[1] * cos)}`);
-    inner.push(`${f(cx + n[0] * cos - n[1] * sin)} ${f(cy + n[0] * sin + n[1] * cos)}`);
+    const o0 = ex + nx * w * 0.5;
+    const o1 = ey + ny * w * 0.5;
+    const n0 = ex - nx * w * 0.5;
+    const n1 = ey - ny * w * 0.5;
+    outer.push(`${f(100 + o0 * cos - o1 * sin)} ${f(100 + o0 * sin + o1 * cos)}`);
+    inner.push(`${f(100 + n0 * cos - n1 * sin)} ${f(100 + n0 * sin + n1 * cos)}`);
+    isFront.push(Math.sin(phi) >= 0);
   }
-  return `M${outer.join("L")}L${inner.reverse().join("L")}Z`;
+  let back = "";
+  let front = "";
+  let from = 0;
+  for (let i = 1; i <= N + 1; i++) {
+    if (i === N + 1 || isFront[i] !== isFront[from]) {
+      const to = Math.min(i, N); // sobrepõe um ponto para não abrir fresta
+      if (to > from) {
+        const seg = `M${outer.slice(from, to + 1).join("L")}L${inner.slice(from, to + 1).reverse().join("L")}Z`;
+        if (isFront[from]) front += seg;
+        else back += seg;
+      }
+      from = i;
+    }
+  }
+  return [back || "M0 0Z", front || "M0 0Z"];
 }
 
 /** Amêndoa (olho) centrada em 100,100. */
@@ -196,41 +217,42 @@ function clippedCircle(cx: number, cy: number, r: number, w: number, h: number) 
   return `${d}Z`;
 }
 
-function orbita({ t, px, py, pa, energy }: SymbolInput): string[] {
+function orbita({ t, px, py, pa, energy, spin = t }: SymbolInput): string[] {
   "worklet";
-  const sway = 0.06 * Math.sin(t * 0.45) + px * pa * 0.08;
-  const swell = 1 + 0.03 * Math.sin(t * 0.9) + energy * 0.05;
-  const a = 64 * swell;
-  const b = 19 * swell;
-  const width = 8.5;
-  // cada anel tem um lado contínuo passando pelo centro e o outro aberto
-  const rotA = Math.PI / 4 + sway + 0.035 * Math.sin(t * 0.7);
-  const rotB = -Math.PI / 4 + sway - 0.035 * Math.sin(t * 0.7 + 1);
-  const ringA = ring(100 + b * Math.cos(rotA + Math.PI / 2), 100 + b * Math.sin(rotA + Math.PI / 2), a, b, rotA, width, Math.PI / 2, 0.62);
-  const ringB = ring(100 - b * Math.cos(rotB + Math.PI / 2), 100 - b * Math.sin(rotB + Math.PI / 2), a, b, rotB, width, -Math.PI / 2, 0.62);
+  // os dois anéis giram juntos em volta do olho (um X que roda devagar);
+  // o dedo inclina o conjunto e a digitação acelera o giro (spin)
+  const turn = spin * 0.32 + px * pa * 0.35;
+  const swell = 1 + 0.03 * Math.sin(t * 0.9) + energy * 0.04;
+  const a = 66 * swell;
+  // inclinação das órbitas "respira", como se fossem vistas em 3D
+  const bA = (20 + 5 * Math.sin(t * 0.6) + py * pa * 5) * swell;
+  const bB = (20 + 5 * Math.sin(t * 0.6 + Math.PI) - py * pa * 5) * swell;
+  const width = 8;
+  // a abertura de cada anel corre ao longo dele, em sentidos opostos
+  const [backA, frontA] = orbitRing(a, bA, Math.PI / 4 + turn, width, spin * 1.1, 0.6);
+  const [backB, frontB] = orbitRing(a, bB, -Math.PI / 4 + turn, width, Math.PI - spin * 1.1, 0.6);
 
-  // piscar: a cada ~4,8 s (duas vezes seguidas de vez em quando)
+  // olho minimalista: contorno fino e uma pupila; pisca a cada ~4,8 s
   const cycle = t % 4.8;
   const blink = Math.max(1 - smooth(0, 0.09, Math.abs(cycle - 0.12)), Math.floor(t / 4.8) % 3 === 2 ? 1 - smooth(0, 0.09, Math.abs(cycle - 0.42)) : 0);
-  const open = Math.max(0.06, (1 - blink) * (1 - energy * 0.18));
-  const ew = 23.5;
-  const eh = 12.5 * open;
+  const open = Math.max(0.04, (1 - blink) * (1 - energy * 0.2));
+  const ew = 18.5;
+  const eh = 9.5 * open;
+  const line = 1.7;
   // o olhar segue o dedo; ao digitar, olha para baixo (para o campo de texto)
   const idleX = 0.35 * Math.sin(t * 0.37) * Math.sin(t * 0.23);
   const lookX = (px * pa + idleX * (1 - pa)) * (1 - energy * 0.6);
   const lookY = py * pa * (1 - energy) + energy * 0.75;
-  const ix = 100 + Math.max(-1, Math.min(1, lookX)) * 7;
-  const iy = 100 + Math.max(-1, Math.min(1, lookY)) * 3.2;
-  const ir = 9;
-  const pr = 3.8 * (1 + energy * 0.25);
+  const ix = 100 + Math.max(-1, Math.min(1, lookX)) * 6.5;
+  const iy = 100 + Math.max(-1, Math.min(1, lookY)) * 2.6;
+  const pr = 4.6 * (1 - energy * 0.15);
   return [
-    ringA,
-    ringB,
-    almond(ew + 6, 12.5 + 5.5),
-    almond(ew, Math.max(eh, 0.6) + 2.2) + almond(ew - 3, Math.max(eh - 0.2, 0.01)),
-    clippedCircle(ix, iy, ir, ew - 3, eh),
-    clippedCircle(ix, iy, pr, ew - 3, eh),
-    open > 0.4 ? clippedCircle(ix + 2.6, iy - 2.8, 1.5, ew - 3, eh) : "M0 0Z",
+    backA,
+    backB,
+    almond(ew, eh + line) + almond(ew - line * 1.6, Math.max(eh - line * 0.4, 0.01)),
+    open > 0.15 ? clippedCircle(ix, iy, pr, ew - line * 1.6, eh - line * 0.4) : "M0 0Z",
+    frontA,
+    frontB,
   ];
 }
 

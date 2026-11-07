@@ -77,6 +77,7 @@ export function KallySymbol({ kind, size = 132, input }: { kind: KallySymbolKind
   const pa = useSharedValue(0);
   const energy = useSharedValue(0);
   const glow = useSharedValue(0);
+  const spin = useSharedValue(0);
 
   useFrameCallback((frame) => {
     "worklet";
@@ -91,10 +92,12 @@ export function KallySymbol({ kind, size = 132, input }: { kind: KallySymbolKind
       input.typing.value *= Math.exp(-dt * 1.4);
       energy.value += (input.typing.value - energy.value) * Math.min(1, dt * 8);
     }
+    // giro acumulado: acelera enquanto a pessoa digita, sem dar trancos
+    spin.value += dt * (1 + energy.value * 2.5);
     glow.value = 0.5 + 0.5 * Math.sin(time.value * 1.1);
   }, !reduceMotion);
 
-  const frame = useDerivedValue(() => symbolFrame(kind, { t: time.value, px: px.value, py: py.value, pa: pa.value, energy: energy.value }), [kind]);
+  const frame = useDerivedValue(() => symbolFrame(kind, { t: time.value, px: px.value, py: py.value, pa: pa.value, energy: energy.value, spin: spin.value }), [kind]);
   const box = useRef<HostInstance>(null);
   const measureBox = useCallback(() => {
     box.current?.measure((_x, _y, w, h, pageX, pageY) => {
