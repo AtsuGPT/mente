@@ -22,6 +22,7 @@ import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/compo
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space, type } from "@/theme/tokens";
 import { KeyboardScreen } from "@/components/keyboard-screen";
+import { KALLY_SYMBOLS, KallySymbol, useKallyInput, type KallySymbolKind } from "@/components/kally-symbol/kally-symbol";
 
 /**
  * Kally: assistente de aprendizagem do ambiente atual, numa tela só para conversar,
@@ -93,6 +94,7 @@ const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imag
 type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental" };
 type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
 const DEV_KEY = "minha-mente.kally-dev.v1";
+const SYMBOL_KEY = "minha-mente.kally-symbol.v1";
 const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false, model: "experimental" };
 const DEV_PERSONAS: { id: DevPersona; label: string }[] = [
   { id: "livre", label: "Só minhas instruções" },
@@ -151,6 +153,18 @@ function Kally() {
   const [devSheet, setDevSheet] = useState(false);
   const list = useRef<FlatList<Message>>(null);
   const attachSeq = useRef(0);
+  // Símbolo da Kally (prévia): reage ao dedo na tela e à digitação.
+  const kallyInput = useKallyInput();
+  const [symbol, setSymbolState] = useState<KallySymbolKind>("orbita");
+  useEffect(() => {
+    void getItem(SYMBOL_KEY).then((saved) => {
+      if (saved && KALLY_SYMBOLS.some((s) => s.kind === saved)) setSymbolState(saved as KallySymbolKind);
+    }).catch(() => undefined);
+  }, []);
+  const setSymbol = (next: KallySymbolKind) => {
+    setSymbolState(next);
+    void setItem(SYMBOL_KEY, next).catch(() => undefined);
+  };
 
   useEffect(() => {
     void getItem(DEV_KEY).then((saved) => {
@@ -406,11 +420,19 @@ function Kally() {
         contentContainerStyle={{ padding: space.lg, gap: space.lg, flexGrow: 1 }}
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
         keyboardShouldPersistTaps="handled"
+        onTouchStart={(e) => kallyInput.touch(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+        onTouchMove={(e) => kallyInput.touch(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+        onTouchEnd={kallyInput.release}
+        onPointerMove={Platform.OS === "web" ? (e) => kallyInput.touch(e.nativeEvent.pageX, e.nativeEvent.pageY) : undefined}
+        onPointerLeave={Platform.OS === "web" ? kallyInput.release : undefined}
         removeClippedSubviews={Platform.OS !== "web"}
         windowSize={9}
         ListEmptyComponent={
           <Animated.View entering={FadeIn.duration(400)} style={styles.empty}>
-            <View style={styles.badge}><Icon name="sparkle" size={22} color={colors.violet300} /></View>
+            <KallySymbol kind={symbol} size={156} input={kallyInput} />
+            <View style={styles.symbolPicker} accessibilityLabel="Prévia do símbolo da Kally">
+              {KALLY_SYMBOLS.map((s) => <Chip key={s.kind} label={s.label} selected={symbol === s.kind} onPress={() => setSymbol(s.kind)} />)}
+            </View>
             <AppText variant="title" style={{ textAlign: "center", marginTop: space.md }}>Oi! Sobre o que vamos conversar?</AppText>
             <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
               Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.
@@ -497,7 +519,10 @@ function Kally() {
         />
         <TextInput
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={(text) => {
+            setDraft(text);
+            kallyInput.keystroke();
+          }}
           placeholder={mode === "revisar" ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Conte sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : permissions.publish ? "Fale com a Kally… (/post cria um post)" : "Fale com a Kally…"}
           placeholderTextColor={colors.faint}
           selectionColor={colors.violet400}
@@ -1004,7 +1029,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.lg, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   modes: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: space.xxl },
-  badge: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
+  symbolPicker: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: space.xs, marginTop: space.sm },
   saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignSelf: "stretch" },
   check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet600, borderColor: colors.violet600 },
