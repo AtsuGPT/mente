@@ -54,3 +54,21 @@ O `preparar` leva ~30 minutos para 11 contas, porque o app aceita 5 cadastros a 
 
 - **Sem as métricas do servidor** (`KALLY_EVAL=1`), a simulação não separa a falha de busca da falha de interpretação: a Kally pode ter classificado o pedido como estudo e pulado a memória de posts. A busca isolada é medida em `eval/embeddings`.
 - **O servidor testado pode estar numa versão diferente do repositório.** O relatório registra o commit local e os parâmetros lidos do código.
+
+## Ferramentas acrescentadas depois da rodada 1
+
+| Arquivo | Para quê |
+|---|---|
+| `analisar-busca.mjs` | Aplica as regras de intenção às mensagens reais e reproduz a busca de posts do servidor com o qwen3-embedding, para medir uma mudança antes de aplicá-la |
+| `semear-local.ts` + `simular.mjs replicar` | Copiam o conteúdo de uma rodada para uma instância local de teste e permitem comparar versões da Kally sobre o mesmo conteúdo |
+| `comparar-ab.mjs` | Teste A/B: folha cega única com as duas versões misturadas, notas e relatório |
+| `calibrar-juiz.mjs` | Consistência do juiz, concordância com as checagens objetivas e amostra estratificada para correção humana |
+| `editar-post.mjs` | Edita um post da simulação como a própria autora (registrado em `resultados/manutencao.json`) |
+| `gerar-rodadas.mjs` | Gera as personas 21 a 100 e os roteiros e provas das rodadas 3 a 5 (semente fixa; roda uma vez só) |
+| `publicar-servidor.ps1` | Publica esta versão no servidor Windows e acrescenta ao `.env` as variáveis da simulação |
+
+### Variáveis do servidor usadas pela simulação
+
+- `KALLY_PIPELINE=on`: as personas são membros comuns, e sem o pipeline a Kally não consulta documentos.
+- `KALLY_EVAL_AMBIENTES=treinamento-kally,treinamento-kally-controle`: métricas de recuperação só nesses ambientes, para separar falha de busca de falha de interpretação.
+- `REGISTER_MAX_PER_WINDOW=200`: só enquanto as contas são criadas. Depois, rode `publicar-servidor.ps1 -FimDoCadastro`. O login continua com 5 tentativas a cada 15 minutos.
