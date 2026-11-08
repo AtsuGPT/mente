@@ -63,4 +63,4 @@ __pycache__/
 /eval/prova/resultados/*/documentos.json
 
 # Simulação da Kally: contas, senhas e tokens das personas (só na máquina)
-/eval/simulacao/.estado.json
+/eval/simulacao/.estado*.json

@@ -2,8 +2,8 @@
 
 ## 1. Regras de intenção (mensagens reais da rodada e da prova)
 
-- Perguntas da prova tratadas como papo casual (sem memória nem documentos): **9/40** hoje → **0/40** com P1
-  - Hoje: N05, N12, N14, N17, N20, R1N02, R1N03, R1N05, R1N06
+- Perguntas da prova tratadas como papo casual (sem memória nem documentos): **13/55** hoje → **0/55** com P1
+  - Hoje: N05, N12, N14, N17, N20, R1N02, R1N03, R1N05, R1N06, R2N01, R2N07, R2N09, R2N10
 - Mensagens casuais de verdade que continuam casuais com P1: **12/12**
 
 | Mensagem | Hoje | Proposta |
@@ -22,6 +22,10 @@
 | R1N03: o que era o pão do menino na padaria do seu abílio | casual | chat |
 | R1N05: qnd lança o bolo de pote de pequi da sonia e qual a promoção | casual | chat |
 | R1N06: como a gente tem que começar um comentário sobre o trabalho de outra pessoa aqui | casual | chat |
+| R2N01: quando começa o segundo ciclo do ambiente | casual | chat |
+| R2N07: em qual competencia da redação o dudu mais perde ponto | casual | chat |
+| R2N09: onde e quando vai ser o lançamento do meu ep | casual | chat |
+| R2N10: quantas horas por semana a carla ta conseguindo estudar | casual | chat |
 
 ## 2. Busca de posts com o conteúdo real do ambiente
 
@@ -61,10 +65,13 @@
 |---|---|---|---|---|---|
 | hoje | 0.4 | 21/24 | 18/24 | 0.25 | 9/16 |
 | hoje | 0.3 | 21/24 | 20/24 | 0.50 | 10/16 |
+| hoje | 0,4 (0,2 se o autor é citado) | 21/24 | 20/24 | 0.25 | 9/16 |
 | autor no texto (1 ponto) | 0.4 | 22/24 | 19/24 | 0.25 | 9/16 |
 | autor no texto (1 ponto) | 0.3 | 22/24 | 22/24 | 0.58 | 10/16 |
+| autor no texto (1 ponto) | 0,4 (0,2 se o autor é citado) | 22/24 | 22/24 | 0.25 | 9/16 |
 | autor com peso de título (5 pontos) | 0.4 | 22/24 | 21/24 | 0.25 | 9/16 |
 | autor com peso de título (5 pontos) | 0.3 | 22/24 | 23/24 | 0.58 | 10/16 |
+| autor com peso de título (5 pontos) | 0,4 (0,2 se o autor é citado) | 22/24 | 24/24 | 0.25 | 10/16 |
 
 - Post certo em 1º: hoje **21/24**, com o autor **22/24**
 - Post certo passa no filtro do chat (≥ 0,4): hoje **18/24**, com o autor **19/24**
