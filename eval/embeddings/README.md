@@ -19,6 +19,7 @@ A primeira rodada calcula os vetores na CPU (alguns segundos); as seguintes usam
 
 - `corpus/`: documentos fictícios com fatos plantados, que nenhum modelo conhece do treino. Alguns foram feitos para confundir a busca: o regulamento de 2024 (revogado, com números diferentes do vigente) e a política de dados do Coletivo, parecida com o resumo da LGPD. Os três documentos de `eval/kally/documentos` também entram.
 - `perguntas.json`: 56 perguntas com resposta (o gabarito é um trecho literal do documento, então vale para qualquer tamanho de trecho) e 15 sem resposta (8 sobre fatos ausentes de assuntos que estão na base e 7 fora do assunto). As perguntas foram escritas em estilos diferentes: diretas, paráfrases, vagas, com erros de digitação e com distratores.
+- Cada pergunta também traz `resposta` (o gabarito), `fatos` e `errado`, usados pela prova com respostas (`eval/prova`).
 - `medir.mjs`: divide os documentos com a mesma função do servidor (`src/server/kally/chunks.ts`) e reproduz a pontuação de `searchDocuments` (`src/server/kally/documents.ts`).
 
 ## Como ler o relatório
