@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
       { source: "/:path*", headers: securityHeaders },
       // A página do app muda a cada exportação; os arquivos em /_expo têm hash no nome.
       { source: "/", headers: [{ key: "Cache-Control", value: "no-cache" }] },
+      // As rotas do app (/feed, /post/…) entregam a mesma página: sempre revalidada, para quem
+      // voltou ao site depois de uma exportação nunca ficar com a versão anterior.
+      { source: "/((?!_expo/|assets/|api/|uploads/|canvaskit\\.wasm).*)", headers: [{ key: "Cache-Control", value: "no-cache" }] },
     ];
   },
   // A query string é repassada automaticamente ao destino dos redirecionamentos.

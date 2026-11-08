@@ -138,11 +138,7 @@ export default function EditorScreen() {
       setDirty(false);
       setPendingLeave({ action: data.action });
     };
-    // Na web o Alert do React Native não aparece: usa a confirmação do navegador.
-    if (Platform.OS === "web") {
-      if (window.confirm("Descartar alterações? Há mudanças que ainda não foram salvas.")) discard();
-      return;
-    }
+    // Alert de @/lib/alert: nativo no celular, diálogo do app na web.
     Alert.alert("Descartar alterações?", "Há mudanças que ainda não foram salvas.", [
       { text: "Continuar editando", style: "cancel" },
       { text: "Descartar", style: "destructive", onPress: discard },
