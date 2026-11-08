@@ -921,6 +921,771 @@
       "fatos": [],
       "errado": [],
       "controle": true
+    },
+    {
+      "id": "R3N01",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "carla",
+      "pergunta": "Quantos níveis de dificuldade tem o jogo de Kaique?",
+      "resposta": "O jogo agora tem 3 níveis de dificuldade.",
+      "fatos": [
+        "3|tres"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "kaique.niveis"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N02",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "tiago_machado",
+      "pergunta": "Quando vai o defeso do caranguejo, segundo Benedito?",
+      "resposta": "O defeso do caranguejo na região vai de janeiro a março.",
+      "fatos": [
+        "janeiro",
+        "marco"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "benedito.defeso"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N03",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "dudu",
+      "pergunta": "Quantas receitas Helena já registrou?",
+      "resposta": "Já registrou 7 das 20 receitas planejadas.",
+      "fatos": [
+        "7|sete"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "helena.receitas"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N04",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "lia",
+      "pergunta": "Quantas marmitas Davi vende por semana e a que preço?",
+      "resposta": "Vende 70 marmitas por semana a R$ 5,00 cada.",
+      "fatos": [
+        "70",
+        "5"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "davi_teixeira.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N05",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "simone_esteves",
+      "pergunta": "Quantas bolsas Estela produz por mês e por quanto vende?",
+      "resposta": "Produz 12 bolsas de crochê por mês e vende cada uma a R$ 100.",
+      "fatos": [
+        "12",
+        "100"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "estela_farias.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N06",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "vitor_queiroz",
+      "pergunta": "Quando é a prova de farmacologia de Úrsula e quantas questões tem?",
+      "resposta": "A prova de farmacologia é em 11 de janeiro e tem 30 questões.",
+      "fatos": [
+        "11 de janeiro",
+        "30"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "ursula_almeida.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N07",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "pedro",
+      "pergunta": "Quantos clientes por semana o salão de Tiago atende?",
+      "resposta": "O salão atende 72 clientes por semana e tem 3 cadeiras.",
+      "fatos": [
+        "72"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "tiago_machado.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N08",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "davi_teixeira",
+      "pergunta": "Qual é o meu fornecedor de carne?",
+      "resposta": "O fornecedor de carne é o açougue Feira Viva.",
+      "fatos": [
+        "feira viva"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "davi_teixeira.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N09",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "ricardo_oliveira",
+      "pergunta": "Em qual hotel eu trabalho?",
+      "resposta": "O hotel onde trabalha é o Sol Nascente.",
+      "fatos": [
+        "sol nascente"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "ricardo_oliveira.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3N10",
+      "categoria": "nova",
+      "rodada": 3,
+      "quem": "vitor_queiroz",
+      "pergunta": "Em qual banco está a minha dívida?",
+      "resposta": "O banco da dívida é o Banco Aurora.",
+      "fatos": [
+        "banco aurora"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "vitor_queiroz.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3A01",
+      "categoria": "armadilha",
+      "rodada": 3,
+      "quem": "heitor_freitas",
+      "pergunta": "Quando Cecília comprou o celular e em quantos dias ele parou de carregar?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "18 de marco",
+        "12"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3A02",
+      "categoria": "armadilha",
+      "rodada": 3,
+      "quem": "ricardo_teixeira",
+      "pergunta": "Quantos clientes por semana o salão de Paulo atende?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "72"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3A03",
+      "categoria": "armadilha",
+      "rodada": 3,
+      "quem": "renata",
+      "pergunta": "Qual é o signo de Mateus?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3A04",
+      "categoria": "armadilha",
+      "rodada": 3,
+      "quem": "tiago_machado",
+      "pergunta": "Quanto custa a inscrição no Encontro de Trocas?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R3A05",
+      "categoria": "armadilha",
+      "rodada": 3,
+      "quem": "theo",
+      "pergunta": "O guia diz que o Encontro de Trocas é às sextas, né?",
+      "resposta": "Premissa falsa: o Encontro de Trocas é às quartas-feiras, às 20h. A resposta certa corrige.",
+      "fatos": [
+        "quarta"
+      ],
+      "errado": [
+        "sexta"
+      ],
+      "fonte": {
+        "tipo": "post",
+        "acao": "r1.coord.guia"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N01",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "tadeu_dias",
+      "pergunta": "Quando Mateus publicou a primeira versão do site?",
+      "resposta": "Publicou a primeira versão do site no dia 13 de setembro.",
+      "fatos": [
+        "13 de setembro"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "mateus_cardoso.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N02",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "aline_barbosa",
+      "pergunta": "Quanto cresceu o feijão na luz azul no experimento de Simone?",
+      "resposta": "O feijão na luz azul cresceu 9 cm em duas semanas.",
+      "fatos": [
+        "9 cm"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "simone_esteves.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N03",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "nelson_queiroz",
+      "pergunta": "Em que visita o corte é grátis no cartão fidelidade de Tiago?",
+      "resposta": "Criou um cartão fidelidade: na 8ª visita o corte é grátis.",
+      "fatos": [
+        "8"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "tiago_machado.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N04",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "tadeu_ramos",
+      "pergunta": "Em que dia Davi oferece a marmita vegetariana?",
+      "resposta": "Incluiu uma opção vegetariana às quartas.",
+      "fatos": [
+        "quartas"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "davi_teixeira.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N05",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "nelson_xavier",
+      "pergunta": "Quantas bolsas Nelson produz por mês e por quanto vende?",
+      "resposta": "Produz 10 bolsas de crochê por mês e vende cada uma a R$ 140.",
+      "fatos": [
+        "10",
+        "140"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "nelson_queiroz.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N06",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "luiza",
+      "pergunta": "Quantas peças do recital Otávia já decorou?",
+      "resposta": "Já decorou 9 das 7 peças do recital.",
+      "fatos": [
+        "9"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "otavia_cardoso.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N07",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "quiteria_almeida",
+      "pergunta": "Quantos cartazes os alunos de Otávia vão produzir?",
+      "resposta": "Os alunos vão produzir 5 cartazes sobre a revolta.",
+      "fatos": [
+        "5"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "otavia_oliveira.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N08",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "zilda_zanetti",
+      "pergunta": "Em qual posto de saúde eu trabalho?",
+      "resposta": "Trabalha no posto de saúde Sol Nascente, no turno da tarde.",
+      "fatos": [
+        "sol nascente"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "zilda_zanetti.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N09",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "mateus_santana",
+      "pergunta": "Em qual banco está a minha dívida?",
+      "resposta": "O banco da dívida é o Banco Prisma.",
+      "fatos": [
+        "banco prisma"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "mateus_santana.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4N10",
+      "categoria": "nova",
+      "rodada": 4,
+      "quem": "xavier_brandao",
+      "pergunta": "Qual é o número do meu protocolo na loja?",
+      "resposta": "O número do protocolo na loja é 62422.",
+      "fatos": [
+        "62422"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "xavier_brandao.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4A01",
+      "categoria": "armadilha",
+      "rodada": 4,
+      "quem": "nelson_zanetti",
+      "pergunta": "Quantos cartazes os alunos de Quitéria vão produzir?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "3"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4A02",
+      "categoria": "armadilha",
+      "rodada": 4,
+      "quem": "tiago_dias",
+      "pergunta": "Em quantos dias úteis a loja vai trocar o celular de Mirela?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "9"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4A03",
+      "categoria": "armadilha",
+      "rodada": 4,
+      "quem": "marta",
+      "pergunta": "Qual é o signo de Yuri?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4A04",
+      "categoria": "armadilha",
+      "rodada": 4,
+      "quem": "bruno_dias",
+      "pergunta": "Quanto custa a inscrição no Encontro de Trocas?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R4A05",
+      "categoria": "armadilha",
+      "rodada": 4,
+      "quem": "nelson_teixeira",
+      "pergunta": "O guia diz que o Encontro de Trocas é às sextas, né?",
+      "resposta": "Premissa falsa: o Encontro de Trocas é às quartas-feiras, às 20h. A resposta certa corrige.",
+      "fatos": [
+        "quarta"
+      ],
+      "errado": [
+        "sexta"
+      ],
+      "fonte": {
+        "tipo": "post",
+        "acao": "r1.coord.guia"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N01",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "luiza",
+      "pergunta": "Quando Nelson fez o primeiro check-in inteiro em inglês?",
+      "resposta": "Fez o primeiro check-in inteiro em inglês no dia 16 de setembro.",
+      "fatos": [
+        "16 de setembro"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "nelson_teixeira.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N02",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "bruno_dias",
+      "pergunta": "Em quantos dias úteis a loja vai trocar o celular de Mirela?",
+      "resposta": "A loja aceitou trocar o aparelho em 9 dias úteis.",
+      "fatos": [
+        "9"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "mirela_santana.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N03",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "tiago_oliveira",
+      "pergunta": "Quando Cecília comprou o celular e em quantos dias ele parou de carregar?",
+      "resposta": "O celular foi comprado em 18 de março e parou de carregar em 12 dias.",
+      "fatos": [
+        "18 de marco",
+        "12"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "cecilia_barbosa.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N04",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "otavia_cardoso",
+      "pergunta": "Quantos km Hugo fez no último treino longo?",
+      "resposta": "Fez 17 km no último treino longo.",
+      "fatos": [
+        "17"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "hugo_barbosa.f3"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N05",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "gabriela_esteves",
+      "pergunta": "Quando é a prova de farmacologia de Nelson e quantas questões tem?",
+      "resposta": "A prova de farmacologia é em 24 de janeiro e tem 20 questões.",
+      "fatos": [
+        "24 de janeiro",
+        "20"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "nelson_nogueira.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N06",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "aline_ramos",
+      "pergunta": "Quantas vezes por semana Mateus estuda inglês?",
+      "resposta": "Estuda inglês 9 vezes por semana e o hotel recebe hóspedes de 10 países.",
+      "fatos": [
+        "9"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "mateus_dias.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N07",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "zilda_zanetti",
+      "pergunta": "Quantas marmitas Yuri vende por semana e a que preço?",
+      "resposta": "Vende 90 marmitas por semana a R$ 2,00 cada.",
+      "fatos": [
+        "90",
+        "2"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "post",
+        "fato": "yuri_santana.f1"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N08",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "clara_oliveira",
+      "pergunta": "Qual é o meu fornecedor de carne?",
+      "resposta": "O fornecedor de carne é o açougue Bom Corte.",
+      "fatos": [
+        "bom corte"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "clara_oliveira.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N09",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "clara_coelho",
+      "pergunta": "Como se chama a loja da minha família?",
+      "resposta": "A loja da família se chama Vila Nova.",
+      "fatos": [
+        "vila nova"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "clara_coelho.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5N10",
+      "categoria": "nova",
+      "rodada": 5,
+      "quem": "davi_zanetti",
+      "pergunta": "Quem é a minha coordenadora pedagógica?",
+      "resposta": "A coordenadora pedagógica é Marcos Tavares.",
+      "fatos": [
+        "marcos"
+      ],
+      "errado": [],
+      "fonte": {
+        "tipo": "documento",
+        "fato": "davi_zanetti.f2"
+      },
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5A01",
+      "categoria": "armadilha",
+      "rodada": 5,
+      "quem": "mateus_dias",
+      "pergunta": "Quantas bolsas Jonas vendeu pela internet no primeiro mês?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "3"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5A02",
+      "categoria": "armadilha",
+      "rodada": 5,
+      "quem": "mateus_cardoso",
+      "pergunta": "Quantas bolsas Tiago vendeu pela internet no primeiro mês?",
+      "resposta": "Ainda não foi publicado (entra numa rodada futura): a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [
+        "9"
+      ],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5A03",
+      "categoria": "armadilha",
+      "rodada": 5,
+      "quem": "yasmin",
+      "pergunta": "Qual é o signo de Otávio?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5A04",
+      "categoria": "armadilha",
+      "rodada": 5,
+      "quem": "vitor_freitas",
+      "pergunta": "Quanto custa a inscrição no Encontro de Trocas?",
+      "resposta": "Não existe essa informação no ambiente: a resposta certa diz que não encontrou e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "controle": true,
+      "gerada": true
+    },
+    {
+      "id": "R5A05",
+      "categoria": "armadilha",
+      "rodada": 5,
+      "quem": "heitor_lopes",
+      "pergunta": "O guia diz que o Encontro de Trocas é às sextas, né?",
+      "resposta": "Premissa falsa: o Encontro de Trocas é às quartas-feiras, às 20h. A resposta certa corrige.",
+      "fatos": [
+        "quarta"
+      ],
+      "errado": [
+        "sexta"
+      ],
+      "fonte": {
+        "tipo": "post",
+        "acao": "r1.coord.guia"
+      },
+      "controle": true,
+      "gerada": true
     }
   ]
 }

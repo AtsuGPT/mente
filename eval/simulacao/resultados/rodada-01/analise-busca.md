@@ -72,6 +72,9 @@
 | autor com peso de título (5 pontos) | 0.4 | 22/24 | 21/24 | 0.25 | 9/16 |
 | autor com peso de título (5 pontos) | 0.3 | 22/24 | 23/24 | 0.58 | 10/16 |
 | autor com peso de título (5 pontos) | 0,4 (0,2 se o autor é citado) | 22/24 | 24/24 | 0.25 | 10/16 |
+| autor 5 pontos + pasta 1 ponto | 0.4 | 22/24 | 21/24 | 0.17 | 9/16 |
+| autor 5 pontos + pasta 1 ponto | 0.3 | 22/24 | 23/24 | 0.50 | 10/16 |
+| autor 5 pontos + pasta 1 ponto | 0,4 (0,2 se o autor é citado) | 22/24 | 24/24 | 0.17 | 10/16 |
 
 - Post certo em 1º: hoje **21/24**, com o autor **22/24**
 - Post certo passa no filtro do chat (≥ 0,4): hoje **18/24**, com o autor **19/24**

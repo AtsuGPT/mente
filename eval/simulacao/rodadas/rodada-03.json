@@ -1,0 +1,721 @@
+{
+  "rodada": 3,
+  "gerada": true,
+  "sobre": "Rodada 3 gerada por gerar-rodadas.mjs (semente fixa): fatos previstos para a rodada, entrada de 20 personas novas (post, documento pessoal e um pedido à Kally no estilo de cada uma). 'criterios' escritos antes de qualquer resposta.",
+  "acoes": [
+    {
+      "id": "r3.marta.cronicas",
+      "quem": "marta",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "marta.cronicas"
+      ],
+      "titulo": "Atualização: reunir 12 crônicas sobre o amparo num livro para os netos",
+      "texto": "Já há 5 crônicas prontas das 12 planejadas."
+    },
+    {
+      "id": "r3.joao.chuva",
+      "quem": "joao",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "joao.chuva"
+      ],
+      "titulo": "Atualização: caderneta agroecológica com as técnicas de manejo do sítio, para a associação",
+      "texto": "Em 2025 choveu 410 mm no sítio, abaixo da média de 650 mm."
+    },
+    {
+      "id": "r3.theo.zine",
+      "quem": "theo",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "theo.zine"
+      ],
+      "titulo": "Atualização: um zine com 10 poemas e um ep de 4 faixas",
+      "texto": "O zine terá 10 poemas e tiragem de 150 cópias."
+    },
+    {
+      "id": "r3.igor.especie",
+      "quem": "igor",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "igor.especie"
+      ],
+      "titulo": "Atualização: revisão de literatura sobre polinizadores em áreas urbanas",
+      "texto": "A espécie mais citada nos artigos é a Tetragonisca angustula (jataí)."
+    },
+    {
+      "id": "r3.helena.receitas",
+      "quem": "helena",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "helena.receitas"
+      ],
+      "titulo": "Atualização: um caderno digital com 20 receitas da família, com as histórias de cada uma",
+      "texto": "Já registrou 7 das 20 receitas planejadas."
+    },
+    {
+      "id": "r3.kaique.niveis",
+      "quem": "kaique",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "kaique.niveis"
+      ],
+      "titulo": "Atualização: fazer um jogo de adivinhação em python e apresentar na feira de ciências",
+      "texto": "O jogo agora tem 3 níveis de dificuldade."
+    },
+    {
+      "id": "r3.renata.data",
+      "quem": "renata",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "renata.data"
+      ],
+      "titulo": "Atualização: palestra de 30 minutos sobre teletrabalho e direito à desconexão",
+      "texto": "A palestra foi remarcada para 12 de março."
+    },
+    {
+      "id": "r3.pedro.simulado",
+      "quem": "pedro",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "pedro.simulado"
+      ],
+      "titulo": "Atualização: passar no encceja do ensino médio",
+      "texto": "Acertou 26 de 45 questões no primeiro simulado de matemática."
+    },
+    {
+      "id": "r3.yasmin.tema",
+      "quem": "yasmin",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "yasmin.tema"
+      ],
+      "titulo": "Atualização: série de 6 textos para pais sobre ansiedade na adolescência",
+      "texto": "O segundo texto da série é sobre o uso de celular antes de dormir."
+    },
+    {
+      "id": "r3.otavio.pronto",
+      "quem": "otavio",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "otavio.pronto"
+      ],
+      "titulo": "Atualização: banco de 60 questões de funções para o 1º ano",
+      "texto": "Já tem 35 das 60 questões revisadas."
+    },
+    {
+      "id": "r3.lia.ferramenta",
+      "quem": "lia",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "lia.ferramenta"
+      ],
+      "titulo": "Atualização: portfólio com 3 projetos de análise de dados",
+      "texto": "Escolheu o Metabase para os dashboards do portfólio."
+    },
+    {
+      "id": "r3.benedito.defeso",
+      "quem": "benedito",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "benedito.defeso"
+      ],
+      "titulo": "Atualização: registrar os saberes da pesca artesanal para a colônia de pescadores",
+      "texto": "O defeso do caranguejo na região vai de janeiro a março."
+    },
+    {
+      "id": "r3.camila.nota",
+      "quem": "camila",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "camila.nota"
+      ],
+      "titulo": "Atualização: passar em anatomia e montar um resumo do sistema cardiovascular",
+      "texto": "Tirou 7,8 na primeira prova teórica."
+    },
+    {
+      "id": "r3.tomas.ampliacao",
+      "quem": "tomas",
+      "tipo": "post",
+      "pasta": "Diário",
+      "fatos": [
+        "tomas.ampliacao"
+      ],
+      "titulo": "Atualização: decidir se amplia a estufa e montar uma planilha de custos",
+      "texto": "Decidiu ampliar para 8 bancadas em fevereiro."
+    },
+    {
+      "id": "r3.ricardo_oliveira.f1",
+      "quem": "ricardo_oliveira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "ricardo_oliveira.f1"
+      ],
+      "titulo": "Meu projeto: Atender hóspedes estrangeiros sem travar",
+      "texto": "Estuda inglês 4 vezes por semana e o hotel recebe hóspedes de 7 países. Meu objetivo: Atender hóspedes estrangeiros sem travar."
+    },
+    {
+      "id": "r3.ricardo_oliveira.doc",
+      "quem": "ricardo_oliveira",
+      "tipo": "documento",
+      "arquivo": "ricardo-oliveira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "ricardo_oliveira.f2"
+      ]
+    },
+    {
+      "id": "r3.ricardo_oliveira.pedido",
+      "quem": "ricardo_oliveira",
+      "tipo": "kally",
+      "mensagem": "Como eu digo em inglês, de forma educada, que o quarto ainda não está pronto e o hóspede precisa esperar?",
+      "criterios": "Frases corretas e educadas em inglês (ex.: 'I'm sorry, your room is not ready yet. It should be ready by...', oferecer guardar a bagagem), com a tradução; curto."
+    },
+    {
+      "id": "r3.estela_farias.f1",
+      "quem": "estela_farias",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "estela_farias.f1"
+      ],
+      "titulo": "Meu projeto: Vender as peças numa feira e pela internet",
+      "texto": "produz 12 bolsas de croche por mes e vende cada uma a r$ 100 meu objetivo: vender as pecas numa feira e pela internet."
+    },
+    {
+      "id": "r3.estela_farias.doc",
+      "quem": "estela_farias",
+      "tipo": "documento",
+      "arquivo": "estela-farias-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "estela_farias.f2"
+      ]
+    },
+    {
+      "id": "r3.estela_farias.pedido",
+      "quem": "estela_farias",
+      "tipo": "kally",
+      "mensagem": "como eu calculo o preco de uma bolsa de croche contando o meu tempo de trabalho?",
+      "criterios": "Método simples e correto: custo do material + horas de trabalho × valor da hora + margem; exemplo numérico coerente, sem inventar dados da pessoa."
+    },
+    {
+      "id": "r3.simone_esteves.f1",
+      "quem": "simone_esteves",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "simone_esteves.f1"
+      ],
+      "titulo": "Meu projeto: Apresentar um experimento sobre plantas e luz",
+      "texto": "gente socorro. O experimento compara 9 vasos de feijão em 4 tipos de luz. Meu objetivo: Apresentar um experimento sobre plantas e luz. me ajuda por favor?"
+    },
+    {
+      "id": "r3.simone_esteves.doc",
+      "quem": "simone_esteves",
+      "tipo": "documento",
+      "arquivo": "simone-esteves-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "simone_esteves.f2"
+      ]
+    },
+    {
+      "id": "r3.simone_esteves.pedido",
+      "quem": "simone_esteves",
+      "tipo": "kally",
+      "mensagem": "gente socorro. O que é fotossíntese e por que a cor da luz muda o crescimento da planta? me ajuda por favor?",
+      "criterios": "Fotossíntese correta (luz + CO2 + água → glicose + O2, na clorofila); a clorofila absorve mais luz azul e vermelha e reflete a verde, por isso a cor da luz afeta o crescimento. Nível ensino médio."
+    },
+    {
+      "id": "r3.tiago_machado.f1",
+      "quem": "tiago_machado",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "tiago_machado.f1"
+      ],
+      "titulo": "Meu projeto: Fidelizar clientes e organizar a agenda",
+      "texto": "O salão atende 72 clientes por semana e tem 3 cadeiras. Meu objetivo: Fidelizar clientes e organizar a agenda."
+    },
+    {
+      "id": "r3.tiago_machado.doc",
+      "quem": "tiago_machado",
+      "tipo": "documento",
+      "arquivo": "tiago-machado-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "tiago_machado.f2"
+      ]
+    },
+    {
+      "id": "r3.tiago_machado.pedido",
+      "quem": "tiago_machado",
+      "tipo": "kally",
+      "mensagem": "Me dá 3 ideias baratas para trazer as clientes de volta ao salão?",
+      "criterios": "Três ideias práticas e baratas (cartão fidelidade, lembrete por mensagem, indicação com desconto etc.), curtas, sem inventar números do negócio."
+    },
+    {
+      "id": "r3.otavia_cardoso.f1",
+      "quem": "otavia_cardoso",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "otavia_cardoso.f1"
+      ],
+      "titulo": "Meu projeto: Tocar o recital de formatura sem travar na cadência",
+      "texto": "O recital é em 22 de junho e terá 7 peças. Meu objetivo: Tocar o recital de formatura sem travar na cadência."
+    },
+    {
+      "id": "r3.otavia_cardoso.doc",
+      "quem": "otavia_cardoso",
+      "tipo": "documento",
+      "arquivo": "otavia-cardoso-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "otavia_cardoso.f2"
+      ]
+    },
+    {
+      "id": "r3.otavia_cardoso.pedido",
+      "quem": "otavia_cardoso",
+      "tipo": "kally",
+      "mensagem": "Como posso estudar uma cadência difícil sem cansar o braço? Quero um plano de 20 minutos por dia.",
+      "criterios": "Plano prático de 20 minutos por dia (aquecimento, trecho lento com metrônomo, divisão em frases, pausas), cuidado com a tensão no braço e sugestão de procurar a professora se doer. Curto e no tom da pessoa."
+    },
+    {
+      "id": "r3.davi_teixeira.f1",
+      "quem": "davi_teixeira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "davi_teixeira.f1"
+      ],
+      "titulo": "Meu projeto: Organizar o cardápio semanal e o preço das marmitas",
+      "texto": "Vende 70 marmitas por semana a R$ 5,00 cada. Meu objetivo: Organizar o cardápio semanal e o preço das marmitas."
+    },
+    {
+      "id": "r3.davi_teixeira.doc",
+      "quem": "davi_teixeira",
+      "tipo": "documento",
+      "arquivo": "davi-teixeira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "davi_teixeira.f2"
+      ]
+    },
+    {
+      "id": "r3.davi_teixeira.pedido",
+      "quem": "davi_teixeira",
+      "tipo": "kally",
+      "mensagem": "Me ajuda a montar um cardápio de 5 dias com carne, frango e uma opção sem carne, usando ingredientes baratos?",
+      "criterios": "Cardápio de 5 dias, variado, com ingredientes baratos e uma opção sem carne; prático, sem inventar preços."
+    },
+    {
+      "id": "r3.mateus_cardoso.f1",
+      "quem": "mateus_cardoso",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "mateus_cardoso.f1"
+      ],
+      "titulo": "Meu projeto: Criar um site simples para a loja da família",
+      "texto": "gente socorro. O site da loja terá 6 páginas e será feito em HTML e CSS. Meu objetivo: Criar um site simples para a loja da família. me ajuda por favor?"
+    },
+    {
+      "id": "r3.mateus_cardoso.doc",
+      "quem": "mateus_cardoso",
+      "tipo": "documento",
+      "arquivo": "mateus-cardoso-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "mateus_cardoso.f2"
+      ]
+    },
+    {
+      "id": "r3.mateus_cardoso.pedido",
+      "quem": "mateus_cardoso",
+      "tipo": "kally",
+      "mensagem": "gente socorro. Qual a diferença entre margin e padding no CSS? Mostra um exemplo simples. me ajuda por favor?",
+      "criterios": "Diferença correta (padding: espaço interno, entre conteúdo e borda; margin: espaço externo, entre a borda e outros elementos), exemplo curto de CSS correto."
+    },
+    {
+      "id": "r3.otavia_oliveira.f1",
+      "quem": "otavia_oliveira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "otavia_oliveira.f1"
+      ],
+      "titulo": "Meu projeto: Preparar uma aula sobre a Revolta da Vacina para o 9º ano",
+      "texto": "A aula será para 8 turmas do 9º ano, com 20 minutos cada. Meu objetivo: Preparar uma aula sobre a Revolta da Vacina para o 9º ano."
+    },
+    {
+      "id": "r3.otavia_oliveira.doc",
+      "quem": "otavia_oliveira",
+      "tipo": "documento",
+      "arquivo": "otavia-oliveira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "otavia_oliveira.f2"
+      ]
+    },
+    {
+      "id": "r3.otavia_oliveira.pedido",
+      "quem": "otavia_oliveira",
+      "tipo": "kally",
+      "mensagem": "Quais foram as causas da Revolta da Vacina de 1904? Preciso de um resumo para o 9º ano.",
+      "criterios": "Causas corretas: vacinação obrigatória contra a varíola (lei de 1904, Oswaldo Cruz), reforma urbana do Rio (Pereira Passos) com demolições e despejos, insatisfação popular e oposição política. Linguagem para o 9º ano, sem datas erradas."
+    },
+    {
+      "id": "r3.ursula_almeida.f1",
+      "quem": "ursula_almeida",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "ursula_almeida.f1"
+      ],
+      "titulo": "Meu projeto: Passar na prova de farmacologia do curso de graduação",
+      "texto": "A prova de farmacologia é em 11 de janeiro e tem 30 questões. Meu objetivo: Passar na prova de farmacologia do curso de graduação."
+    },
+    {
+      "id": "r3.ursula_almeida.doc",
+      "quem": "ursula_almeida",
+      "tipo": "documento",
+      "arquivo": "ursula-almeida-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "ursula_almeida.f2"
+      ]
+    },
+    {
+      "id": "r3.ursula_almeida.pedido",
+      "quem": "ursula_almeida",
+      "tipo": "kally",
+      "mensagem": "Qual a diferença entre agonista e antagonista de um receptor? Um exemplo de cada.",
+      "criterios": "Agonista ativa o receptor e produz resposta; antagonista se liga sem ativar e bloqueia o agonista. Exemplos corretos (ex.: morfina agonista opioide, naloxona antagonista). Curto."
+    },
+    {
+      "id": "r3.vitor_queiroz.f1",
+      "quem": "vitor_queiroz",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "vitor_queiroz.f1"
+      ],
+      "titulo": "Meu projeto: Quitar as dívidas do cartão em um ano",
+      "texto": "A dívida do cartão está em R$ 7000 e ele consegue guardar R$ 150 por mês. Meu objetivo: Quitar as dívidas do cartão em um ano."
+    },
+    {
+      "id": "r3.vitor_queiroz.doc",
+      "quem": "vitor_queiroz",
+      "tipo": "documento",
+      "arquivo": "vitor-queiroz-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "vitor_queiroz.f2"
+      ]
+    },
+    {
+      "id": "r3.vitor_queiroz.pedido",
+      "quem": "vitor_queiroz",
+      "tipo": "kally",
+      "mensagem": "Vale mais a pena pagar o mínimo do cartão ou pegar um empréstimo pessoal para quitar? Explica simples.",
+      "criterios": "Explica que o rotativo do cartão costuma ter juros muito mais altos que o empréstimo pessoal, então trocar dívida cara por barata tende a valer, comparando o custo total (CET) e evitando nova dívida no cartão. Não inventa taxas exatas."
+    },
+    {
+      "id": "r3.xavier_teixeira.f1",
+      "quem": "xavier_teixeira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "xavier_teixeira.f1"
+      ],
+      "titulo": "Meu projeto: Completar a meia maratona sem lesão",
+      "texto": "entao kally a meia maratona ai em 20 de junho ai o treino longo atual ai de 12 km meu objetivo completar a meia maratona sem lesao"
+    },
+    {
+      "id": "r3.xavier_teixeira.doc",
+      "quem": "xavier_teixeira",
+      "tipo": "documento",
+      "arquivo": "xavier-teixeira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "xavier_teixeira.f2"
+      ]
+    },
+    {
+      "id": "r3.xavier_teixeira.pedido",
+      "quem": "xavier_teixeira",
+      "tipo": "kally",
+      "mensagem": "entao kally como faco para nao cansar no final do treino longo quero dicas de ritmo ai hidratacao",
+      "criterios": "Dicas corretas e seguras: ritmo confortável (conseguir falar), aumento gradual do volume, hidratação e algum carboidrato em treinos longos, descanso; sem prescrição médica."
+    },
+    {
+      "id": "r3.gabriela_santana.f1",
+      "quem": "gabriela_santana",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "gabriela_santana.f1"
+      ],
+      "titulo": "Meu projeto: Conseguir a troca ou o reembolso do celular",
+      "texto": "gente socorro. O celular foi comprado em 21 de dezembro e parou de carregar em 12 dias. Meu objetivo: Conseguir a troca ou o reembolso do celular. me ajuda por favor?"
+    },
+    {
+      "id": "r3.gabriela_santana.doc",
+      "quem": "gabriela_santana",
+      "tipo": "documento",
+      "arquivo": "gabriela-santana-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "gabriela_santana.f2"
+      ]
+    },
+    {
+      "id": "r3.gabriela_santana.pedido",
+      "quem": "gabriela_santana",
+      "tipo": "kally",
+      "mensagem": "gente socorro. Comprei um celular que deu defeito. Qual o prazo que eu tenho para reclamar pelo Código de Defesa do Consumidor? me ajuda por favor?",
+      "criterios": "Prazo correto do CDC (art. 26): 90 dias para produto durável (vício aparente), contados da entrega; vício oculto, a partir de quando aparece; a loja/fabricante tem 30 dias para sanar (art. 18), depois troca, abatimento ou reembolso. Não inventa artigos."
+    },
+    {
+      "id": "r3.ricardo_teixeira.f1",
+      "quem": "ricardo_teixeira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "ricardo_teixeira.f1"
+      ],
+      "titulo": "Meu projeto: Atender hóspedes estrangeiros sem travar",
+      "texto": "Estuda inglês 9 vezes por semana e o hotel recebe hóspedes de 7 países. Meu objetivo: Atender hóspedes estrangeiros sem travar."
+    },
+    {
+      "id": "r3.ricardo_teixeira.doc",
+      "quem": "ricardo_teixeira",
+      "tipo": "documento",
+      "arquivo": "ricardo-teixeira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "ricardo_teixeira.f2"
+      ]
+    },
+    {
+      "id": "r3.ricardo_teixeira.pedido",
+      "quem": "ricardo_teixeira",
+      "tipo": "kally",
+      "mensagem": "Como eu digo em inglês, de forma educada, que o quarto ainda não está pronto e o hóspede precisa esperar?",
+      "criterios": "Frases corretas e educadas em inglês (ex.: 'I'm sorry, your room is not ready yet. It should be ready by...', oferecer guardar a bagagem), com a tradução; curto."
+    },
+    {
+      "id": "r3.bruno_oliveira.f1",
+      "quem": "bruno_oliveira",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "bruno_oliveira.f1"
+      ],
+      "titulo": "Meu projeto: Vender as peças numa feira e pela internet",
+      "texto": "Produz 12 bolsas de crochê por mês e vende cada uma a R$ 160. Meu objetivo: Vender as peças numa feira e pela internet."
+    },
+    {
+      "id": "r3.bruno_oliveira.doc",
+      "quem": "bruno_oliveira",
+      "tipo": "documento",
+      "arquivo": "bruno-oliveira-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "bruno_oliveira.f2"
+      ]
+    },
+    {
+      "id": "r3.bruno_oliveira.pedido",
+      "quem": "bruno_oliveira",
+      "tipo": "kally",
+      "mensagem": "Como eu calculo o preço de uma bolsa de crochê contando o meu tempo de trabalho?",
+      "criterios": "Método simples e correto: custo do material + horas de trabalho × valor da hora + margem; exemplo numérico coerente, sem inventar dados da pessoa."
+    },
+    {
+      "id": "r3.tadeu_dias.f1",
+      "quem": "tadeu_dias",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "tadeu_dias.f1"
+      ],
+      "titulo": "Meu projeto: Apresentar um experimento sobre plantas e luz",
+      "texto": "O experimento compara 9 vasos de feijão em 3 tipos de luz. Meu objetivo: Apresentar um experimento sobre plantas e luz."
+    },
+    {
+      "id": "r3.tadeu_dias.doc",
+      "quem": "tadeu_dias",
+      "tipo": "documento",
+      "arquivo": "tadeu-dias-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "tadeu_dias.f2"
+      ]
+    },
+    {
+      "id": "r3.tadeu_dias.pedido",
+      "quem": "tadeu_dias",
+      "tipo": "kally",
+      "mensagem": "O que é fotossíntese e por que a cor da luz muda o crescimento da planta?",
+      "criterios": "Fotossíntese correta (luz + CO2 + água → glicose + O2, na clorofila); a clorofila absorve mais luz azul e vermelha e reflete a verde, por isso a cor da luz afeta o crescimento. Nível ensino médio."
+    },
+    {
+      "id": "r3.natalia_henriques.f1",
+      "quem": "natalia_henriques",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "natalia_henriques.f1"
+      ],
+      "titulo": "Meu projeto: Fidelizar clientes e organizar a agenda",
+      "texto": "entao kally o salao atende 56 clientes por semana ai tem 4 cadeiras meu objetivo fidelizar clientes ai organizar a agenda"
+    },
+    {
+      "id": "r3.natalia_henriques.doc",
+      "quem": "natalia_henriques",
+      "tipo": "documento",
+      "arquivo": "natalia-henriques-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "natalia_henriques.f2"
+      ]
+    },
+    {
+      "id": "r3.natalia_henriques.pedido",
+      "quem": "natalia_henriques",
+      "tipo": "kally",
+      "mensagem": "entao kally me da 3 ideias baratas para trazer as clientes de volta ao salao",
+      "criterios": "Três ideias práticas e baratas (cartão fidelidade, lembrete por mensagem, indicação com desconto etc.), curtas, sem inventar números do negócio."
+    },
+    {
+      "id": "r3.fabio_almeida.f1",
+      "quem": "fabio_almeida",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "fabio_almeida.f1"
+      ],
+      "titulo": "Meu projeto: Tocar o recital de formatura sem travar na cadência",
+      "texto": "O recital é em 8 de junho e terá 4 peças. Meu objetivo: Tocar o recital de formatura sem travar na cadência."
+    },
+    {
+      "id": "r3.fabio_almeida.doc",
+      "quem": "fabio_almeida",
+      "tipo": "documento",
+      "arquivo": "fabio-almeida-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "fabio_almeida.f2"
+      ]
+    },
+    {
+      "id": "r3.fabio_almeida.pedido",
+      "quem": "fabio_almeida",
+      "tipo": "kally",
+      "mensagem": "Como posso estudar uma cadência difícil sem cansar o braço? Quero um plano de 20 minutos por dia.",
+      "criterios": "Plano prático de 20 minutos por dia (aquecimento, trecho lento com metrônomo, divisão em frases, pausas), cuidado com a tensão no braço e sugestão de procurar a professora se doer. Curto e no tom da pessoa."
+    },
+    {
+      "id": "r3.heitor_freitas.f1",
+      "quem": "heitor_freitas",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "heitor_freitas.f1"
+      ],
+      "titulo": "Meu projeto: Organizar o cardápio semanal e o preço das marmitas",
+      "texto": "Vende 50 marmitas por semana a R$ 5,00 cada. Meu objetivo: Organizar o cardápio semanal e o preço das marmitas."
+    },
+    {
+      "id": "r3.heitor_freitas.doc",
+      "quem": "heitor_freitas",
+      "tipo": "documento",
+      "arquivo": "heitor-freitas-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "heitor_freitas.f2"
+      ]
+    },
+    {
+      "id": "r3.heitor_freitas.pedido",
+      "quem": "heitor_freitas",
+      "tipo": "kally",
+      "mensagem": "Me ajuda a montar um cardápio de 5 dias com carne, frango e uma opção sem carne, usando ingredientes baratos?",
+      "criterios": "Cardápio de 5 dias, variado, com ingredientes baratos e uma opção sem carne; prático, sem inventar preços."
+    },
+    {
+      "id": "r3.tadeu_ramos.f1",
+      "quem": "tadeu_ramos",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "tadeu_ramos.f1"
+      ],
+      "titulo": "Meu projeto: Criar um site simples para a loja da família",
+      "texto": "O site da loja terá 4 páginas e será feito em HTML e CSS. Meu objetivo: Criar um site simples para a loja da família."
+    },
+    {
+      "id": "r3.tadeu_ramos.doc",
+      "quem": "tadeu_ramos",
+      "tipo": "documento",
+      "arquivo": "tadeu-ramos-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "tadeu_ramos.f2"
+      ]
+    },
+    {
+      "id": "r3.tadeu_ramos.pedido",
+      "quem": "tadeu_ramos",
+      "tipo": "kally",
+      "mensagem": "Qual a diferença entre margin e padding no CSS? Mostra um exemplo simples.",
+      "criterios": "Diferença correta (padding: espaço interno, entre conteúdo e borda; margin: espaço externo, entre a borda e outros elementos), exemplo curto de CSS correto."
+    },
+    {
+      "id": "r3.yara_gomes.f1",
+      "quem": "yara_gomes",
+      "tipo": "post",
+      "pasta": "Projetos",
+      "fatos": [
+        "yara_gomes.f1"
+      ],
+      "titulo": "Meu projeto: Preparar uma aula sobre a Revolta da Vacina para o 9º ano",
+      "texto": "entao kally a aula sera para 4 turmas do 9º ano com 60 minutos cada meu objetivo preparar uma aula sobre a revolta da vacina para o 9º ano"
+    },
+    {
+      "id": "r3.yara_gomes.doc",
+      "quem": "yara_gomes",
+      "tipo": "documento",
+      "arquivo": "yara-gomes-pessoal.md",
+      "escopo": "pessoal",
+      "fatos": [
+        "yara_gomes.f2"
+      ]
+    },
+    {
+      "id": "r3.yara_gomes.pedido",
+      "quem": "yara_gomes",
+      "tipo": "kally",
+      "mensagem": "entao kally quais foram as causas da revolta da vacina de 1904 preciso de um resumo para o 9º ano",
+      "criterios": "Causas corretas: vacinação obrigatória contra a varíola (lei de 1904, Oswaldo Cruz), reforma urbana do Rio (Pereira Passos) com demolições e despejos, insatisfação popular e oposição política. Linguagem para o 9º ano, sem datas erradas."
+    }
+  ]
+}
