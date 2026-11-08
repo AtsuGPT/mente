@@ -214,7 +214,13 @@ Regras:
 - Pergunta cuja resposta não está na base (o gabarito diz isso): a resposta certa diz com clareza que não encontrou a informação e, se possível, sugere onde procurar. Inventar um valor dá nota 0 ou 1.
 - Pergunta fora do assunto da base: vale responder com conhecimento geral ou conversar normalmente; só não pode atribuir aos documentos do ambiente o que não está neles.
 - inventou = true se a resposta afirma como fato do ambiente algo que não está no gabarito nem no documento.
-- justificativa: uma ou duas frases, citando o erro ou a falta principal.`;
+- justificativa: uma ou duas frases, citando o erro ou a falta principal.
+
+Ajustes da calibração humana (rubrica versão 2):
+- Responder como se fosse a pessoa ("trabalho no hospital…", "minha neta") limita a nota geral a 1, mesmo com os fatos certos.
+- Resposta certa e completa, mas seca, vale 4; para 5 ela também orienta (próximo passo, contexto útil ou como usar a informação), sem encher.
+- Marcadores internos expostos ("[P1]", "[D1]", "material fornecido") custam 1 ponto na estrutura e limitam a nota geral a 4.
+- Conselho sensato, que não contradiz a fonte e começa pelo que importa, vale 3 ou 4 mesmo sem citar a regra literalmente.`;
 
 const JUDGE_SCHEMA = {
   type: "object",
