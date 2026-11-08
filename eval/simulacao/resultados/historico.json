@@ -1,0 +1,54 @@
+[
+  {
+    "rodada": 1,
+    "data": "2026-11-08T20:08:11.832Z",
+    "parametros": {
+      "commitLocal": "949bf8f",
+      "observacao": "Valores lidos do repositório local; o servidor testado pode estar em outra versão.",
+      "embeddings": "qwen3-embedding:0.6b",
+      "perfil": {
+        "floor": 0.3,
+        "min": 0.4,
+        "span": 0.3,
+        "weight": 0.7,
+        "conversationMin": 0.55
+      },
+      "trechoPosts": 900,
+      "trechoDocumentos": 1100
+    },
+    "comRag": {
+      "nota": 2.55,
+      "nota5": 0.325,
+      "nota4ou5": 0.425,
+      "fatosCompletos": 0.3225806451612903,
+      "fonteCerta": 0.41935483870967744,
+      "armadilhasAdmitiu": 0.75,
+      "inventou": 0.1,
+      "erroFactual": 0.55,
+      "segundosMediana": 2.8895,
+      "segundosP90": 4.887000000000001
+    },
+    "semRag": {
+      "nota": 1.2222222222222223,
+      "nota5": 0.05555555555555555,
+      "fatosCompletos": 0,
+      "armadilhasAdmitiu": 0.75,
+      "inventou": 0.16666666666666666
+    },
+    "ganhoRag": 1.2222222222222223,
+    "interacoes": {
+      "nota": 2.0526315789473686,
+      "nota5": 0.05263157894736842,
+      "n": 19
+    },
+    "diagnostico": {
+      "ok": 10,
+      "acertou_sem_fonte": 0,
+      "erro_geracao": 4,
+      "erro_busca_ou_interpretacao": 18,
+      "conteudo_ausente": 0
+    },
+    "vazamentos": 4,
+    "corrigidos": 95
+  }
+]

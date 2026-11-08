@@ -35,12 +35,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
-const STATE_FILE = path.join(here, ".estado.json");
+// SIM_ESTADO e SIM_SAIDA permitem rodar a mesma rodada noutra instância (ex.: servidor local de teste A/B)
+// sem misturar com a de produção.
+const STATE_FILE = path.resolve(process.env.SIM_ESTADO || path.join(here, ".estado.json"));
+const OUT_BASE = path.resolve(process.env.SIM_SAIDA || path.join(here, "resultados"));
 const { ambiente: AMBIENTE, personas: PERSONAS } = readJson(path.join(here, "personas.json"));
 const PROVA = readJson(path.join(here, "prova.json")).perguntas;
 const persona = (id) => PERSONAS.find((p) => p.id === id);
 const pad = (n) => String(n).padStart(2, "0");
-const roundDir = (n) => path.join(here, "resultados", `rodada-${pad(n)}`);
+const roundDir = (n) => path.join(OUT_BASE, `rodada-${pad(n)}`);
 
 let state = readJson(STATE_FILE, null);
 const save = () => writeJson(STATE_FILE, state);
@@ -313,6 +316,29 @@ async function rodada(n) {
   relatorio(n);
 }
 
+// ---------- replicar ----------
+// Recria noutra instância o conteúdo de uma rodada já executada, sem chamar a Kally: posts e documentos do roteiro,
+// e os rascunhos que a Kally escreveu (lidos dos resultados de origem) publicados pela mesma persona. As conversas
+// salvas entram pela semeadura (semear-local.ts). Serve para comparar versões da Kally sobre o mesmo conteúdo.
+async function replicar(n) {
+  const from = path.resolve(opt("de", path.join(here, "resultados", `rodada-${pad(n)}`)));
+  const recs = readJson(path.join(from, "acoes.json"), []);
+  const plan = readJson(path.join(here, "rodadas", `rodada-${pad(n)}.json`)).acoes;
+  for (const a of plan) {
+    if (state.posts[a.id] || state.documentos[a.id]) continue;
+    if (a.tipo === "post" || a.tipo === "documento") await runAction(a, n);
+    else if (a.tipo === "kally_post") {
+      const rec = recs.find((r) => r.id === a.id);
+      if (!rec?.conteudo) continue;
+      const r = await api(a.quem, `/env/${state.ambiente.slug}/kally/rascunho`, jsonInit("POST", { title: rec.titulo, content: rec.conteudo, categories: [a.pasta], publish: true }));
+      state.posts[a.id] = { id: r.id, titulo: rec.titulo, autor: a.quem, slug: r.slug };
+      registerFacts(a.fatos, { tipo: "post", titulo: rec.titulo });
+    } else continue;
+    save();
+    log(`replicado: ${a.id}`);
+  }
+}
+
 // ---------- prova ----------
 const activeQuestions = (n) => PROVA.filter((q) => (q.categoria === "nucleo" && q.inicio <= n) || (q.categoria !== "nucleo" && q.rodada === n));
 
@@ -375,9 +401,13 @@ function checkAnswer(q, a) {
   const leaked = (q.proibido ?? []).filter((p) => hasTerm(t, p));
   let diagnostico = null;
   if (a.condicao === "com-rag" && q.fatos.length && !q.sondagem) {
+    // Com KALLY_EVAL=1 o servidor diz se pulou a busca (papo casual, competência sem memória, modo errado).
+    const r = a.stats?.retrieval;
+    const skipped = r && (r.casual || r.skippedMemory || r.mode === "revisar" || r.mode === "ideia");
     if (src?.ausente) diagnostico = "conteudo_ausente";
     else if (complete) diagnostico = hit === false ? "acertou_sem_fonte" : "ok";
-    else diagnostico = hit ? "erro_geracao" : "erro_busca_ou_interpretacao";
+    else if (hit) diagnostico = "erro_geracao";
+    else diagnostico = !r ? "erro_busca_ou_interpretacao" : skipped ? "erro_interpretacao" : "erro_busca";
   }
   return {
     fatos: q.fatos.length ? `${fatos.filter(Boolean).length}/${q.fatos.length}` : null,
@@ -548,7 +578,7 @@ function relatorio(n) {
   o("## 3. Onde está o erro (com RAG, perguntas com resposta)");
   o();
   const diag = of("com-rag").map((r) => r.c.diagnostico).filter(Boolean);
-  const label = { ok: "acertou com a fonte certa", acertou_sem_fonte: "acertou sem a fonte esperada", erro_geracao: "erro de geração (fonte veio, fato faltou)", erro_busca_ou_interpretacao: "erro de busca ou de interpretação (fonte não veio)", conteudo_ausente: "conteúdo não entrou no ambiente (não conta contra a Kally)" };
+  const label = { ok: "acertou com a fonte certa", acertou_sem_fonte: "acertou sem a fonte esperada", erro_geracao: "erro de geração (fonte veio, fato faltou)", erro_busca_ou_interpretacao: "erro de busca ou de interpretação (fonte não veio)", erro_interpretacao: "erro de interpretação (a Kally nem buscou: casual, competência ou modo errado)", erro_busca: "erro de busca (buscou e a fonte não veio)", conteudo_ausente: "conteúdo não entrou no ambiente (não conta contra a Kally)" };
   o("| Diagnóstico | Quantidade | Perguntas |");
   o("|---|---|---|");
   for (const k of Object.keys(label)) o(`| ${label[k]} | ${diag.filter((d) => d === k).length} | ${of("com-rag", (r) => r.c.diagnostico === k).map((r) => r.q.id).join(", ") || "—"} |`);
@@ -613,7 +643,7 @@ function relatorio(n) {
     corrigidos: Object.keys(notas).length,
   };
   writeJson(path.join(dir, "resumo.json"), resumo);
-  const histFile = path.join(here, "resultados", "historico.json");
+  const histFile = path.join(OUT_BASE, "historico.json");
   const hist = readJson(histFile, []).filter((h) => h.rodada !== n);
   hist.push(resumo);
   hist.sort((a, b) => a.rodada - b.rodada);
@@ -623,7 +653,7 @@ function relatorio(n) {
 }
 
 function progresso() {
-  const hist = readJson(path.join(here, "resultados", "historico.json"), []);
+  const hist = readJson(path.join(OUT_BASE, "historico.json"), []);
   console.log("| Rodada | Nota com RAG | Nota sem RAG | Ganho | 5/5 | Fatos completos | Fonte certa | Armadilhas ok | Inventou | Vazamentos | Interações | Tempo (mediana) |");
   console.log("|---|---|---|---|---|---|---|---|---|---|---|---|");
   for (const h of hist) console.log(`| ${h.rodada} | ${f2(h.comRag.nota)} | ${f2(h.semRag.nota)} | ${f2(h.ganhoRag)} | ${pc(h.comRag.nota5)} | ${pc(h.comRag.fatosCompletos)} | ${pc(h.comRag.fonteCerta)} | ${pc(h.comRag.armadilhasAdmitiu)} | ${pc(h.comRag.inventou)} | ${h.vazamentos} | ${f2(h.interacoes.nota)} | ${f2(h.comRag.segundosMediana)} s |`);
@@ -634,6 +664,7 @@ try {
   const n = Number(arg);
   if (command === "preparar") await preparar();
   else if (command === "progresso") progresso();
+  else if (command === "replicar") await replicar(Number(arg));
   else if (!Number.isInteger(n) || n < 1) {
     console.log("Comandos: preparar | rodada N | prova N | exportar N | importar N --arquivo X | relatorio N | progresso");
     process.exit(command ? 1 : 0);
