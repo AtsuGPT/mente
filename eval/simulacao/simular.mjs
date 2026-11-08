@@ -353,7 +353,7 @@ async function prova(n) {
   log(`Prova da rodada ${n}: ${qs.length} perguntas (núcleo ${counts[0]}, novas ${counts[1]}, armadilhas ${counts[2]})`);
   for (const cond of ["com-rag", "sem-rag"]) {
     for (const q of qs) {
-      if (cond === "sem-rag" && !q.controle) continue;
+      if (cond === "sem-rag" && (!q.controle || process.env.SIM_SEM_CONTROLE === "1")) continue;
       if (done.has(`${q.id}|${cond}`)) continue;
       const res = cond === "com-rag" ? await kally(q.quem, state.ambiente.slug, { message: q.pergunta }) : await kally("coord", state.controle.slug, { message: q.pergunta });
       answers.push({ id: q.id, condicao: cond, quem: cond === "com-rag" ? q.quem : "coord", ...res });

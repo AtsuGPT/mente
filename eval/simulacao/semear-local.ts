@@ -39,36 +39,43 @@ async function user(usuario: string, nome: string) {
   return { usuario, senha, userId: u.id, membro: true };
 }
 
-state.coord = await user("treinamento.kally", "Coordenação do Treinamento");
-const main = await db.environment.create({ data: { slug: `treinamento-kally-${Date.now().toString(36)}`, name: ambiente.nome, description: ambiente.descricao, color: ambiente.cor, icon: ambiente.icone, ownerId: state.coord.userId, members: { create: { userId: state.coord.userId, role: "OWNER" } } } });
-const control = await db.environment.create({ data: { slug: `${main.slug}-controle`, name: `${ambiente.nome} (controle)`, color: "#8A8A8A", icon: ambiente.icone, ownerId: state.coord.userId, members: { create: { userId: state.coord.userId, role: "OWNER" } } } });
-state.ambiente = { id: main.id, slug: main.slug };
-state.controle = { id: control.id, slug: control.slug };
-state.pastas = {};
-for (const [i, p] of [...ambiente.pastas, { nome: "Guia", cor: "#5C5C5C", descricao: "Regras e orientações do ambiente." }].entries()) {
-  const c = await db.category.create({ data: { environmentId: main.id, name: p.nome, slug: slugify(p.nome), description: p.descricao, color: p.cor, position: i } });
-  state.pastas[p.nome] = c.id;
-}
-for (const p of personas) {
-  state.personas[p.id] = await user(p.usuario, p.nome);
-  await db.membership.create({ data: { environmentId: main.id, userId: state.personas[p.id].userId, role: "MEMBER" } });
-}
-// Conversas salvas da rodada, com as mesmas mensagens (alimentam a memória só da própria pessoa).
-for (const a of plan.filter((x: any) => x.conversa)) {
-  const rec = recs.find((r: any) => r.id === a.id);
-  if (!rec?.turnos) continue;
-  state.conversas[a.quem] ??= {};
-  let id = state.conversas[a.quem][a.conversa];
-  if (!id) {
-    const conv = await db.kallyConversation.create({ data: { environmentId: main.id, userId: state.personas[a.quem].userId, mode: "chat", title: a.mensagem.slice(0, 80) } });
-    id = state.conversas[a.quem][a.conversa] = conv.id;
+async function main() {
+  state.coord = await user("treinamento.kally", "Coordenação do Treinamento");
+  const main = await db.environment.create({ data: { slug: `treinamento-kally-${Date.now().toString(36)}`, name: ambiente.nome, description: ambiente.descricao, color: ambiente.cor, icon: ambiente.icone, ownerId: state.coord.userId, members: { create: { userId: state.coord.userId, role: "OWNER" } } } });
+  const control = await db.environment.create({ data: { slug: `${main.slug}-controle`, name: `${ambiente.nome} (controle)`, color: "#8A8A8A", icon: ambiente.icone, ownerId: state.coord.userId, members: { create: { userId: state.coord.userId, role: "OWNER" } } } });
+  state.ambiente = { id: main.id, slug: main.slug };
+  state.controle = { id: control.id, slug: control.slug };
+  state.pastas = {};
+  for (const [i, p] of [...ambiente.pastas, { nome: "Guia", cor: "#5C5C5C", descricao: "Regras e orientações do ambiente." }].entries()) {
+    const c = await db.category.create({ data: { environmentId: main.id, name: p.nome, slug: slugify(p.nome), description: p.descricao, color: p.cor, position: i } });
+    state.pastas[p.nome] = c.id;
   }
-  for (const t of rec.turnos) {
-    await db.kallyMessage.create({ data: { conversationId: id, role: "user", content: t.mensagem } });
-    if (t.texto) await db.kallyMessage.create({ data: { conversationId: id, role: "assistant", content: t.texto } });
+  for (const p of personas) {
+    state.personas[p.id] = await user(p.usuario, p.nome);
+    await db.membership.create({ data: { environmentId: main.id, userId: state.personas[p.id].userId, role: "MEMBER" } });
   }
-  for (const f of a.fatos ?? []) state.fontes[f] = { tipo: "conversa", id };
+  // Conversas salvas da rodada, com as mesmas mensagens (alimentam a memória só da própria pessoa).
+  for (const a of plan.filter((x: any) => x.conversa)) {
+    const rec = recs.find((r: any) => r.id === a.id);
+    if (!rec?.turnos) continue;
+    state.conversas[a.quem] ??= {};
+    let id = state.conversas[a.quem][a.conversa];
+    if (!id) {
+      const conv = await db.kallyConversation.create({ data: { environmentId: main.id, userId: state.personas[a.quem].userId, mode: "chat", title: a.mensagem.slice(0, 80) } });
+      id = state.conversas[a.quem][a.conversa] = conv.id;
+    }
+    for (const t of rec.turnos) {
+      await db.kallyMessage.create({ data: { conversationId: id, role: "user", content: t.mensagem } });
+      if (t.texto) await db.kallyMessage.create({ data: { conversationId: id, role: "assistant", content: t.texto } });
+    }
+    for (const f of a.fatos ?? []) state.fontes[f] = { tipo: "conversa", id };
+  }
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  console.log(`Semeado: ambiente ${main.slug}, controle ${control.slug}, ${personas.length} personas, ${Object.values(state.conversas).reduce((a: number, c: any) => a + Object.keys(c).length, 0)} conversas. Estado em ${stateFile}`);
+  await db.$disconnect();
 }
-fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
-console.log(`Semeado: ambiente ${main.slug}, controle ${control.slug}, ${personas.length} personas, ${Object.values(state.conversas).reduce((a: number, c: any) => a + Object.keys(c).length, 0)} conversas. Estado em ${stateFile}`);
-await db.$disconnect();
+
+main().catch((cause) => {
+  console.error(cause);
+  process.exit(1);
+});
