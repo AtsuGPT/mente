@@ -91,9 +91,12 @@ type NavigationLike = { isFocused: () => boolean; addListener: (event: "focus" |
  * foco e o app em primeiro plano. Na web, a página ainda entra com um esmaecimento curto.
  */
 export function ScreenFrame({ navigation, children }: { navigation: NavigationLike; children: ReactNode }) {
-  const [focused, setFocused] = useState(() => navigation.isFocused());
+  // Uma tela que acaba de montar quase sempre está em foco; o valor real é lido no efeito,
+  // porque isFocused() durante a renderização pode vir desatualizado (e o React Navigation avisa).
+  const [focused, setFocused] = useState(true);
   const appActive = useAppActive();
   useEffect(() => {
+    setFocused(navigation.isFocused());
     const offFocus = navigation.addListener("focus", () => setFocused(true));
     const offBlur = navigation.addListener("blur", () => setFocused(false));
     return () => {

@@ -74,6 +74,7 @@ export function Sheet({
     onDeactivate: (event) => {
       "worklet";
       if (event.translationY > Math.min(140, sheetHeight.value * 0.35) || event.velocityY > 900) {
+        drag.value = withSpring(sheetHeight.value + 40, { velocity: Math.max(event.velocityY, 600), duration: 320, dampingRatio: 1 });
         scheduleOnRN(onClose);
       } else {
         drag.value = withSpring(0, spring.release);

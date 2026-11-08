@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { useSharedValue, withSequence, withTiming } from "react-native-reanimated";
-import { easing } from "@/theme/motion";
+import { Easing, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
 /**
  * Estados visuais da Kally, ligados a eventos reais do app:
@@ -15,17 +14,20 @@ import { easing } from "@/theme/motion";
 export type KallyOrbitalState = "idle" | "listening" | "thinking" | "responding" | "speaking" | "error";
 
 /**
- * Pulso de atividade do streaming: chame kick() a cada pedaço de texto recebido. O valor sobe
- * rápido e decai devagar, então o ritmo real da geração aparece na órbita (rajadas aceleram,
- * pausas acalmam) sem nada simulado.
+ * Atividade do streaming (0–1): chame kick() a cada pedaço de texto recebido. Cada pedaço
+ * soma um pouco ao nível atual e depois o nível desce devagar; com o texto chegando, ele
+ * sobe aos poucos até um patamar proporcional ao ritmo real da geração, e ao terminar volta
+ * ao repouso em ~2,5 s. A órbita ainda suaviza esse sinal (ver orbital-skia).
  */
+const RISE = { duration: 220, easing: Easing.linear };
+const FALL = { duration: 2400, easing: Easing.inOut(Easing.quad) };
 export function useKallyActivity() {
   const activity = useSharedValue(0);
   return useMemo(
     () => ({
       activity,
       kick: () => {
-        activity.value = withSequence(withTiming(1, { duration: 90, easing: easing.standard }), withTiming(0, { duration: 900, easing: easing.decelerate }));
+        activity.value = withSequence(withTiming(Math.min(1, activity.value + 0.12), RISE), withTiming(0, FALL));
       },
     }),
     [activity],

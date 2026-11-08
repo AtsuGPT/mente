@@ -20,7 +20,8 @@ export type Layout = {
   hubId: string;
 };
 
-export const NODE_RADIUS = { ambiente: 54, pasta: 30, pensamento: 13, imagem: 7 } as const;
+/** Raios visuais (o espaçamento do layout não depende deles): hierarquia clara e discreta. */
+export const NODE_RADIUS = { ambiente: 40, pasta: 24, pensamento: 11, imagem: 6 } as const;
 
 const TAU = Math.PI * 2;
 

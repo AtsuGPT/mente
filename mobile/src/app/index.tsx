@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import Animated from "react-native-reanimated";
@@ -15,7 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { formatHandle } from "@/lib/format";
 import { colors, elevation, fonts, radius, space } from "@/theme/tokens";
 import { Sheet } from "@/components/ui/sheet";
-import { enter as appear } from "@/theme/motion";
+import { enter as appear, exit } from "@/theme/motion";
 import { useContainer } from "@/theme/layout";
 
 const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante", DEV: "Dev" };
@@ -238,8 +238,17 @@ function EnvironmentTile({ env, index, last, busy, onPress }: { env: Environment
             {env.archivedAt ? <AppText variant="label" color={colors.warning} style={{ fontSize: 11, letterSpacing: 1 }}>Arquivado</AppText> : null}
           </View>
         </View>
-        <View style={{ transform: [{ rotate: "180deg" }], opacity: busy ? 0.3 : 1 }}>
-          <Icon name="back" size={16} color={colors.faint} />
+        {/* Abrindo (o servidor pode demorar): a seta dá lugar a um indicador, com troca cruzada. */}
+        <View style={styles.tileEnd} accessibilityState={{ busy }}>
+          {busy ? (
+            <Animated.View key="busy" entering={appear.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.tileEndCenter]}>
+              <ActivityIndicator size="small" color={colors.violet300} />
+            </Animated.View>
+          ) : (
+            <Animated.View key="go" entering={appear.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.tileEndCenter, { transform: [{ rotate: "180deg" }] }]}>
+              <Icon name="back" size={16} color={colors.faint} />
+            </Animated.View>
+          )}
         </View>
       </Touchable>
     </Animated.View>
@@ -354,6 +363,8 @@ const styles = StyleSheet.create({
   accountAction: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.md },
   tile: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, paddingVertical: space.lg + 2, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.glass, ...elevation.card },
   tileWash: { ...StyleSheet.absoluteFill, borderRadius: radius.xl - 1 },
+  tileEnd: { width: 22, height: 22 },
+  tileEndCenter: { alignItems: "center", justifyContent: "center" },
   lastDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.violet400 },
   meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: space.sm, marginTop: space.xs },
   rolePill: { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },

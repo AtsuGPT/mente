@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
@@ -213,6 +213,30 @@ function Kally() {
       scrollTo(list, 0, Math.max(0, scrollY.value + (now - previous)), false);
     },
   );
+  // Durante o streaming, a rolagem persegue o fim quadro a quadro (aproximação exponencial,
+  // ~90 ms de constante): o texto novo entra sem degraus. Só roda enquanto há resposta
+  // chegando e a pessoa está no fim; subir para reler desliga (atEnd).
+  const chaseY = useSharedValue(0);
+  const chaseLive = useSharedValue(false);
+  const chase = useFrameCallback((info) => {
+    "worklet";
+    if (!atEnd.value) {
+      chaseLive.value = false;
+      return;
+    }
+    // Retomando (a pessoa voltou ao fim) ou a rolagem real passou à frente (teclado, rolagem
+    // nativa): adota a posição real. Nunca volta atrás por causa de um evento atrasado.
+    if (!chaseLive.value || scrollY.value > chaseY.value + 1) {
+      chaseY.value = scrollY.value;
+      chaseLive.value = true;
+    }
+    const target = Math.max(0, contentHeight.value - viewHeight.value);
+    const gap = target - chaseY.value;
+    if (gap <= 0.5) return;
+    const dt = Math.min(info.timeSincePreviousFrame ?? 16, 48);
+    chaseY.value += gap * (1 - Math.exp(-dt / 90));
+    scrollTo(list, 0, chaseY.value, false);
+  }, false);
   /** Rola até o fim na UI thread, com as medidas atuais (igual no celular e na web). */
   const scrollToEnd = useCallback(
     (animated: boolean) => {
@@ -464,6 +488,10 @@ function Kally() {
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
   const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} />, [loading, messages.length]);
   const lastMessage = messages[messages.length - 1];
+  useEffect(() => {
+    chaseLive.value = false;
+    chase.setActive(loading && following);
+  }, [loading, following, chase, chaseLive]);
   // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
@@ -517,7 +545,8 @@ function Kally() {
         }}
         onContentSizeChange={(_width, height) => {
           contentHeight.value = height;
-          if (following) scrollToEnd(!loading);
+          // Respondendo, quem acompanha o fim é a perseguição quadro a quadro.
+          if (following && !loading) scrollToEnd(true);
         }}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={Platform.OS !== "web"}
@@ -828,11 +857,11 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
       ) : isUser ? (
         <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
       ) : (
-        <>
+        <Animated.View entering={animate ? enter.fade : undefined}>
           {before ? <Markdown>{before}</Markdown> : null}
           {draft ? <DraftCard draft={draft} pending={pending} /> : null}
           {after ? <Markdown>{after}</Markdown> : null}
-        </>
+        </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
       {item.stats ? (
@@ -1111,7 +1140,15 @@ function SendButton({ disabled, busy, onPress }: { disabled: boolean; busy: bool
   return (
     <Touchable accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.88} style={[styles.send, elevation.glow, look]}>
       <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.sendFill]} />
-      {busy ? <ActivityIndicator color="#FFFFFF" /> : <View style={{ transform: [{ rotate: "-45deg" }] }}><Icon name="send" size={18} color="#FFFFFF" strokeWidth={2.2} /></View>}
+      {busy ? (
+        <Animated.View key="busy" entering={enter.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.sendCenter]}>
+          <ActivityIndicator color="#FFFFFF" />
+        </Animated.View>
+      ) : (
+        <Animated.View key="send" entering={enter.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.sendCenter, { transform: [{ rotate: "-45deg" }] }]}>
+          <Icon name="send" size={18} color="#FFFFFF" strokeWidth={2.2} />
+        </Animated.View>
+      )}
     </Touchable>
   );
 }
@@ -1246,6 +1283,7 @@ const styles = StyleSheet.create({
   sendFill: { borderRadius: 20 },
   input: { ...type.ui, flex: 1, color: colors.text, maxHeight: 140, minHeight: 44, paddingHorizontal: space.md, paddingVertical: 11, borderRadius: radius.md, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass },
   send: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  sendCenter: { alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   cardRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   cardDone: { borderColor: colors.violet600 },

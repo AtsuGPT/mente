@@ -78,6 +78,7 @@ export default function MapScreen() {
   function select(id: string | null, center = false) {
     setSelectedId(id);
     if (id && center) mapRef.current?.focus(id);
+    else if (id) mapRef.current?.reveal(id, PANEL_HEIGHT);
   }
 
   function open(node: LaidOutNode) {
@@ -210,11 +211,11 @@ function Legend({ shape, label }: { shape: "folder" | "post" | "draft" | "privat
       <View
         style={[
           styles.legendShape,
-          shape === "folder" && { width: 14, height: 14, borderRadius: 7, borderColor: colors.violet300, backgroundColor: colors.violet600 },
-          shape === "post" && { borderColor: colors.violet400, backgroundColor: colors.violet700 },
+          shape === "folder" && { width: 14, height: 14, borderRadius: 7, borderColor: colors.violet300, backgroundColor: "rgba(132,97,240,0.18)" },
+          shape === "post" && { borderColor: colors.violet400 },
           shape === "draft" && { borderColor: colors.warning, borderStyle: "dashed" },
-          shape === "image" && { borderRadius: 2, borderColor: colors.muted },
-          shape === "private" && { borderColor: colors.violet500, alignItems: "center", justifyContent: "center" },
+          shape === "image" && { borderRadius: 2, borderColor: colors.faint },
+          shape === "private" && { borderColor: colors.violet400, alignItems: "center", justifyContent: "center" },
         ]}
       >
         {shape === "private" ? <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.violet300 }} /> : null}
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   titleRow: { paddingHorizontal: space.lg },
   controls: { position: "absolute", right: space.md, top: space.md, gap: space.xs, padding: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.float },
   legend: { position: "absolute", left: space.md, bottom: space.md, flexDirection: "column", gap: 6, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.line },
-  legendShape: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.4, backgroundColor: colors.surfaceRaised },
+  legendShape: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, backgroundColor: colors.surfaceRaised },
   panel: {
     position: "absolute",
     left: space.sm,

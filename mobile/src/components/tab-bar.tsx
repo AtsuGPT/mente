@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Platform, StyleSheet, View, type LayoutRectangle } from "react-native";
 import type { Tabs } from "expo-router/js-tabs";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { interpolate, interpolateColor, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Touchable } from "@/components/ui/primitives";
 import { spring, timing } from "@/theme/motion";
@@ -36,12 +36,20 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
   const h = useSharedValue(0);
   const visible = useSharedValue(0);
   const placed = useRef<TabBarVariant | null>(null);
+  // Aba ativa para a animação (muda no toque, antes da navegação) e o último destino da pílula.
+  const active = useSharedValue(state.index);
+  const aimed = useRef("");
 
-  useEffect(() => {
-    const item = layouts[state.index];
+  const aim = useCallback((index: number) => {
+    active.value = index;
+    const item = layouts[index];
     if (!item) return;
     const pill = variant === "side" ? { width: item.width, height: item.height } : PILL[variant];
     const target = { x: item.x + (item.width - pill.width) / 2, y: variant === "side" ? item.y : item.y + 4, w: pill.width, h: pill.height };
+    // Mesmo destino (o toque já mirou e agora o estado confirma): não reinicia a mola.
+    const key = `${variant}|${target.x}|${target.y}|${target.w}|${target.h}`;
+    if (aimed.current === key) return;
+    aimed.current = key;
     // Primeira posição (ou troca de formato): sem viagem; depois, sempre com mola.
     if (placed.current !== variant) {
       placed.current = variant;
@@ -56,7 +64,10 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
     y.value = withSpring(target.y, spring.selection);
     w.value = withSpring(target.w, spring.selection);
     h.value = withSpring(target.h, spring.selection);
-  }, [layouts, state.index, variant, x, y, w, h, visible]);
+  }, [layouts, variant, active, x, y, w, h, visible]);
+
+  // Navegação por outros caminhos (voltar, links): o estado manda.
+  useEffect(() => aim(state.index), [aim, state.index]);
 
   const indicator = useAnimatedStyle(() => ({
     opacity: visible.value,
@@ -71,7 +82,10 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
     const focused = index === state.index;
     const onPress = () => {
       const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-      if (!focused && !event.defaultPrevented) navigateToTab(route.key);
+      if (!focused && !event.defaultPrevented) {
+        aim(index);
+        navigateToTab(route.key);
+      }
     };
     return (
       <TabItem
@@ -81,6 +95,8 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
         icon={icons[route.name] ?? "home"}
         href={`/${route.name}`}
         focused={focused}
+        index={index}
+        active={active}
         variant={variant}
         onPress={onPress}
         onLongPress={() => emitter.emit({ type: "tabLongPress", target: route.key })}
@@ -144,6 +160,8 @@ function TabItem({
   icon,
   href,
   focused,
+  index,
+  active,
   variant,
   onPress,
   onLongPress,
@@ -154,6 +172,8 @@ function TabItem({
   icon: IconName;
   href: string;
   focused: boolean;
+  index: number;
+  active: SharedValue<number>;
   variant: TabBarVariant;
   onPress: () => void;
   onLongPress: () => void;
@@ -161,13 +181,17 @@ function TabItem({
 }) {
   const on = useSharedValue(focused ? 1 : 0);
   const hover = useSharedValue(0);
-  useEffect(() => {
-    // Mola também aqui: o ícone cresce enquanto a pílula chega.
-    on.value = withSpring(focused ? 1 : 0, spring.selection);
-  }, [focused, on]);
+  // Segue a aba ativa na UI thread: o ícone muda junto com a pílula, já no toque.
+  useAnimatedReaction(
+    () => active.value === index,
+    (isOn, was) => {
+      if (was !== null && isOn !== was) on.value = withSpring(isOn ? 1 : 0, spring.selection);
+    },
+  );
 
-  const activeIcon = useAnimatedStyle(() => ({ opacity: on.value, transform: [{ scale: interpolate(on.value, [0, 1], [0.86, 1.08]) }] }));
-  const idleIcon = useAnimatedStyle(() => ({ opacity: 1 - on.value, transform: [{ scale: interpolate(on.value, [0, 1], [1, 0.86]) }] }));
+  // Troca cruzada com escala curta (sem "pulo" do ícone).
+  const activeIcon = useAnimatedStyle(() => ({ opacity: on.value, transform: [{ scale: interpolate(on.value, [0, 1], [0.92, 1]) }] }));
+  const idleIcon = useAnimatedStyle(() => ({ opacity: 1 - on.value, transform: [{ scale: interpolate(on.value, [0, 1], [1, 0.92]) }] }));
   const text = useAnimatedStyle(() => ({ color: interpolateColor(Math.max(on.value, hover.value * 0.45), [0, 1], [colors.faint, variant === "side" ? "#FFFFFF" : colors.violet200]) }));
   const surface = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(hover.value * (1 - on.value), [0, 1], ["rgba(31,23,54,0)", "rgba(31,23,54,0.75)"]) }));
   const iconBox = variant === "bottom" ? styles.iconBottom : variant === "rail" ? styles.iconRail : styles.iconSide;
@@ -193,7 +217,7 @@ function TabItem({
       onLongPress={onLongPress}
       onLayout={(event) => onLayout(event.nativeEvent.layout)}
       hover={hover}
-      pressScale={0.92}
+      pressScale={0.95}
       haptic={!focused}
       style={[styles.item, variant === "bottom" ? styles.itemBottom : variant === "rail" ? styles.itemRail : styles.itemSide, surface]}
     >

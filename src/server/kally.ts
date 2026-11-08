@@ -51,6 +51,27 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   return { mode: "chat", casual, wantsMemory };
 }
 
+/**
+ * Escrita da Kally em qualquer modo: sem emojis e sem entusiasmo artificial. O controle é por
+ * instrução (nada é apagado da resposta depois): emojis do texto da pessoa, de citações e de
+ * documentos continuam quando a reprodução literal for necessária.
+ */
+export const WRITING_RULE =
+  "Escrita: não use emojis nem emoticons; o tom vem das palavras, não de símbolos, de pontos de exclamação repetidos ou de formatação extra. Comece pelo que importa, sem elogiar a mensagem ou a pergunta e sem empolgação forçada. Exceção: ao reproduzir, citar ou traduzir um texto da pessoa, uma citação ou um documento que tenha emojis, mantenha cada um deles, no mesmo lugar.";
+/**
+ * Lembrete do fim do prompt. Medido com o qwen3 4B: uma frase que proíbe e abre exceção ao mesmo
+ * tempo falha nos dois lados (emoji no fim de uma comemoração, emoji perdido numa tradução).
+ * Por isso a variante é escolhida pelo pedido: se o texto da pessoa (mensagem, anexo, texto para
+ * revisar ou documento) tem emojis, o lembrete manda conservá-los; senão, proíbe sem exceção.
+ * Só a entrada é examinada: a resposta nunca é filtrada.
+ */
+const HAS_EMOJI = /\p{Extended_Pictographic}/u;
+export function writingReminder(...texts: (string | null | undefined)[]) {
+  return texts.some((text) => !!text && HAS_EMOJI.test(text))
+    ? "Lembrete de escrita: o texto da pessoa tem emojis; ao reproduzir, citar ou traduzir esse texto, mantenha cada emoji no mesmo lugar, mas não acrescente nenhum outro. Não elogie a pergunta e não force empolgação."
+    : "Lembrete de escrita: não use emojis em nenhuma parte da resposta, nem no começo nem no fim. Não elogie a pergunta, não force empolgação e vá direto ao que importa, com naturalidade.";
+}
+
 /** Regras sobre o material (ambiente, internet, anexos): valem para a Kally em qualquer modo. */
 const MATERIAL_RULES = [
   "Sobre o ambiente, você só sabe o que vem no material marcado como [P…] (pensamentos e projetos) e [C…] (conversas anteriores da própria pessoa). Nunca invente o que o autor pensa, escreveu ou viveu.",
@@ -66,8 +87,9 @@ const MATERIAL_RULES = [
  */
 const identity = (environmentName: string, toneExamples = true) => [
   `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
-  "Seu jeito: amigável, espontânea, curiosa e bem-humorada, como uma amiga inteligente com quem dá gosto conversar. Fale português brasileiro natural, como gente, nunca como um sistema de análise.",
-  "Antes de responder, entenda a intenção. Papo do dia a dia (\"estou cansado hoje\", \"bom dia\") pede resposta curta e calorosa: nada de análise, lição, lista ou pergunta forçada. Pergunta simples pede resposta simples e direta.",
+  "Seu jeito: atenta, curiosa e calorosa, com humor leve quando ele cabe, como uma interlocutora competente com quem dá gosto conversar. Fale português brasileiro natural, como gente, nunca como um sistema de análise.",
+  WRITING_RULE,
+  "Antes de responder, entenda a intenção. Papo do dia a dia (\"estou cansado hoje\", \"bom dia\") pede resposta curta e calorosa: nada de análise, lição, lista ou pergunta forçada. Diante de uma notícia boa ou difícil, reaja com sinceridade ao que a pessoa contou, de forma específica e sem exagero. Pergunta simples pede resposta simples e direta.",
   "Se pedirem sua opinião, dê uma opinião sua, honesta e com fundamento. Aprofunde só quando o assunto pedir ou quando a pessoa pedir.",
   "Não analise, não revise e não relacione os pensamentos do ambiente por conta própria: faça isso quando a pessoa pedir ou quando for claramente útil para o que ela perguntou.",
   "Tamanho proporcional à mensagem: frases curtas em conversa casual; títulos e listas só quando organizarem um conteúdo de fato. Faça no máximo uma pergunta, e só se for natural.",
@@ -182,6 +204,7 @@ export function buildPrompt(input: {
   if (input.guide) system.push(input.guide);
   if (documents.length) system.push(DOCUMENT_RULE);
   const history = input.history.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
+  const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) }];
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo
   // pequeno chega a repeti-lo). Vão só títulos, como referências internas para sugerir.
@@ -192,15 +215,15 @@ export function buildPrompt(input: {
       system.push("A pessoa pediu o rascunho AGORA: escreva-o nesta resposta, no formato <rascunho> indicado, com o que ela já contou.");
     }
     const extra = [input.attachment ? materialBlock([], [], input.attachment, null, false) : "", input.web?.length ? materialBlock([], input.web, null, null, false) : ""].filter(Boolean).join("\n\n");
-    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }];
+    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }, ...closing];
   }
 
   // Conversa solta sem nada relacionado: sem bloco de material (senão a Kally comenta o vazio).
   if (input.mode === "chat" && !input.posts.length && !input.web?.length && !input.attachment && !documents.length) {
-    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: input.message }];
+    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: input.message }, ...closing];
   }
   const material = materialBlock(input.posts, input.web ?? [], input.attachment ?? null, input.reviewText ?? null, true, documents);
-  return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: `${input.message}\n\n---\n${material}` }];
+  return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
 }
 
 /**
@@ -253,7 +276,7 @@ export function buildCompetencePrompt(input: {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, WRITING_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
@@ -294,7 +317,7 @@ export function buildCompetencePrompt(input: {
     { role: "system", content: system.join("\n") },
     ...history,
     { role: "user", content: material ? `${input.message}\n\n---\n${material}` : input.message },
-    { role: "system", content: holdDraft ? hold : c.lembrete },
+    { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}` },
   ];
 }
 
@@ -331,7 +354,7 @@ export async function reviewText(text: string, environmentName: string): Promise
         content: [
           ...identity(environmentName),
           "Faça uma revisão textual do texto fornecido: gramática, clareza, fluidez, repetições e estrutura. Preserve o estilo e a voz do autor; nunca mude o sentido, a opinião ou uma negação.",
-          "Fale com quem escreveu usando \"você\" e não presuma gênero. Não sugira trocas que só acrescentem ou tirem pontuação.",
+          "Fale com quem escreveu usando \"você\" e não presuma gênero. Não sugira trocas que só acrescentem ou tirem pontuação. Não use emojis.",
           'Responda SOMENTE em JSON: {"resumo": "duas frases sobre o texto", "sugestoes": [{"tipo": "gramática|clareza|repetição|estrutura", "trecho": "cópia EXATA de um trecho curto do texto", "sugestao": "como ficaria", "motivo": "por que mudar"}]}.',
           "No máximo 8 sugestões, as mais importantes. Para sugestões de estrutura sem troca direta, deixe \"sugestao\" vazio e explique no motivo.",
         ].join(" "),

@@ -102,11 +102,11 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
   useEffect(() => {
     const t = TARGET[state];
     const slowDown = t.speed < speed.value;
-    speed.value = withTiming(t.speed, { duration: slowDown ? 1400 : 650, easing: easing.standard });
-    energy.value = withTiming(t.energy, { duration: 700, easing: easing.standard });
-    hue.value = withTiming(t.hue, { duration: 900, easing: easing.standard });
-    glow.value = withTiming(t.glow, { duration: 800, easing: easing.standard });
-    dim.value = withTiming(t.dim, { duration: 900, easing: easing.standard });
+    speed.value = withSpring(t.speed, { ...spring.state, duration: slowDown ? 1800 : 900 });
+    energy.value = withSpring(t.energy, spring.state);
+    hue.value = withSpring(t.hue, spring.state);
+    glow.value = withSpring(t.glow, spring.state);
+    dim.value = withSpring(t.dim, spring.state);
   }, [state, speed, energy, hue, glow, dim]);
 
   // Relógio e fases integradas na UI thread.
@@ -119,13 +119,27 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
   const c2 = useSharedValue(0);
   const glowPhase = useSharedValue(0);
   const corePhase = useSharedValue(0);
+  // Atividade e voz suavizadas (posição e velocidade de um filtro criticamente amortecido).
+  const act = useSharedValue(0);
+  const actV = useSharedValue(0);
+  const voice = useSharedValue(0);
+  const voiceV = useSharedValue(0);
   const onFrame = useCallback((info: FrameInfo) => {
     "worklet";
     const dt = Math.min(info.timeSincePreviousFrame ?? 16, 48) / 1000;
     time.value += dt;
-    // Variação discreta de velocidade enquanto responde, puxada pelos eventos reais do streaming.
-    const wobble = energy.value * 0.05 * Math.sin(time.value * 5.3) + pulse.value * 0.35 + amp.value * 0.25;
-    const s = speed.value * (1 + wobble);
+    // Filtro criticamente amortecido: segue o sinal sem degraus e sem passar do ponto. A
+    // atividade responde em ~0,6 s; a voz, em ~0,15 s.
+    const follow = (x: SharedValue<number>, v: SharedValue<number>, target: number, w: number) => {
+      "worklet";
+      const a = w * w * (target - x.value) - 2 * w * v.value;
+      v.value += a * dt;
+      x.value = Math.max(0, x.value + v.value * dt);
+    };
+    follow(act, actV, pulse.value, 7);
+    follow(voice, voiceV, amp.value, 22);
+    // Mais rápida com o texto chegando e com a voz; sem oscilação periódica de velocidade.
+    const s = speed.value * (1 + act.value * 0.28 + voice.value * 0.22);
     a0.value += dt * (360 / RINGS[0].period) * RINGS[0].dir * s;
     a1.value += dt * (360 / RINGS[1].period) * RINGS[1].dir * s;
     a2.value += dt * (360 / RINGS[2].period) * RINGS[2].dir * s;
@@ -135,7 +149,7 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
     // Luz: ciclo de ~3,6 s em repouso até ~2,1 s com energia máxima.
     glowPhase.value += dt * ((Math.PI * 2) / (3.6 - energy.value * 1.5));
     corePhase.value += dt * ((Math.PI * 2) / (2.6 - energy.value * 1.4));
-  }, [time, energy, pulse, amp, speed, a0, a1, a2, c0, c1, c2, glowPhase, corePhase]);
+  }, [time, energy, pulse, amp, speed, a0, a1, a2, c0, c1, c2, glowPhase, corePhase, act, actV, voice, voiceV]);
   const frame = useFrameCallback(onFrame, false);
   useEffect(() => {
     frame.setActive(active);
@@ -177,12 +191,12 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
   const comets = [c0, c1, c2];
 
   // Halo e núcleo.
-  const haloOpacity = useDerivedValue(() => Math.min(1, intensity * (glow.value * (0.62 + 0.38 * Math.sin(glowPhase.value)) + hold.value * 0.35 + pulse.value * 0.2 + amp.value * 0.3)));
+  const haloOpacity = useDerivedValue(() => Math.min(1, intensity * (glow.value * (0.82 + 0.18 * Math.sin(glowPhase.value)) + hold.value * 0.3 + act.value * 0.16 + voice.value * 0.26)));
   const haloColors = useDerivedValue(() => {
     const tone = interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], ["rgba(98,54,212,0.55)", "rgba(165,139,247,0.5)"]), "rgba(74,43,155,0.3)"]);
     return [tone, "rgba(98,54,212,0.16)", "rgba(19,11,38,0)"];
   });
-  const pupilR = useDerivedValue(() => size * (0.05 + energy.value * 0.012 * (0.5 + 0.5 * Math.sin(corePhase.value)) + amp.value * 0.02 + pulse.value * 0.008 + hold.value * 0.006));
+  const pupilR = useDerivedValue(() => size * (0.05 + energy.value * 0.008 * (0.5 + 0.5 * Math.sin(corePhase.value)) + voice.value * 0.018 + act.value * 0.006 + hold.value * 0.006));
   const pupilColors = useDerivedValue(() => [
     "#FFFFFF",
     interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], [colors.violet300, colors.violet200]), colors.faint]),
@@ -219,7 +233,7 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
         {geometry.map((ring, i) => (
           <Group key={`f${i}`}>
             <RingHalf path={ring.front} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} />
-            <Comet path={ring.full} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} travel={comets[i]} perimeter={ring.perimeter} fraction={RINGS[i].comet} energy={energy} pulse={pulse} dim={dim} />
+            <Comet path={ring.full} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} travel={comets[i]} perimeter={ring.perimeter} fraction={RINGS[i].comet} energy={energy} pulse={act} dim={dim} />
           </Group>
         ))}
       </Canvas>
@@ -233,7 +247,7 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
             press.value = withSpring(1, spring.press);
           }}
           onPressOut={() => {
-            press.value = withSpring(0, { duration: 420, dampingRatio: 0.42 });
+            press.value = withSpring(0, { duration: 380, dampingRatio: 0.72 });
             hold.value = withTiming(0, { duration: 600, easing: easing.standard });
           }}
           onLongPress={() => {
@@ -276,7 +290,7 @@ function RingHalf({
   const sweep = useDerivedValue(() => {
     // Cada anel oscila em fase própria: os tons nunca mudam todos juntos.
     const mix = 0.5 + 0.5 * Math.sin(glowPhase.value + phase);
-    const k = Math.min(1, Math.max(0, hue.value + (mix - 0.5) * 0.5));
+    const k = Math.min(1, Math.max(0, hue.value + (mix - 0.5) * 0.34));
     const deep = interpolateColor(k, [0, 0.5, 1], [DEEP[0], DEEP[1], DEEP[2]]);
     const light = interpolateColor(k, [0, 0.5, 1], [LIGHT[0], LIGHT[1], LIGHT[2]]);
     const orchid = interpolateColor(dim.value, [0, 1], [colors.orchid, colors.violet800]);
@@ -320,7 +334,7 @@ function Comet({
 }) {
   const transform = useDerivedValue(() => [{ rotate: tilt + (angle.value * Math.PI) / 180 }]);
   const dashPhase = useDerivedValue(() => -travel.value * perimeter);
-  const opacity = useDerivedValue(() => interpolate(energy.value, [0, 1], [0.18, 0.85]) * (1 - dim.value) + pulse.value * 0.25);
+  const opacity = useDerivedValue(() => interpolate(energy.value, [0, 1], [0.18, 0.8]) * (1 - dim.value) + pulse.value * 0.18);
   const intervals = useMemo(() => [perimeter * fraction, perimeter * (1 - fraction)], [perimeter, fraction]);
   return (
     <Group origin={vec(c, c)} transform={transform} opacity={opacity}>

@@ -44,18 +44,20 @@ export const timing = {
  * nunca oscilação visível). A duração real é ~1,5× a perceptual.
  */
 export const spring = {
-  /** Afundar ao pressionar: firme, sem rebote. */
-  press: { duration: 160, dampingRatio: 1, ...system },
-  /** Voltar ao soltar: um assentar mínimo. */
-  release: { duration: 280, dampingRatio: 0.72, ...system },
+  /** Afundar ao pressionar: chega quase no mesmo quadro do toque, sem rebote. */
+  press: { duration: 110, dampingRatio: 1, ...system },
+  /** Voltar ao soltar: assenta sem passar do ponto (amortecimento alto). */
+  release: { duration: 260, dampingRatio: 0.86, ...system },
   /** Indicadores de seleção (abas, chips) indo de um lugar a outro. */
-  selection: { duration: 340, dampingRatio: 0.86, ...system },
+  selection: { duration: 320, dampingRatio: 0.92, ...system },
   /** Folhas e diálogos entrando. */
-  sheet: { duration: 380, dampingRatio: 0.9, ...system },
+  sheet: { duration: 380, dampingRatio: 0.95, ...system },
   /** Câmera do mapa (focar, enquadrar, aproximar). */
   camera: { duration: 460, dampingRatio: 1, ...system },
-  /** Destaque de um nó selecionado. */
-  pop: { duration: 300, dampingRatio: 0.62, ...system },
+  /** Destaque de um nó selecionado: discreto, sem balanço. */
+  pop: { duration: 260, dampingRatio: 0.95, ...system },
+  /** Mudanças de estado contínuas (órbita da Kally): lentas e criticamente amortecidas. */
+  state: { duration: 1100, dampingRatio: 1, ...system },
 } satisfies Record<string, WithSpringConfig>;
 
 /**
