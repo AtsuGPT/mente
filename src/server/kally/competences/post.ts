@@ -17,6 +17,7 @@ export const post: CompetenceSpec = {
     "Estrutura: título que capture a ideia dela; abertura que situe; desenvolvimento que aprofunde os pontos dela na ordem que fizer mais sentido; fechamento que retome a ideia central dela sem inventar conclusão nova.",
     "Não use o gênero gramatical da pessoa se ela não o revelou; prefira construções neutras.",
     "Pensamentos do ambiente [P…] podem ser sugeridos pelo título depois do rascunho; nunca entram no texto como se fossem dela.",
+    "O post é público. Dos documentos pessoais [D…], use só o que ela pediu para entrar no texto; nunca copie para o rascunho códigos, identificadores, valores financeiros, endereços ou dados de outras pessoas que ela não mencionou na conversa.",
   ],
   criterios: [
     "Fidelidade: todas as ideias centrais dela estão no texto; nada de opinião, fato ou vivência inventada.",

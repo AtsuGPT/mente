@@ -196,8 +196,12 @@ export async function POST(request: Request, context: EnvContext) {
     web = await searchWeb(webQuery, 4);
   }
   // Bases de documentos (pipeline): a institucional e a pessoal de quem pergunta. Num post pessoal
-  // só entram os documentos da própria pessoa (referências externas não são fala dela).
-  const documentSearch = pipeline && !casual
+  // só entram os documentos da própria pessoa (referências externas não são fala dela), e só quando ela
+  // pede para usar as anotações ou documentos: o post é público e os documentos são privados. Na simulação
+  // (rodada 1), o post de divulgação da Sônia saiu com o faturamento, o aluguel e o código do documento
+  // pessoal dela, e outra pessoa recebeu esses dados da Kally em seguida.
+  const postUsesOwnDocs = /\b(meus?|minhas?) (documentos?|anota[cç](ão|ões)|notas|arquivos?|planilhas?|n[uú]meros|dados|caderno)\b|\b(do|no|o) (meu )?(documento|arquivo|pdf|caderno) que (eu )?(mandei|enviei|subi)\b/i.test(message);
+  const documentSearch = pipeline && !casual && (competence !== "post" || postUsesOwnDocs)
     ? await searchDocuments({ userId, query, limit: 4, institutional: competence !== "post" }).catch((cause) => {
         console.error("Kally documentos: busca indisponível:", cause instanceof Error ? cause.message : cause);
         return null;
