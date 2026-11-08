@@ -270,7 +270,10 @@ export async function POST(request: Request, context: EnvContext) {
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig;
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
-          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
+          // Conversa comum com o mesmo teto dos outros modos: com 800, o código pedido pelo Rafael e a conta da Sônia
+          // saíram cortados no meio (simulação, rodada 1). O modelo para sozinho quando termina; só respostas longas
+          // usam o teto.
+          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : 1_400;
           const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.45;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
           const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
