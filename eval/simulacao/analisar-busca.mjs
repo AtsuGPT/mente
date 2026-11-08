@@ -156,7 +156,7 @@ const cos = (a, b) => {
 const STOP = new Set("a as o os um uma uns umas de da do das dos em no na nos nas por para com sem que qual quais como porque sobre isso este esta esse essa me mim eu voce ele ela eles elas ou mas ao aos ser ter faz fazer pensamento pensamentos post posts escreveu escrevi publicou kally algum alguma tem existe quero aprender explique explica fale sei tudo bem conta conte ola obrigado obrigada beleza rapida rapido favor pode voces gente coisa algo curiosidade".split(" "));
 const terms = (t) => [...new Set(norm(t).match(/[\p{L}\p{N}]{3,}/gu) ?? [])].filter((x) => !STOP.has(x)).slice(0, 12);
 
-async function rank(withAuthor, questions, authorWeight = 1) {
+async function rank(withAuthor, questions, authorWeight = 1, catWeight = 3) {
   const prepared = posts.map((p) => ({ ...p, parts: chunks(docText(p, withAuthor)) }));
   const vecs = await embed(prepared.flatMap((p) => p.parts));
   let k = 0;
@@ -168,7 +168,7 @@ async function rank(withAuthor, questions, authorWeight = 1) {
       const best = Math.max(...p.vecs.map((v) => cos(qv[i], v)));
       const title = norm(p.titulo), cat = norm(p.pasta), text = norm(p.texto), author = norm(p.autor);
       let lex = 0;
-      for (const w of words) lex += (title.includes(w) ? 5 : 0) + (cat.includes(w) ? 3 : 0) + (text.includes(w) ? 1 : 0) + (withAuthor && author.split(/\s+/).includes(w) ? authorWeight : 0);
+      for (const w of words) lex += (title.includes(w) ? 5 : 0) + (cat.includes(w) ? catWeight : 0) + (text.includes(w) ? 1 : 0) + (withAuthor && author.split(/\s+/).includes(w) ? authorWeight : 0);
       const meaning = best >= 0.4 ? Math.min((best - 0.3) / 0.3, 1) : 0;
       const named = author.split(/\s+/).some((w) => w.length >= 3 && new RegExp(`\\b${w}\\b`).test(norm(q.pergunta)));
       return { key: p.key, best, named, score: meaning * 0.7 + Math.min(lex / 8, 1) * 0.3 };
@@ -194,15 +194,15 @@ const share = (rs, f) => rs.filter(f).length;
 o();
 // Variantes com ruído: posts errados que passam no filtro e posts que passam em perguntas sem post-fonte.
 const traps = prova.filter((q) => q.categoria !== "nucleo" ? q.rodada === n : q.inicio <= n).filter((q) => !postQuestions.includes(q));
-const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5]];
+const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5], ["autor 5 pontos + pasta 1 ponto", true, 5, 1]];
 o();
 o("### Variantes (uma mudança por vez) × filtro da conversa");
 o();
 o("| Variante | Filtro | Post certo em 1º | Post certo passa | Posts errados que passam (média) | Perguntas sem post-fonte que trazem algum post |");
 o("|---|---|---|---|---|---|");
-for (const [name, wa, aw] of variants) {
-  const rs = await rank(wa, postQuestions, aw);
-  const ts = await rank(wa, traps.map((q) => ({ ...q, fonte: { acao: "__nenhum__" } })), aw);
+for (const [name, wa, aw, cw = 3] of variants) {
+  const rs = await rank(wa, postQuestions, aw, cw);
+  const ts = await rank(wa, traps.map((q) => ({ ...q, fonte: { acao: "__nenhum__" } })), aw, cw);
   for (const f of [0.4, 0.3, "0,4 (0,2 se o autor é citado)"]) {
     const thr = (x) => (typeof f === "number" ? f : x.named ? 0.2 : 0.4);
     const noise = rs.reduce((acc, r) => acc + r.scored.filter((x) => x.key !== r.target && x.score >= thr(x)).length, 0) / rs.length;

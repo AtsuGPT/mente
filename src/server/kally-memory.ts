@@ -190,9 +190,12 @@ export async function recall(
     // Nome de quem escreveu pesa como o título: "o EP do Theo", "o estudo da Luíza". O nome não está no texto do
     // post, e sem isso essas perguntas não passavam do filtro da conversa (simulação, rodada 1: post certo passando
     // no filtro de 18/24 para 21/24, com o mesmo número de posts errados; eval/simulacao/analisar-busca.mjs).
+    // A pasta vale 1 (era 3): "o limite de um post na pasta Diário" puxava qualquer post que está no Diário em vez do
+    // guia que fala sobre ele. Medido com os posts reais da simulação: mesmo post certo passando (24/24) e menos posts
+    // errados no contexto (0,25 → 0,17 por pergunta).
     const author = new Set(normalize(post.author?.displayName ?? "").match(/[\p{L}\p{N}]{3,}/gu) ?? []);
     let lexical = 0;
-    for (const term of words) lexical += (title.includes(term) ? 5 : 0) + (cats.includes(term) ? 3 : 0) + (text.includes(term) ? 1 : 0) + (author.has(term) ? 5 : 0);
+    for (const term of words) lexical += (title.includes(term) ? 5 : 0) + (cats.includes(term) ? 1 : 0) + (text.includes(term) ? 1 : 0) + (author.has(term) ? 5 : 0);
     const sem = semantic.get(post.id);
     const meaning = sem && sem.score >= profile.min ? Math.min((sem.score - profile.floor) / profile.span, 1) : 0;
     // Com um modelo fraco em português (nomic), as palavras no título/pasta pesam mais (weight menor).
