@@ -164,8 +164,11 @@ export async function searchDocuments(input: { userId: string; query: string; li
 
   const [query] = await embedQueries([input.query.slice(0, 2_000)]);
   const terms = queryTerms(input.query);
-  // Abaixo disso o trecho não trata do assunto (com o qwen3-embedding, sem relação fica em ~0,25–0,30).
-  const minimum = profile.min + 0.05;
+  // Abaixo disso o trecho não trata do assunto (com o qwen3-embedding, sem relação fica em ~0,25–0,30). Era min + 0,05
+  // (0,45): com trechos de 600, o corte em min (0,40) entrega o trecho certo em 100%/94% das perguntas
+  // (calibração/avaliação) contra 93%/89%, sem trazer mais trechos para perguntas sem resposta (eval/embeddings).
+  // Na simulação, "quando termina a minha bolsa?" ficava sem o documento do Igor (cosseno 0,43).
+  const minimum = profile.min;
   const scored: DocumentHit[] = [];
   for (const d of docs) {
     for (const chunk of cache.get(d.id)?.chunks ?? []) {
