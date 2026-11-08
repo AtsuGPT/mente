@@ -21,7 +21,11 @@ export type DocumentHit = { documentId: string; scope: DocumentScope; title: str
 
 const MAX_CHARS = 400_000; // ~200 páginas
 const MAX_PERSONAL_DOCUMENTS = 60;
-const CHUNK_CHARS = 1_100;
+// Medido com o qwen3-embedding:0.6b (eval/embeddings, 2026-11-08), mudando só este parâmetro: com 600 o trecho certo
+// fica em 1º em 82% (calibração) e 83% (avaliação) das perguntas, contra 68% e 61% com 1.100; recall@4 de 93% para
+// 100% na calibração. Custo: ~1 trecho errado a mais a cada 2 perguntas no contexto. Vale para documentos enviados
+// daqui em diante; os já indexados mantêm os trechos antigos até serem enviados de novo.
+const CHUNK_CHARS = 600;
 const EMBED_BATCH = 8;
 // Indexação interrompida (o servidor reiniciou no meio): passa a erro depois disso.
 const STALE_PROCESSING_MS = 30 * 60_000;
