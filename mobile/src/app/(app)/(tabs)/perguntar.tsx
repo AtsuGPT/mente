@@ -1323,7 +1323,8 @@ const styles = StyleSheet.create({
   composerShadow: { borderRadius: 26, shadowColor: colors.violet500, shadowRadius: 18, shadowOffset: { width: 0, height: 4 }, elevation: 0 },
   composerRadius: { borderRadius: 26 },
   composerBody: { margin: 1, borderRadius: 25, paddingTop: space.sm, paddingBottom: space.sm, paddingHorizontal: space.sm },
-  composerInput: { ...type.ui, fontSize: 16, color: colors.text, maxHeight: 150, minHeight: 44, paddingHorizontal: space.sm, paddingTop: 10, paddingBottom: 8 },
+  // Na web, sem o contorno de foco padrão: a moldura do compositor já acende a borda no foco.
+  composerInput: { ...type.ui, fontSize: 16, color: colors.text, maxHeight: 150, minHeight: 44, paddingHorizontal: space.sm, paddingTop: 10, paddingBottom: 8, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null) },
   composerBar: { flexDirection: "row", alignItems: "center", gap: 6 },
   toolShrink: { flexShrink: 1, minWidth: 0 },
   sendFill: { borderRadius: 20 },
