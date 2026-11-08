@@ -190,7 +190,10 @@ export async function POST(request: Request, context: EnvContext) {
       )
         .filter((p) => !review?.slug || p.slug !== review.slug)
         // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
-        .filter((p) => mode !== "chat" || p.score >= (intent.wantsMemory ? 0.2 : 0.4))
+        // Conversas salvas já passaram pelo mínimo próprio (conversationMin) e entram com metade da nota para ficar
+        // atrás dos posts; com o filtro de 0,4 elas nunca chegavam à conversa (simulação: a conversa do João sobre a
+        // associação, com cosseno 0,61, ficava de fora e a Kally dizia não saber quem preside).
+        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (intent.wantsMemory ? 0.2 : 0.4))
         // Quem escreveu, do ponto de vista de quem pergunta: num ambiente com várias pessoas, a Kally tratava o
         // post de uma como se fosse de quem perguntava (simulação, rodada 1).
         .map((p) => (p.kind === "conversa" ? p : { ...p, author: p.authorId === userId ? "a própria pessoa que está conversando com você" : `${p.author ?? "outra pessoa"} (outra pessoa do ambiente)` }));
