@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
-import { stripMarkdown } from "@/lib/text";
+import { stripMarkdown, stripMarkdownLines } from "@/lib/text";
 import { embedDocuments, embedProfile, embedQueries } from "./ai";
 import { publiclyVisible, scopeFilter } from "./categories";
 import type { Scope } from "./scope";
@@ -59,7 +59,11 @@ ${text}`).digest("hex");
 /** Texto indexável do pensamento: título, pastas, corpo e as descrições das imagens. */
 function documentText(post: { title: string; content: string; categories: { name: string }[] }) {
   const images = [...post.content.matchAll(/!\[([^\]]{3,})\]\([^)]+\)/g)].map((m) => `Imagem: ${m[1]}`);
-  return [post.title, post.categories.map((c) => c.name).join(", "), stripMarkdown(post.content), ...images].filter(Boolean).join("\n");
+  // Uma linha por parágrafo: com stripMarkdown o post virava uma linha só e os trechos eram cortados a cada 900
+  // caracteres no meio das frases (o 1º trecho do guia da simulação era só o título). Medido com os posts reais
+  // da simulação (eval/simulacao/analisar-busca.mjs): post certo passando de 23/24 para 24/24, posts errados no
+  // contexto 0,21 → 0,17 por pergunta. O texto muda, então o índice se refaz sozinho (hash).
+  return [post.title, post.categories.map((c) => c.name).join(", "), stripMarkdownLines(post.content), ...images].filter(Boolean).join("\n");
 }
 
 function chunks(text: string): string[] {

@@ -110,7 +110,11 @@ for (const a of plan) {
   posts.push({ key: a.id, titulo, texto, pasta, autor });
 }
 const stripMd = (t) => t.replace(/[#*_`>]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
-const docText = (p, withAuthor) => [p.titulo, p.pasta, ...(withAuthor ? [`Autor: ${p.autor}`] : []), stripMd(p.texto)].join("\n");
+// O servidor (src/lib/text.ts stripMarkdown) junta todo o texto numa linha só; COLLAPSE reproduz isso.
+let COLLAPSE = true;
+const serverStrip = (t) => t.replace(/^\s{0,3}#{1,6}\s+/gm, "").replace(/^\s*[-*+]\s+/gm, "").replace(/^\s*\d+\.\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
+const lineStrip = (t) => t.split(/\n+/).map(serverStrip).filter(Boolean).join("\n");
+const docText = (p, withAuthor) => [p.titulo, p.pasta, ...(withAuthor ? [`Autor: ${p.autor}`] : []), COLLAPSE ? serverStrip(p.texto) : lineStrip(p.texto)].join("\n");
 function chunks(text, size = 900) {
   const parts = [];
   let cur = "";
@@ -194,13 +198,14 @@ const share = (rs, f) => rs.filter(f).length;
 o();
 // Variantes com ruído: posts errados que passam no filtro e posts que passam em perguntas sem post-fonte.
 const traps = prova.filter((q) => q.categoria !== "nucleo" ? q.rodada === n : q.inicio <= n).filter((q) => !postQuestions.includes(q));
-const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5], ["autor 5 pontos + pasta 1 ponto", true, 5, 1]];
+const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5], ["autor 5 pontos + pasta 1 ponto", true, 5, 1], ["autor 5 + pasta 1 + parágrafos preservados", true, 5, 1, false]];
 o();
 o("### Variantes (uma mudança por vez) × filtro da conversa");
 o();
 o("| Variante | Filtro | Post certo em 1º | Post certo passa | Posts errados que passam (média) | Perguntas sem post-fonte que trazem algum post |");
 o("|---|---|---|---|---|---|");
-for (const [name, wa, aw, cw = 3] of variants) {
+for (const [name, wa, aw, cw = 3, collapse = true] of variants) {
+  COLLAPSE = collapse;
   const rs = await rank(wa, postQuestions, aw, cw);
   const ts = await rank(wa, traps.map((q) => ({ ...q, fonte: { acao: "__nenhum__" } })), aw, cw);
   for (const f of [0.4, 0.3, "0,4 (0,2 se o autor é citado)"]) {

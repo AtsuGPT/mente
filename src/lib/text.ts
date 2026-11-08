@@ -17,6 +17,19 @@ export function stripMarkdown(markdown: string): string {
     .trim();
 }
 
+/**
+ * Como stripMarkdown, mas mantém uma linha por parágrafo ou item: a divisão da memória da Kally em trechos é por
+ * parágrafo, e com tudo numa linha só ela cortava o post a cada 900 caracteres no meio das frases.
+ */
+export function stripMarkdownLines(markdown: string): string {
+  return markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .split(/\n+/)
+    .map((line) => stripMarkdown(line))
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Trecho curto, cortado em limite de palavra. */
 export function excerpt(markdown: string, maxLength = 180): string {
   const text = stripMarkdown(markdown);
