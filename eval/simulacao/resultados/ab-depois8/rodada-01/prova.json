@@ -1,0 +1,460 @@
+[
+  {
+    "id": "N01",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O encontro de trocas é toda quarta-feira, às 20h.  \n\nÉ por chamada de vídeo, dura 45 minutos e tem duas pessoas apresentando seus projetos por 10 minutos cada. A ordem das apresentações é sorteada no início do ciclo.  \n\nSe você quiser participar, basta se preparar com o seu projeto e estar atento naquela hora.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1729,
+      "promptSeconds": 6.06,
+      "outputTokens": 89,
+      "outputSeconds": 13.15,
+      "tokensPerSecond": 6.8,
+      "totalSeconds": 19.23,
+      "thinkingChars": 0,
+      "firstTextSeconds": 6.1,
+      "wallSeconds": 19.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 6.4,
+        "totalSeconds": 19.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 7.845,
+    "segundos": 19.63
+  },
+  {
+    "id": "N02",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Cada ciclo do ambiente dura 14 dias. No final de cada ciclo, cada pessoa publica um balanço curto na pasta Diário, respondendo a três perguntas: o que avancei, o que travou, o que vou tentar no próximo ciclo.\n\nSe você quiser, pode começar a escrever esse balanço já na próxima quarta-feira, quando o Encontro de Trocas acontece — é um bom momento para revisar o que já foi feito e pensar no que virá.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1715,
+      "promptSeconds": 5.7,
+      "outputTokens": 112,
+      "outputSeconds": 16.87,
+      "tokensPerSecond": 6.6,
+      "totalSeconds": 22.59,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.7,
+      "wallSeconds": 22.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 2
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.7,
+        "totalSeconds": 24.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 9.315,
+    "segundos": 24.624
+  },
+  {
+    "id": "N03",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "O limite de caracteres para um post na pasta Diário é de 1.500 caracteres.\n\nIsso significa que você pode escrever até 1.500 caracteres em cada registro, como parte do balanço curto no final de cada ciclo de 14 dias. Essa quantidade é suficiente para responder às três perguntas: o que avancei, o que travou e o que vou tentar no próximo ciclo, mantendo o texto claro e direto.  \n\nSe quiser, pode começar a escrever o seu balanço no próximo ciclo, já que ele será publicado ao final de cada 14 dias.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1699,
+      "promptSeconds": 5.46,
+      "outputTokens": 137,
+      "outputSeconds": 20.74,
+      "tokensPerSecond": 6.6,
+      "totalSeconds": 26.22,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.5,
+      "wallSeconds": 26.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.8,
+        "totalSeconds": 26.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 6.75,
+    "segundos": 26.616
+  },
+  {
+    "id": "N04",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Se o post foi escrito com ajuda da Kally, é válido marcar isso no final, como “escrito com apoio da Kally”, para que a publicação reflita claramente quem participou do processo.  \n\nIsso ajuda a manter a transparência e respeita o que está no guia: a publicação é sempre da pessoa, após revisão. O rótulo serve para indicar a colaboração, sem exagerar nem distorcer o trabalho de quem escreveu.  \n\nSe você quiser, posso ajudar a colocar esse rótulo no final do post — basta me mostrar o texto.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1701,
+      "promptSeconds": 5.67,
+      "outputTokens": 141,
+      "outputSeconds": 22.22,
+      "tokensPerSecond": 6.3,
+      "totalSeconds": 27.9,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.7,
+      "wallSeconds": 27.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 1.5
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.2,
+        "totalSeconds": 29.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.475,
+    "segundos": 29.412
+  },
+  {
+    "id": "N05",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Cada pessoa apresenta por 10 minutos no encontro de trocas.\n\nO encontro acontece toda quarta-feira, às 20h, com duração total de 45 minutos: 10 minutos por pessoa, seguidos de conversa. A ordem das apresentações é sorteada no início do ciclo.\n\nSe você quiser saber quem vai apresentar na próxima quarta, pode verificar a lista de sorteio no início do ciclo do encontro.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1722,
+      "promptSeconds": 5.84,
+      "outputTokens": 102,
+      "outputSeconds": 15.53,
+      "tokensPerSecond": 6.6,
+      "totalSeconds": 21.38,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.9,
+      "wallSeconds": 21.4,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 6.2,
+        "totalSeconds": 21.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 7.455,
+    "segundos": 21.752
+  },
+  {
+    "id": "N06",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "O estudo da Luíza envolve 84 alunos do 6º ano, das duas escolas municipais de Contagem.\n\nEssa informação vem do documento \"igor-plano-doutorado\", que descreve o projeto \"Etapa 1: o que vou investigar no meu TCC\" escrito por Luíza Campos.\n\nVocê pode usar esse número para planejar a distribuição dos alunos em grupos ou para calcular a proporção de participantes por escola, caso precise dividir a amostra.",
+    "sources": [
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      },
+      {
+        "title": "igor-plano-doutorado",
+        "slug": "cmw8hl4eu001a7dqen2vqkv65",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 2016,
+      "promptSeconds": 10.05,
+      "outputTokens": 114,
+      "outputSeconds": 19.64,
+      "tokensPerSecond": 5.8,
+      "totalSeconds": 29.7,
+      "thinkingChars": 0,
+      "firstTextSeconds": 10.1,
+      "wallSeconds": 29.7,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 10.4,
+        "totalSeconds": 30.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 12.429,
+    "segundos": 30.084
+  },
+  {
+    "id": "N07",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "A última redação do Dudu foi de 640. A meta dele é atingir 800 no Enem.\n\nEle já mencionou que o corretor observou que a tese está boa, mas o restante do texto é fraco, e que ele vai tentar escrever uma redação por semana até a prova.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "contagem regressiva",
+        "slug": "contagem-regressiva",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1771,
+      "promptSeconds": 6.73,
+      "outputTokens": 76,
+      "outputSeconds": 11.58,
+      "tokensPerSecond": 6.6,
+      "totalSeconds": 18.33,
+      "thinkingChars": 0,
+      "firstTextSeconds": 6.8,
+      "wallSeconds": 18.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.1,
+        "totalSeconds": 18.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.51,
+    "segundos": 18.702
+  },
+  {
+    "id": "N08",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "A padaria do Abílio funcionou de 1971 a 1996.\n\nEssa informação está no pensamento \"A padaria do Abílio\", escrito por Marta Lins. O período pode ser útil para quem busca entender a história local da região ou para quem está trabalhando em um projeto sobre memórias do bairro. Se você quiser saber como o cheiro do pão era sentido naquele tempo, posso ajudar a descrever o detalhe da atmosfera.",
+    "sources": [
+      {
+        "title": "A padaria do Abílio",
+        "slug": "a-padaria-do-abilio",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1755,
+      "promptSeconds": 6.34,
+      "outputTokens": 114,
+      "outputSeconds": 17.67,
+      "tokensPerSecond": 6.5,
+      "totalSeconds": 24.03,
+      "thinkingChars": 0,
+      "firstTextSeconds": 6.4,
+      "wallSeconds": 24,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 1.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.7,
+        "totalSeconds": 25.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 9.224,
+    "segundos": 25.408
+  }
+]

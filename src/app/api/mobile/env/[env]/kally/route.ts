@@ -295,10 +295,13 @@ export async function POST(request: Request, context: EnvContext) {
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
-          // Conversa comum com o mesmo teto dos outros modos: com 800, o código pedido pelo Rafael e a conta da Sônia
-          // saíram cortados no meio (simulação, rodada 1). O modelo para sozinho quando termina; só respostas longas
-          // usam o teto.
-          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : 1_400;
+          // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
+          // para sozinho quando termina; só respostas longas usam o teto.
+          // Tetos de 8 de novembro (pedido do dono do projeto): conversa 1.400 → 2.048, papo casual 320 → 480, competências
+          // +35 a 45%. Nas provas locais nenhuma resposta chegou perto do teto (máximo de 260 tokens de 1.400): as respostas
+          // curtas vinham das regras de estilo, não do corte. O teto só pesa em pedidos longos (planos, código, textos), e
+          // prompt + resposta continuam dentro do contexto de 8.192.
+          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 480 : 2_048;
           // Conversa comum a 0,2 (era 0,45): na simulação, perguntas sobre o ambiente ganhavam interpretações que não
           // estão no material e variavam de uma execução para outra. Ideia e competências mantêm a temperatura delas.
           const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;

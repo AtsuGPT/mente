@@ -42,7 +42,7 @@ export const estudo: CompetenceSpec = {
   },
   lembrete: "Antes de responder: confira se cada afirmação técnica e cada exemplo estão corretos; sem linha de \"Fonte\", links ou referências que não estejam no material fornecido; sem frase de efeito no fim; termine o texto.",
   temperatura: 0.25,
-  maxTokens: 1_700,
+  maxTokens: 2_400,
   exemplos: [
     {
       id: "estudo-fotossintese",

@@ -44,7 +44,7 @@ export const post: CompetenceSpec = {
   // Sem exemplos de frases proibidas: citá-las fazia o modelo usá-las.
   lembrete: "Antes de responder: (1) a frase de entendimento é curta e não acrescenta nada; (2) no rascunho, nenhum fato, detalhe, cena, lembrança, sentimento ou reflexão que a pessoa não contou, e nenhuma lição no fim; (3) se for perguntar em vez de escrever, uma única pergunta, numa frase.",
   temperatura: 0.3,
-  maxTokens: 1_400,
+  maxTokens: 2_048,
   exemplos: [
     {
       id: "post-entre-dois-lugares",
