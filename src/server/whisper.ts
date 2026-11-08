@@ -1,6 +1,6 @@
 import "server-only";
 
-/** Transcrição pelo serviço Whisper local (WHISPER_URL). Usado pelo editor do site e pela Kally. */
+/** Transcrição pelo serviço Whisper local (WHISPER_URL). Usado pelo editor e pela Kally do app. */
 
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const WHISPER_TIMEOUT_MS = 6 * 60 * 1000;

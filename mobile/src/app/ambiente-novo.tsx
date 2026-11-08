@@ -1,19 +1,21 @@
-import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import { router } from "expo-router";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { EnvironmentForm } from "@/components/environment-form";
 import { AppText, Button, StateView } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Criar um ambiente: quem cria vira o proprietário. */
 export default function NewEnvironmentScreen() {
+  const container = useContainer("form");
   const { user } = useAuth();
 
   if (!user) {
     return (
-      <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }}>
+      <ScrollView contentContainerStyle={[{ padding: space.xl, gap: space.lg }, container]}>
         <StateView empty="Entre com sua conta para criar um ambiente." />
         <Button label="Entrar" onPress={() => router.replace("/login")} />
       </ScrollView>
@@ -22,7 +24,7 @@ export default function NewEnvironmentScreen() {
 
   return (
     <KeyboardScreen header>
-      <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[{ padding: space.xl, gap: space.lg }, container]} keyboardShouldPersistTaps="handled">
         <AppText color={colors.muted}>Um ambiente é um espaço seu: pensamentos, pastas e mapa próprios, com quem você convidar.</AppText>
         <EnvironmentForm
           submitLabel="Criar ambiente"

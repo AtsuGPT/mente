@@ -86,39 +86,3 @@ export function scoreChunk(text: string, terms: string[]) {
   // Trechos que cobrem mais termos diferentes valem mais que repetições de um só.
   return matched ? score + matched * 1.5 : 0;
 }
-
-/**
- * Seleciona trechos relevantes dentro de um orçamento de caracteres.
- * O primeiro trecho é sempre incluído para que o assunto do documento fique claro.
- * O resultado volta na ordem original do documento.
- */
-export function selectRelevantChunks(chunks: Chunk[], terms: string[], budget: number): { chunks: Chunk[]; omitted: number } {
-  if (!chunks.length) return { chunks: [], omitted: 0 };
-  const total = chunks.reduce((sum, chunk) => sum + chunk.text.length, 0);
-  if (total <= budget) return { chunks, omitted: 0 };
-
-  const selected = new Map<number, Chunk>();
-  let used = 0;
-  const take = (chunk: Chunk) => {
-    if (selected.has(chunk.index)) return true;
-    if (used + chunk.text.length > budget) return false;
-    selected.set(chunk.index, chunk);
-    used += chunk.text.length;
-    return true;
-  };
-  take(chunks[0]);
-  const ranked = chunks
-    .map((chunk) => ({ chunk, score: scoreChunk(chunk.text, terms) }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
-  for (const { chunk } of ranked) take(chunk);
-  // Sem termos coincidentes, distribui a amostra ao longo do documento.
-  if (selected.size === 1 && chunks.length > 1) {
-    const step = Math.max(1, Math.floor(chunks.length / 6));
-    for (let index = step; index < chunks.length; index += step) {
-      if (!take(chunks[index])) break;
-    }
-  }
-  const ordered = [...selected.values()].sort((a, b) => a.index - b.index);
-  return { chunks: ordered, omitted: chunks.length - ordered.length };
-}

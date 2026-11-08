@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
-import Animated, { FadeIn, SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { absoluteUrl } from "@/lib/config";
 import { formatDateShort, formatNumber } from "@/lib/format";
@@ -11,9 +11,13 @@ import { layoutGraph, type LaidOutNode, type Layout } from "@/lib/graph-layout";
 import type { KnowledgeMapHandle } from "@/components/knowledge-map";
 import { MapCanvas } from "@/components/map-canvas";
 import { EnvironmentHeader } from "@/components/environment-header";
-import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
+import { AppText, Button, Chip, IconButton, StateView } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { useLayout } from "@/theme/layout";
+import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
+import { useAmbientActive } from "@/lib/use-ambient";
+import { enter, exit } from "@/theme/motion";
 
 const kindInfo: Record<LaidOutNode["kind"], { label: string; icon: IconName }> = {
   ambiente: { label: "Ambiente", icon: "brain" },
@@ -28,6 +32,9 @@ const PANEL_HEIGHT = 250;
 export default function MapScreen() {
   const { api } = useCurrentEnvironment();
   const insets = useSafeAreaInsets();
+  const { sidebar } = useLayout();
+  // Mapa fora de foco (outra aba aberta): o movimento ambiente para.
+  const ambientActive = useAmbientActive();
   const [layout, setLayout] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -85,6 +92,8 @@ export default function MapScreen() {
     if (!size || size.width !== width || size.height !== height) setSize({ width, height });
   };
 
+  useDialogKeyboard(!!viewing, () => setViewing(null));
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={[styles.top, { paddingTop: insets.top + space.md }]}>
@@ -109,8 +118,9 @@ export default function MapScreen() {
         ) : layout.nodes.length === 0 ? (
           <StateView empty="Ainda não há pensamentos para mapear." />
         ) : (
-          <Animated.View entering={FadeIn.duration(400)} style={StyleSheet.absoluteFill}>
+          <Animated.View entering={enter.fade} style={StyleSheet.absoluteFill}>
             <MapCanvas
+              active={ambientActive}
               ref={mapRef}
               layout={layout}
               width={size.width}
@@ -141,7 +151,7 @@ export default function MapScreen() {
         ) : null}
 
         {selected ? (
-          <Animated.View entering={SlideInDown.duration(260)} exiting={SlideOutDown.duration(200)} style={styles.panel}>
+          <Animated.View entering={enter.panel} exiting={exit.panel} style={[styles.panel, sidebar && styles.panelWide]}>
             <View style={styles.panelHeader}>
               <Icon name={kindInfo[selected.kind].icon} size={18} color={colors.violet300} />
               <AppText variant="label" color={colors.violet300} style={{ flex: 1 }}>
@@ -233,6 +243,8 @@ const styles = StyleSheet.create({
     borderColor: colors.violet800,
     backgroundColor: "rgba(13,11,20,0.97)",
   },
+  // Em telas largas o painel vira um cartão no canto, sem cobrir o mapa de ponta a ponta.
+  panelWide: { left: space.lg, right: undefined, bottom: space.lg, width: 420 },
   panelHeader: { flexDirection: "row", alignItems: "center", gap: space.sm },
   viewer: { flex: 1, backgroundColor: "rgba(5,4,9,0.96)", alignItems: "center", justifyContent: "center" },
 });

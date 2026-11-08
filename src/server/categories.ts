@@ -51,10 +51,6 @@ export async function listCategoriesWithPublicCounts(scopeArg?: Scope) {
   return rows.map(({ _count, ...c }) => ({ ...c, count: _count.posts }));
 }
 
-export async function getCategoryBySlug(slug: string, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<CategorySummary | null> {
-  return db.category.findFirst({ where: { slug, environmentId }, select: summarySelect });
-}
-
 export async function listCategoriesWithAllCounts(environmentId = DEFAULT_ENVIRONMENT_ID) {
   const rows = await db.category.findMany({
     where: { environmentId },

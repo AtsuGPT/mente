@@ -6,7 +6,7 @@ import { AppText, Touchable } from "./ui/primitives";
 import { Icon } from "./ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
 
-const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante" };
+const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante", DEV: "Dev" };
 
 /** Volta à central de ambientes; ela fecha o ambiente atual ao aparecer. */
 export function goToEnvironments() {

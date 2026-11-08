@@ -6,12 +6,12 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ env: string; id: string }> };
 
-/** Retoma uma conversa: só a própria pessoa, no mesmo ambiente. */
+/** Retoma uma conversa: só a própria pessoa, no mesmo ambiente. O dev da plataforma lê a de qualquer pessoa. */
 export async function GET(_request: Request, context: Context) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
-  const conversation = await getConversation(access.environment.id, access.userId, (await context.params).id);
+  const conversation = await getConversation(access.environment.id, access.userId, (await context.params).id, access.platformDev);
   return conversation ? json(conversation) : error("Conversa não encontrada.", 404);
 }
 

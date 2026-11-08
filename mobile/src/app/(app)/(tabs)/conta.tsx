@@ -11,6 +11,7 @@ import { AppText, Button, SectionLabel, Touchable } from "@/components/ui/primit
 import { Icon, type IconName } from "@/components/ui/icon";
 import { formatHandle } from "@/lib/format";
 import { colors, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 const ROLE_HINT: Record<string, string> = {
   OWNER: "Você é o proprietário: controla tudo, inclusive participantes e configurações.",
@@ -18,6 +19,7 @@ const ROLE_HINT: Record<string, string> = {
   MEMBER: "Você lê, publica e edita os próprios pensamentos.",
   VIEWER: "Você lê os pensamentos, inclusive os privados.",
   GUEST: "Você está como visitante: só os pensamentos públicos.",
+  DEV: "Acesso de dev da plataforma: você lê tudo, inclusive o privado e as conversas com a Kally, sem publicar nem alterar nada.",
 };
 
 function Row({ icon, label, hint, href, onPress }: { icon: IconName; label: string; hint?: string; href?: Href; onPress?: () => void }) {
@@ -37,6 +39,7 @@ function Row({ icon, label, hint, href, onPress }: { icon: IconName; label: stri
 
 /** Tudo o que esta pessoa pode fazer no ambiente atual, mais a conta e a conexão. */
 export default function EnvironmentTab() {
+  const container = useContainer("form");
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { api, environment, permissions, role } = useCurrentEnvironment();
@@ -67,7 +70,7 @@ export default function EnvironmentTab() {
   }
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.md, paddingBottom: space.xxxl, gap: space.xl }}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[{ padding: space.lg, paddingTop: insets.top + space.md, paddingBottom: space.xxxl, gap: space.xl }, container]}>
       <EnvironmentHeader title="Ambiente" />
 
       <View style={styles.card}>
@@ -95,7 +98,7 @@ export default function EnvironmentTab() {
       <View style={{ gap: space.sm }}>
         <SectionLabel>Ambientes</SectionLabel>
         <Row icon="swap" label="Trocar de ambiente" onPress={goToEnvironments} />
-        {role !== "GUEST" && role !== "OWNER" ? <Row icon="logout" label="Sair deste ambiente" onPress={leave} /> : null}
+        {role !== "GUEST" && role !== "DEV" && role !== "OWNER" ? <Row icon="logout" label="Sair deste ambiente" onPress={leave} /> : null}
       </View>
 
       <View style={{ gap: space.sm }}>

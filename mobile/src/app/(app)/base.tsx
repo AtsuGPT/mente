@@ -7,6 +7,7 @@ import type { KallyDocument } from "@/lib/types";
 import { AppText, Button, Chip, IconButton, StateView } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 type Data = { documents: KallyDocument[]; canManageInstitutional: boolean; enabled: boolean };
 
@@ -17,6 +18,7 @@ const STATUS: Record<KallyDocument["status"], string> = { processando: "Indexand
  * institucional (documentos de referência, para todos; só o administrador altera).
  */
 export default function KnowledgeBaseScreen() {
+  const container = useContainer("content");
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,7 +85,7 @@ export default function KnowledgeBaseScreen() {
   return (
     <FlatList
       style={{ backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: space.lg, gap: space.md }}
+      contentContainerStyle={[{ padding: space.lg, gap: space.md }, container]}
       data={data.documents}
       keyExtractor={(d) => d.id}
       refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.violet300} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}

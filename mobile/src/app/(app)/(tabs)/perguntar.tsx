@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeIn, FadeInDown, FadeOut } from "react-native-reanimated";
+import Animated, { scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -10,7 +11,7 @@ import { api as accountApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { applySuggestions, extractDraft, handOffDraft } from "@/lib/draft-handoff";
-import { formatDateShort } from "@/lib/format";
+import { formatDateShort, formatHandle } from "@/lib/format";
 import { pickImage, uploadablePart } from "@/lib/upload";
 import { getItem, setItem } from "@/lib/secure-storage";
 import type { KallyAttachment, KallyConversation, KallyImage, KallyMode, KallyReview, KallySource } from "@/lib/types";
@@ -22,6 +23,10 @@ import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/compo
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space, type } from "@/theme/tokens";
 import { KeyboardScreen } from "@/components/keyboard-screen";
+import { KallyOrb, useKallyActivity, type KallyOrbState } from "@/components/kally-orb";
+import { Sheet } from "@/components/ui/sheet";
+import { enter, exit, layoutTransition, timing } from "@/theme/motion";
+import { maxWidths, useContainer, useLayout } from "@/theme/layout";
 
 /**
  * Kally: assistente de aprendizagem do ambiente atual, numa tela só para conversar,
@@ -108,9 +113,10 @@ const newId = () => `local-${Date.now()}-${counter++}`;
 export default function KallyScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const container = useContainer("form");
   if (user) return <Kally />;
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + space.lg, paddingHorizontal: space.lg }}>
+    <View style={[{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + space.lg, paddingBottom: space.xl }, container]}>
       <EnvironmentHeader title="Kally" />
       <StateView empty="Entre com sua conta para conversar com a Kally." />
       <Button label="Entrar" onPress={() => router.push("/login")} />
@@ -120,6 +126,8 @@ export default function KallyScreen() {
 
 function Kally() {
   const insets = useSafeAreaInsets();
+  const { gutter } = useLayout();
+  const column = { flex: 1, width: "100%" as const, maxWidth: maxWidths.content + gutter * 2, alignSelf: "center" as const };
   const { api, environment, permissions } = useCurrentEnvironment();
   const [mode, setMode] = useState<KallyMode>("auto");
   const [modeMenu, setModeMenu] = useState(false);
@@ -138,7 +146,10 @@ function Kally() {
   const [reviewTarget, setReviewTarget] = useState<{ id: string; title: string } | null>(null);
   const [picking, setPicking] = useState(false);
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
+  const [historyAll, setHistoryAll] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Conversa de outra pessoa aberta pelo dev da plataforma: só leitura (o servidor não deixa continuar).
+  const [readingOwner, setReadingOwner] = useState<NonNullable<KallyConversation["owner"]> | null>(null);
   const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
   // Modo Desenvolvedor: só para o administrador da plataforma (o servidor também confere).
   const signedUser = useAuth().user;
@@ -149,8 +160,65 @@ function Kally() {
     accountApi.kallyDocuments().then((r) => setBaseEnabled(r.enabled), () => setBaseEnabled(false));
   }, [signedUser]);
   const [devSheet, setDevSheet] = useState(false);
-  const list = useRef<FlatList<Message>>(null);
+  const list = useAnimatedRef<FlatList<Message>>();
   const attachSeq = useRef(0);
+  const { activity, kick } = useKallyActivity();
+
+  // Rolagem previsível: a conversa só acompanha o fim se a pessoa já está nele; quem subiu
+  // para reler não é puxado de volta a cada pedaço de texto.
+  const scrollY = useSharedValue(0);
+  const contentHeight = useSharedValue(0);
+  const viewHeight = useSharedValue(0);
+  const atEnd = useSharedValue(true);
+  const lastOffset = useSharedValue(0);
+  const [following, setFollowing] = useState(true);
+  const keyboardInset = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      contentHeight.value = event.contentSize.height;
+      viewHeight.value = event.layoutMeasurement.height;
+      const offset = event.contentOffset.y;
+      const end = offset + event.layoutMeasurement.height >= event.contentSize.height - 72;
+      // Só subir (gesto da pessoa) desliga o acompanhamento. A própria rolagem animada até o
+      // fim também gera eventos no meio do caminho e, com o texto crescendo, não pode desligá-lo.
+      if (end && !atEnd.value) {
+        atEnd.value = true;
+        scheduleOnRN(setFollowing, true);
+      } else if (!end && atEnd.value && offset < lastOffset.value - 2) {
+        atEnd.value = false;
+        scheduleOnRN(setFollowing, false);
+      }
+      lastOffset.value = offset;
+    },
+  });
+  // Teclado abrindo/fechando: a conversa sobe e desce junto, quadro a quadro (o que estava
+  // visível no fim continua visível), sem salto nem reinício da rolagem.
+  useAnimatedReaction(
+    () => keyboardInset.value,
+    (now, previous) => {
+      if (previous === null || now === previous) return;
+      scrollTo(list, 0, Math.max(0, scrollY.value + (now - previous)), false);
+    },
+  );
+  /** Rola até o fim na UI thread, com as medidas atuais (igual no celular e na web). */
+  const scrollToEnd = useCallback(
+    (animated: boolean) => {
+      scheduleOnUI(() => {
+        "worklet";
+        scrollTo(list, 0, Math.max(0, contentHeight.value - viewHeight.value), animated);
+      });
+    },
+    [list, contentHeight, viewHeight],
+  );
+  const goToEnd = useCallback(
+    (animated: boolean) => {
+      atEnd.value = true;
+      setFollowing(true);
+      scrollToEnd(animated);
+    },
+    [atEnd, scrollToEnd],
+  );
 
   useEffect(() => {
     void getItem(DEV_KEY).then((saved) => {
@@ -184,7 +252,9 @@ function Kally() {
 
   const loadHistory = useCallback(async () => {
     try {
-      setHistory((await api.kallyConversations()).conversations);
+      const result = await api.kallyConversations();
+      setHistory(result.conversations);
+      setHistoryAll(!!result.allUsers);
     } catch {
       setHistory([]);
     }
@@ -197,6 +267,7 @@ function Kally() {
   function startNew() {
     if (loading) return;
     setConversationId(null);
+    setReadingOwner(null);
     setMessages([]);
     setDraft("");
     setTranscribed(false);
@@ -209,6 +280,7 @@ function Kally() {
     try {
       const full = await api.kallyConversation(conversation.id);
       setConversationId(full.id);
+      setReadingOwner(full.owner ?? null);
       setSave(true);
       setMessages(full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources })));
     } catch (cause) {
@@ -300,7 +372,7 @@ function Kally() {
 
   async function send(raw: string) {
     const content = raw.trim();
-    if (loading) return;
+    if (loading || readingOwner) return;
     if (/^\/dev(?:\s|$)/i.test(content)) {
       setDraft("");
       return devCommand(content);
@@ -320,6 +392,7 @@ function Kally() {
     // Temporária: o app manda o histórico (o servidor não guarda nada).
     const temporaryHistory = conversationId ? undefined : messages.filter((m) => !m.local).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
     setMessages((current) => [...current, user, assistant]);
+    goToEnd(true);
     setDraft("");
     setTranscribed(false);
     setLoading(true);
@@ -358,6 +431,7 @@ function Kally() {
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
         if (event.text) {
+          kick();
           buffer += event.text;
           if (!timer) timer = setTimeout(flush, 60);
         }
@@ -377,15 +451,24 @@ function Kally() {
   const available = MODES.filter((m) => !m.needsPublish || permissions.publish);
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
   const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} />, [loading, messages.length]);
+  const lastMessage = messages[messages.length - 1];
+  // Estado real da geração: preparando (sem texto ainda), respondendo (texto chegando) ou pronta.
+  const orbState: KallyOrbState = loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "speaking" : "thinking") : attachment?.status === "processing" ? "thinking" : "idle";
   const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
-    <KeyboardScreen style={{ backgroundColor: colors.bg }}>
+    <KeyboardScreen style={{ backgroundColor: colors.bg }} insetMirror={keyboardInset}>
       <AmbientGlow intensity={0.55} />
+      <View style={column}>
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <View style={{ flex: 1 }}>
-          <EnvironmentHeader title={devOn ? "Kally · dev" : "Kally"} subtitle={devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
+          <EnvironmentHeader title={devOn ? "Kally · dev" : "Kally"} subtitle={readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
         </View>
+        {started ? (
+          <Animated.View entering={enter.fade} exiting={exit.fade} style={styles.headerOrb}>
+            <KallyOrb size={34} state={orbState} activity={activity} announce />
+          </Animated.View>
+        ) : null}
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
         {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
@@ -399,18 +482,30 @@ function Kally() {
         </View>
       ) : null}
 
-      <FlatList
+      <View style={{ flex: 1 }}>
+      <Animated.FlatList
         ref={list}
         data={messages}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={{ padding: space.lg, gap: space.lg, flexGrow: 1 }}
-        onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+        // flexGrow só para centralizar o estado vazio: com mensagens, no react-native-web ele
+        // prenderia o conteúdo na altura da tela (e a lista nunca saberia que cresceu).
+        contentContainerStyle={[{ padding: space.lg, gap: space.lg }, !messages.length && { flexGrow: 1 }]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        // Durante o streaming o fim avança sem animação (várias animações seguidas tremem).
+        onLayout={(event) => {
+          viewHeight.value = event.nativeEvent.layout.height;
+        }}
+        onContentSizeChange={(_width, height) => {
+          contentHeight.value = height;
+          if (following) scrollToEnd(!loading);
+        }}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={Platform.OS !== "web"}
         windowSize={9}
         ListEmptyComponent={
-          <Animated.View entering={FadeIn.duration(400)} style={styles.empty}>
-            <View style={styles.badge}><Icon name="sparkle" size={22} color={colors.violet300} /></View>
+          <Animated.View entering={enter.rise} exiting={exit.fade} style={styles.empty}>
+            <KallyOrb size={76} state={orbState} activity={activity} announce />
             <AppText variant="title" style={{ textAlign: "center", marginTop: space.md }}>Oi! Sobre o que vamos conversar?</AppText>
             <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
               Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.
@@ -426,12 +521,30 @@ function Kally() {
         }
         renderItem={renderItem}
       />
+      {!following && messages.length ? (
+        <Animated.View entering={enter.fade} exiting={exit.fade} style={[styles.jump, { right: gutter }]}>
+          <Touchable accessibilityLabel="Ir para a última mensagem" onPress={() => goToEnd(true)} pressScale={0.92} style={styles.jumpButton}>
+            <View style={{ transform: [{ rotate: "-90deg" }] }}>
+              <Icon name="back" size={16} color={colors.violet200} />
+            </View>
+          </Touchable>
+        </Animated.View>
+      ) : null}
+      </View>
 
-      {transcribed ? <AppText variant="small" color={colors.warning} style={styles.note}>Transcrição do áudio: revise e edite antes de enviar.</AppText> : null}
-      {queued !== null ? <AppText variant="small" color={colors.violet300} style={styles.note}>Sua mensagem sai assim que o anexo terminar de ser lido…</AppText> : null}
+      {transcribed ? (
+        <Animated.View entering={enter.fade} exiting={exit.fade} layout={layoutTransition}>
+          <AppText variant="small" color={colors.warning} style={styles.note}>Transcrição do áudio: revise e edite antes de enviar.</AppText>
+        </Animated.View>
+      ) : null}
+      {queued !== null ? (
+        <Animated.View entering={enter.fade} exiting={exit.fade} layout={layoutTransition}>
+          <AppText variant="small" color={colors.violet300} style={styles.note}>Sua mensagem sai assim que o anexo terminar de ser lido…</AppText>
+        </Animated.View>
+      ) : null}
 
       {attachment ? (
-        <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(160)} style={[styles.attachment, attachment.status === "error" && { borderColor: colors.danger }]}>
+        <Animated.View entering={enter.rise} exiting={exit.fade} layout={layoutTransition} style={[styles.attachment, attachment.status === "error" && { borderColor: colors.danger }]}>
           {attachment.localUri ? <Image source={{ uri: attachment.localUri }} style={styles.attachThumb} /> : <View style={styles.attachIcon}><Icon name="doc" size={18} color={colors.violet300} /></View>}
           <View style={{ flex: 1 }}>
             <AppText variant="small" numberOfLines={1}>{attachment.name}</AppText>
@@ -471,6 +584,14 @@ function Kally() {
         </View>
       ) : null}
 
+      {readingOwner ? (
+        <View style={[styles.devBar, { paddingBottom: space.md }]}>
+          <Icon name="eye" size={14} color={colors.warning} />
+          <AppText variant="small" color={colors.warning} style={{ flex: 1 }}>Conversa de {readingOwner.displayName} ({formatHandle(readingOwner.username)}). Só leitura, pelo acesso de dev.</AppText>
+          <Touchable onPress={startNew}><AppText variant="small" color={colors.violet200}>Nova conversa</AppText></Touchable>
+        </View>
+      ) : (
+      <>
       <View style={styles.tools}>
         <Touchable onPress={() => setModeMenu(true)} style={[styles.tool, mode !== "auto" && styles.toolOn]} accessibilityLabel={`Modo: ${current.label}. Tocar para trocar`}>
           <Icon name={current.icon} size={14} color={mode !== "auto" ? colors.violet200 : colors.muted} />
@@ -503,16 +624,17 @@ function Kally() {
           selectionColor={colors.violet400}
           maxLength={mode === "revisar" ? 4000 : 4000}
           multiline
+          accessibilityLabel="Mensagem para a Kally"
           style={styles.input}
         />
-        <Touchable accessibilityRole="button" accessibilityLabel="Enviar" disabled={sendDisabled} onPress={() => void send(draft)} style={[styles.send, sendDisabled && { opacity: 0.4 }]}>
-          {loading || queued !== null ? <ActivityIndicator color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" strokeWidth={2} />}
-        </Touchable>
+        <SendButton disabled={sendDisabled} busy={loading || queued !== null} onPress={() => void send(draft)} />
+      </View>
+      </>
+      )}
+
       </View>
 
-      <Modal visible={modeMenu} transparent animationType="fade" onRequestClose={() => setModeMenu(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setModeMenu(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+      <Sheet visible={modeMenu} onClose={() => setModeMenu(false)}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
             {isAdmin ? (
             <Touchable onPress={() => { setModeMenu(false); setDevSheet(true); }} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
@@ -533,19 +655,15 @@ function Kally() {
                 {m.mode === mode ? <Icon name="check" size={16} color={colors.violet300} /> : null}
               </Touchable>
             ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
 
       <DevSheet visible={devSheet} value={dev} onClose={() => setDevSheet(false)} onSave={(next) => { setDev(next); setDevSheet(false); notice(next.active ? "Modo desenvolvedor **ligado** com a nova configuração." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }} />
 
       <PostPicker visible={picking} onClose={() => setPicking(false)} onPick={(post) => { setReviewTarget(post); setPicking(false); }} />
 
-      <Modal visible={showHistory} transparent animationType="fade" onRequestClose={() => setShowHistory(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setShowHistory(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+      <Sheet visible={showHistory} onClose={() => setShowHistory(false)}>
             <AppText variant="title">Conversas salvas</AppText>
-            <AppText variant="small" color={colors.faint} style={{ marginBottom: space.md }}>Só suas, só deste ambiente. As temporárias não aparecem aqui.</AppText>
+            <AppText variant="small" color={colors.faint} style={{ marginBottom: space.md }}>{historyAll ? "Acesso de dev: as de todas as pessoas deste ambiente. As de outras pessoas abrem só para leitura." : "Só suas, só deste ambiente. As temporárias não aparecem aqui."}</AppText>
             {!history ? (
               <StateView loading />
             ) : !history.length ? (
@@ -559,33 +677,27 @@ function Kally() {
                   <View style={styles.row}>
                     <Touchable style={{ flex: 1 }} onPress={() => void resume(item)}>
                       <AppText numberOfLines={1} color={item.id === conversationId ? colors.violet300 : colors.text}>{item.title}</AppText>
-                      <AppText variant="small" color={colors.faint}>{formatDateShort(item.updatedAt)}</AppText>
+                      <AppText variant="small" color={colors.faint}>{item.owner ? `${item.owner.displayName} · ` : ""}{formatDateShort(item.updatedAt)}</AppText>
                     </Touchable>
-                    <IconButton name="trash" label="Apagar conversa" color={colors.muted} onPress={() => remove(item)} />
+                    {item.owner ? null : <IconButton name="trash" label="Apagar conversa" color={colors.muted} onPress={() => remove(item)} />}
                   </View>
                 )}
               />
             )}
             <Button label="Nova conversa" icon="plus" variant="secondary" onPress={() => { setShowHistory(false); startNew(); }} style={{ marginTop: space.md }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
     </KeyboardScreen>
   );
 }
 
 /** Configuração do Modo Desenvolvedor: personalidade, instruções e linguagem. */
 function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value: DevConfig; onClose: () => void; onSave: (next: DevConfig) => void }) {
-  const insets = useSafeAreaInsets();
   const [form, setForm] = useState(value);
   useEffect(() => {
     if (visible) setForm({ ...value, active: true });
   }, [visible, value]);
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardScreen>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg, gap: space.sm }]}>
+    <Sheet visible={visible} onClose={onClose} keyboard style={{ gap: space.sm }}>
           <AppText variant="title">Modo desenvolvedor</AppText>
           <AppText variant="small" color={colors.faint}>Você define personalidade, tom e estilo da Kally. As permissões e a privacidade do Minha Mente continuam as mesmas. Fica salvo neste aparelho.</AppText>
           <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Personalidade</AppText>
@@ -614,17 +726,13 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
             <Button label="Ativar" icon="check" compact onPress={() => onSave({ ...form, active: true })} />
             <Button label="Voltar à Kally padrão" variant="secondary" compact onPress={() => onSave({ ...form, active: false })} />
           </View>
-        </Pressable>
-      </Pressable>
-      </KeyboardScreen>
-    </Modal>
+    </Sheet>
   );
 }
 
 /** Pensamentos que a pessoa pode editar (os próprios, ou todos para quem gerencia). */
 function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: () => void; onPick: (post: { id: string; title: string }) => void }) {
   const { api } = useCurrentEnvironment();
-  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<{ id: string; title: string; status: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -632,9 +740,7 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
     api.managePosts().then((page) => setPosts(page.posts), (cause) => setError(cause instanceof Error ? cause.message : "Não consegui listar seus pensamentos."));
   }, [visible, api]);
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+    <Sheet visible={visible} onClose={onClose}>
           <AppText variant="title" style={{ marginBottom: space.md }}>Qual pensamento revisar?</AppText>
           {error ? <StateView error={error} /> : !posts ? <StateView loading /> : !posts.length ? <StateView empty="Você ainda não tem pensamentos para revisar aqui." /> : (
             <FlatList
@@ -649,29 +755,35 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
               )}
             />
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </Sheet>
   );
 }
 
 /** Memo: durante o streaming só a última bolha muda; as outras não são redesenhadas. */
+/** Mensagens criadas nesta sessão entram animadas uma única vez (rolar e voltar não repete). */
+const entered = new Set<string>();
+
 const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending: boolean }) {
   const isUser = item.role === "user";
+  const [animate] = useState(() => {
+    if (!item.id.startsWith("local-") || entered.has(item.id)) return false;
+    entered.add(item.id);
+    return true;
+  });
   const { before, draft, after } = isUser ? { before: item.content, draft: null, after: "" } : extractDraft(item.content);
   const isDocument = (s: KallySource) => s.kind === "documento" || s.kind === "referencia";
   const internal = item.sources?.filter((s) => s.kind !== "web" && !isDocument(s)) ?? [];
   const documents = item.sources?.filter(isDocument) ?? [];
   const external = item.sources?.filter((s) => s.kind === "web") ?? [];
   return (
-    <Animated.View entering={FadeInDown.duration(220)} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
+    <Animated.View entering={animate ? enter.rise : undefined} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
       <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>
         {isUser ? "Você" : item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.model ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
       </AppText>
       {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
       {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
       {!item.content ? (
-        <View style={styles.typing}><ActivityIndicator size="small" color={colors.violet300} /><AppText variant="small" color={colors.muted}>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</AppText></View>
+        <View style={styles.typing}><KallyOrb size={24} state="thinking" /><AppText variant="small" color={colors.muted}>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</AppText></View>
       ) : isUser ? (
         <AppText>{item.content}</AppText>
       ) : (
@@ -802,7 +914,7 @@ function DraftCard({ draft, pending }: { draft: { title: string; content: string
   if (typeof stage === "object") {
     const published = stage.saved === "PUBLISHED";
     return (
-      <Animated.View entering={FadeIn.duration(250)} style={[styles.card, published && styles.cardDone]}>
+      <Animated.View entering={enter.fade} layout={layoutTransition} style={[styles.card, published && styles.cardDone]}>
         <View style={styles.cardRow}>
           <Icon name="check" size={18} color={published ? colors.success : colors.violet300} strokeWidth={2.2} />
           <AppText variant="uiMedium" style={{ flex: 1 }}>{published ? `Publicado em ${stage.environment}` : "Rascunho salvo"}</AppText>
@@ -855,7 +967,7 @@ function DraftCard({ draft, pending }: { draft: { title: string; content: string
       )}
 
       {stage === "confirm" ? (
-        <Animated.View entering={FadeInDown.duration(200)} style={styles.confirm}>
+        <Animated.View entering={enter.rise} style={styles.confirm}>
           <AppText variant="uiMedium">Publicar em {environment.name}?</AppText>
           <AppText variant="small" color={colors.muted}>{isPrivate ? "Fica visível só para participantes do ambiente." : "Fica visível para quem pode ler este ambiente."}</AppText>
           <View style={styles.actions}>
@@ -882,7 +994,6 @@ function DraftCard({ draft, pending }: { draft: { title: string; content: string
 /** Imagens livres sugeridas: a pessoa vê, escolhe e confirma; só então a imagem entra no rascunho. */
 function ImagePickerSheet({ visible, query, onClose, onInsert }: { visible: boolean; query: string; onClose: () => void; onInsert: (markdown: string) => void }) {
   const { api } = useCurrentEnvironment();
-  const insets = useSafeAreaInsets();
   const [q, setQ] = useState(query);
   const [results, setResults] = useState<KallyImage[] | null>(null);
   const [chosen, setChosen] = useState<KallyImage | null>(null);
@@ -913,13 +1024,11 @@ function ImagePickerSheet({ visible, query, onClose, onInsert }: { visible: bool
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+    <Sheet visible={visible} onClose={onClose} keyboard>
           <AppText variant="title">Imagens para o pensamento</AppText>
           <AppText variant="small" color={colors.faint} style={{ marginBottom: space.sm }}>Livres, do Wikimedia Commons, com crédito. Nada entra sem você confirmar.</AppText>
           <View style={styles.row2}>
-            <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => void search(q)} placeholder="Tema da imagem" placeholderTextColor={colors.faint} style={[styles.input, { minHeight: 40 }]} />
+            <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => void search(q)} placeholder="Tema da imagem" accessibilityLabel="Tema da imagem" placeholderTextColor={colors.faint} style={styles.input} />
             <IconButton name="search" label="Buscar" onPress={() => void search(q)} />
           </View>
           {chosen ? (
@@ -944,9 +1053,21 @@ function ImagePickerSheet({ visible, query, onClose, onInsert }: { visible: bool
               ))}
             </ScrollView>
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </Sheet>
+  );
+}
+
+/** Enviar: desabilitado e ocupado mudam com transição, no mesmo lugar (sem trocar de tamanho). */
+function SendButton({ disabled, busy, onPress }: { disabled: boolean; busy: boolean; onPress: () => void }) {
+  const off = useSharedValue(disabled ? 1 : 0);
+  useEffect(() => {
+    off.value = withTiming(disabled ? 1 : 0, timing.short);
+  }, [disabled, off]);
+  const style = useAnimatedStyle(() => ({ opacity: 1 - off.value * 0.6 }));
+  return (
+    <Touchable accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.9} style={[styles.send, style]}>
+      {busy ? <ActivityIndicator color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" strokeWidth={2} />}
+    </Touchable>
   );
 }
 
@@ -1004,7 +1125,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.lg, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   modes: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: space.xxl },
-  badge: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
+  headerOrb: { marginRight: space.xs },
+  jump: { position: "absolute", bottom: space.md },
+  jumpButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.violet800 },
   saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignSelf: "stretch" },
   check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet600, borderColor: colors.violet600 },
@@ -1019,13 +1142,11 @@ const styles = StyleSheet.create({
   note: { paddingHorizontal: space.lg },
   attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, marginTop: space.xs, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
   tools: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
-  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.line },
+  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, minHeight: 36, borderRadius: 999, borderWidth: 1, borderColor: colors.line },
   toolOn: { borderColor: colors.violet600, backgroundColor: colors.violet950 },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   input: { ...type.ui, flex: 1, color: colors.text, maxHeight: 140, minHeight: 44, paddingHorizontal: space.md, paddingVertical: 11, borderRadius: radius.md, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.surface },
   send: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.violet600, alignItems: "center", justifyContent: "center" },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  sheet: { width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: colors.bg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: colors.line },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   cardRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   cardDone: { borderColor: colors.violet600 },

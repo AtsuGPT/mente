@@ -7,6 +7,7 @@ import type { AdminPostRow, Category } from "@/lib/types";
 import { AppText, Chip, IconButton, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 type Status = "all" | "draft" | "published";
 
@@ -16,8 +17,9 @@ function statusOf(post: AdminPostRow) {
   return { label: "Publicado", color: colors.success };
 }
 
-/** Lista do painel (/admin do site): rascunhos, publicados e agendados. */
+/** Lista do painel: rascunhos, publicados e agendados. */
 export default function AdminPostsScreen() {
+  const container = useContainer("content");
   const { api } = useCurrentEnvironment();
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
@@ -79,7 +81,7 @@ export default function AdminPostsScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: space.lg, gap: space.sm, paddingBottom: space.xxxl }}
+        contentContainerStyle={[{ padding: space.lg, gap: space.sm, paddingBottom: space.xxxl }, container]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(1); }} tintColor={colors.violet400} />}
         onEndReached={() => page < pageCount && void load(page + 1)}
         onEndReachedThreshold={0.4}

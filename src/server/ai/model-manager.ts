@@ -236,7 +236,3 @@ export async function acquireModel(baseUrl: string, model: string, options: { nu
   if (process.env.KALLY_MODEL_MANAGER === "off" || !isLocal(baseUrl)) return null;
   return managerFor(baseUrl).acquire(model, options);
 }
-
-export function modelManagerSnapshot(baseUrl: string) {
-  return registry.__kallyModelManagers?.get(baseUrl)?.snapshot() ?? null;
-}

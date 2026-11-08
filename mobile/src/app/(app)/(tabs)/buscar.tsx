@@ -7,11 +7,13 @@ import type { Category } from "@/lib/types";
 import { PostCard } from "@/components/post-card";
 import { AppText, Button, Chip, StateView, TextField } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Mesmos filtros da página /buscar: texto, pasta e intervalo de datas. */
 export default function SearchScreen() {
+  const container = useContainer("content");
   const insets = useSafeAreaInsets();
   const { api, environment, session } = useCurrentEnvironment();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -39,7 +41,7 @@ export default function SearchScreen() {
       data={filters && !feed.loading ? feed.posts : []}
       keyExtractor={(item) => item.id}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ padding: space.lg, paddingTop: insets.top + space.md, gap: space.md, paddingBottom: space.xxxl }}
+      contentContainerStyle={[{ padding: space.lg, paddingTop: insets.top + space.md, gap: space.md, paddingBottom: space.xxxl }, container]}
       onEndReached={feed.loadMore}
       onEndReachedThreshold={0.4}
       ListHeaderComponent={

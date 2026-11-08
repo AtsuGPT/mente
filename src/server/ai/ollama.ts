@@ -149,39 +149,6 @@ async function streamWithLease(
   return { text, doneReason };
 }
 
-/**
- * Gera um texto longo sem cortes prematuros: quando o modelo para por limite
- * de geração, pede a continuação exatamente do ponto em que parou.
- */
-export async function streamLongOllamaChat(
-  messages: OllamaMessage[],
-  onToken: (token: string) => void,
-  options: ChatOptions & { maxContinuations?: number; maxChars?: number } = {},
-): Promise<{ text: string; continuations: number; truncated: boolean }> {
-  const maxContinuations = options.maxContinuations ?? 3;
-  const maxChars = options.maxChars ?? 80_000;
-  let text = "";
-  let continuations = 0;
-  let conversation = messages;
-  while (true) {
-    const result = await streamOllamaChat(conversation, (token) => {
-      text += token;
-      onToken(token);
-    }, options);
-    if (result.doneReason !== "length") return { text, continuations, truncated: false };
-    if (continuations >= maxContinuations || text.length >= maxChars) return { text, continuations, truncated: true };
-    continuations += 1;
-    conversation = [
-      ...messages,
-      { role: "assistant", content: text.slice(-12_000) },
-      {
-        role: "user",
-        content: "Você atingiu o limite de geração no meio do texto. Continue exatamente do ponto em que parou, sem repetir o que já escreveu, sem recomeçar e sem comentários sobre a continuação. Mantenha o mesmo tom e a mesma estrutura, e não conclua antes de desenvolver o que falta.",
-      },
-    ];
-  }
-}
-
 /** Resposta única em JSON, validada pelo chamador. Devolve null se o modelo não seguir o formato. */
 export async function ollamaJson<T>(
   messages: OllamaMessage[],

@@ -4,7 +4,7 @@ import { envAccess, error, json, type EnvContext } from "../../../_lib/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Participantes (só para quem participa). */
+/** Participantes (só para quem participa, e para o dev da plataforma, que só lê). */
 export async function GET(_request: Request, context: EnvContext) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;

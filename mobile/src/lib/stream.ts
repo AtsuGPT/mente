@@ -3,7 +3,7 @@ import { authHeaders } from "./api";
 import { API_URL } from "./config";
 
 /**
- * Lê as rotas de IA já existentes no backend (/api/thoughts/[slug]/insight e /api/chat),
+ * Lê as rotas de IA do backend (/api/thoughts/[slug]/insight e a Kally em /api/mobile/env/…/kally),
  * que respondem em Server-Sent Events: "data: {...}\n\n". Não altera a IA: só consome.
  */
 

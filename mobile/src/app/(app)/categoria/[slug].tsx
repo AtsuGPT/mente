@@ -8,9 +8,11 @@ import type { Category } from "@/lib/types";
 import { PostCard } from "@/components/post-card";
 import { AppText, StateView } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 /** Uma pasta (categoria) e seus pensamentos. */
 export default function CategoryScreen() {
+  const container = useContainer("content");
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { api, environment, session } = useCurrentEnvironment();
   const [category, setCategory] = useState<Category | null>(null);
@@ -26,7 +28,7 @@ export default function CategoryScreen() {
       <FlatList
         data={feed.loading ? [] : feed.posts}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxxl, gap: space.md }}
+        contentContainerStyle={[{ padding: space.lg, paddingBottom: space.xxxl, gap: space.md }, container]}
         refreshControl={<RefreshControl refreshing={feed.refreshing} onRefresh={() => void feed.refresh()} tintColor={colors.violet400} />}
         onEndReached={feed.loadMore}
         onEndReachedThreshold={0.4}

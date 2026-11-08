@@ -1,16 +1,11 @@
 import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { ROLES, type Role } from "./role";
-import { env } from "@/lib/env";
 import { db } from "@/lib/db";
 import {
   ACCESS_COOKIE,
   SESSION_COOKIE,
-  SESSION_MAX_AGE_SECONDS,
-  signAccessToken,
-  signSessionToken,
   verifyAccessToken,
   verifyMobileToken,
   verifySessionToken,
@@ -43,41 +38,6 @@ const getMobileSiteRole = cache(async (): Promise<Role | null> => {
   return member ? ROLES.INTIMATE : ROLES.GUEST;
 });
 
-
-export async function createSession(email: string) {
-  const token = await signSessionToken(email, env().SESSION_SECRET);
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
-}
-
-export async function createAccessSession(role: Role) {
-  const token = await signAccessToken(role, env().SESSION_SECRET);
-  const jar = await cookies();
-  jar.set(ACCESS_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
-}
-
-export async function destroyAccessSession() {
-  const jar = await cookies();
-  jar.delete(ACCESS_COOKIE);
-}
-
-export async function destroySession() {
-  const jar = await cookies();
-  jar.delete(SESSION_COOKIE);
-}
-
 /** Sessão atual (ou null). Memoizada por requisição. */
 export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const jar = await cookies();
@@ -96,21 +56,3 @@ export const getAccessRole = cache(async (): Promise<Role | null> => {
   if (role === "ADMIN") return (await getSession()) ? role : null;
   return role;
 });
-
-/**
- * Barreira de autorização no servidor. Deve ser chamada no início de toda
- * página, ação e rota administrativa — o proxy é apenas a primeira camada.
- */
-export async function requireAdmin(): Promise<SessionPayload> {
-  const session = await getSession();
-  if (!session) redirect("/admin/login");
-  return session;
-}
-export async function requireIntimate(): Promise<Role> {
-  const role = await getAccessRole();
-  if (!role) redirect("/entrar");
-  if (role !== ROLES.INTIMATE && role !== ROLES.ADMIN) {
-    redirect("/");
-  }
-  return role;
-}

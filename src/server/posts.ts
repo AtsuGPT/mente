@@ -129,47 +129,6 @@ export async function listPublishedPosts(
   return { posts: rows.map(toCard), total, page, pageCount, pageSize };
 }
 
-export async function searchPublishedPostsByTerms(terms: string[], limit = 100, scopeArg?: Scope): Promise<PostFull[]> {
-  const scope = await resolveScope(scopeArg);
-  const normalizedTerms = [...new Set(terms.map((term) => term.trim()).filter(Boolean))].slice(0, 8);
-  if (!normalizedTerms.length) return [];
-
-  const rows = await db.post.findMany({
-    where: {
-      ...publiclyVisible(),
-      ...scopeFilter(scope),
-      OR: normalizedTerms.flatMap((term) => [
-        { title: { contains: term } },
-        { content: { contains: term } },
-      ]),
-    },
-    select: postSelect,
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: Math.min(Math.max(1, limit), 100),
-  });
-  return rows.map(toFull);
-}
-
-export async function listLatestPosts(limit = 6, categorySlug?: string, scopeArg?: Scope): Promise<PostCard[]> {
-  const scope = await resolveScope(scopeArg);
-  const rows = await db.post.findMany({
-    where: {
-      ...publiclyVisible(),
-      ...scopeFilter(scope),
-      ...(categorySlug ? { categories: { some: { slug: categorySlug, environmentId: scope.environmentId } } } : {}),
-    },
-    select: postSelect,
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: limit,
-  });
-  return rows.map(toCard);
-}
-
-export async function countPublishedPosts(scopeArg?: Scope): Promise<number> {
-  const scope = await resolveScope(scopeArg);
-  return db.post.count({ where: { ...publiclyVisible(), ...scopeFilter(scope) } });
-}
-
 export async function getPublishedPostBySlug(slug: string, scopeArg?: Scope): Promise<PostFull | null> {
   const scope = await resolveScope(scopeArg);
   const row = await db.post.findFirst({
@@ -195,15 +154,6 @@ export async function listRelatedPosts(post: Pick<PostCard, "id" | "categories">
     take: limit,
   });
   return rows.map(toCard);
-}
-
-/** Sitemap do site: só o ambiente original, só públicos. */
-export async function listSitemapEntries() {
-  return db.post.findMany({
-    where: { ...publiclyVisible(), ...scopeFilter({ environmentId: DEFAULT_ENVIRONMENT_ID, canSeePrivate: false }) },
-    select: { slug: true, updatedAt: true, publishedAt: true },
-    orderBy: { publishedAt: "desc" },
-  });
 }
 
 /* ------------------------------------------------------------------ */

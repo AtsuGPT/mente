@@ -1,7 +1,6 @@
 import { isIP } from "node:net";
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/token";
 
 const VISIT_GAP_MS = 5 * 60 * 1000;
 const MAX_WRITES_PER_MINUTE = 120;
@@ -45,40 +44,10 @@ function recordVisit(request: NextRequest) {
     .catch((error) => console.error("Falha ao registrar visitante:", error));
 }
 
-/**
- * Primeira barreira da área administrativa. A autorização definitiva continua
- * sendo feita no servidor por requireAdmin() em cada página, ação e rota.
- */
-export async function proxy(request: NextRequest) {
+/** Conta as visitas às páginas (o app web e as páginas do Next); não bloqueia nada. */
+export function proxy(request: NextRequest) {
   recordVisit(request);
-  const { pathname, search } = request.nextUrl;
-
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
-
-  const isLogin = pathname === "/admin/login";
-
-  const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
-  const authenticated = !!session && session.email === process.env.ADMIN_EMAIL;
-
-  if (!authenticated && !isLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin/login";
-    url.search = "";
-    if (pathname !== "/admin") url.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(url);
-  }
-
-  if (authenticated && isLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  const response = NextResponse.next();
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
-  response.headers.set("Cache-Control", "no-store");
-  return response;
+  return NextResponse.next();
 }
 
 // Exclui /api (o upload de áudio passaria do limite de buffer do proxy) e arquivos estáticos.

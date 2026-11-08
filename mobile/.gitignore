@@ -45,3 +45,6 @@ public/canvaskit.wasm
 
 # Endereço local do backend
 .env
+
+# Exportação web temporária (scripts/export-web.js copia para ../public)
+dist-web/

@@ -66,6 +66,20 @@ export function permissionsFor(membership: MembershipFlags | null, guestAccess: 
 
 /* ------------------------------- Acesso -------------------------------- */
 
+/**
+ * Dev da plataforma: a conta do administrador do .env (legacyKind "ADMIN"). Lê todos os
+ * ambientes não arquivados, inclusive os fechados a visitantes e os pensamentos privados,
+ * e as conversas salvas com a Kally. Só lê: publicar, editar e gerenciar continuam
+ * dependendo da participação no ambiente.
+ */
+export async function isPlatformDev(userId: string | null) {
+  if (!userId) return false;
+  const user = await db.user.findUnique({ where: { id: userId }, select: { legacyKind: true } });
+  return user?.legacyKind === "ADMIN";
+}
+
+const DEV_PERMISSIONS: Permissions = { view: true, seePrivate: true, publish: false, editOwn: false, manageContent: false, manageMembers: false, manageSettings: false };
+
 const environmentSelect = {
   id: true,
   slug: true,
@@ -84,9 +98,12 @@ export type EnvironmentRow = Prisma.EnvironmentGetPayload<{ select: typeof envir
 export type Access = {
   environment: EnvironmentRow;
   userId: string | null;
-  role: MemberRole | "GUEST";
+  /** "DEV": o dev da plataforma num ambiente do qual não participa (só leitura). */
+  role: MemberRole | "GUEST" | "DEV";
   permissions: Permissions;
   scope: Scope;
+  /** Dev da plataforma, participe ou não do ambiente. */
+  platformDev: boolean;
 };
 
 export type AccessError = { error: string; status: number };
@@ -108,7 +125,9 @@ export async function resolveAccess(environmentRef: string, userId: string | nul
 
   if (environment.archivedAt && membership?.role !== "OWNER") return { error: "Ambiente não encontrado.", status: 404 };
 
-  const permissions = permissionsFor(membership, environment.guestAccess);
+  const platformDev = await isPlatformDev(userId);
+  const asDev = !membership && platformDev;
+  const permissions = asDev ? DEV_PERMISSIONS : permissionsFor(membership, environment.guestAccess);
   if (!permissions.view) {
     return userId
       ? { error: "Você não participa deste ambiente. Peça um convite a quem o administra.", status: 403 }
@@ -117,9 +136,10 @@ export async function resolveAccess(environmentRef: string, userId: string | nul
   return {
     environment,
     userId,
-    role: membership?.role ?? "GUEST",
+    role: membership?.role ?? (asDev ? "DEV" : "GUEST"),
     permissions,
     scope: { environmentId: environment.id, canSeePrivate: permissions.seePrivate },
+    platformDev,
   };
 }
 
@@ -156,7 +176,10 @@ export async function environmentImage(environment: { id: string }) {
   return row?.imageData ?? null;
 }
 
-/** Ambientes de quem pede (participação) e os abertos a convidados, sem duplicar. */
+/**
+ * Ambientes de quem pede (participação) e os abertos a convidados, sem duplicar.
+ * Para o dev da plataforma, também os fechados a visitantes dos quais não participa (dev).
+ */
 export async function listEnvironmentsFor(userId: string | null) {
   const memberships = userId
     ? await db.membership.findMany({
@@ -171,10 +194,17 @@ export async function listEnvironmentsFor(userId: string | null) {
     select: environmentSelect,
     orderBy: { createdAt: "asc" },
   });
-  const memberStats = await counts([...mineIds], false);
+  const closed = (await isPlatformDev(userId))
+    ? await db.environment.findMany({
+        where: { guestAccess: false, archivedAt: null, id: { notIn: [...mineIds] } },
+        select: environmentSelect,
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const memberStats = await counts([...mineIds, ...closed.map((e) => e.id)], false);
   const openStats = await counts(open.map((e) => e.id), true);
 
-  const shape = async (environment: EnvironmentRow, role: MemberRole | "GUEST", permissions: Permissions) => ({
+  const shape = async (environment: EnvironmentRow, role: MemberRole | "GUEST" | "DEV", permissions: Permissions) => ({
     ...environment,
     role,
     permissions,
@@ -185,6 +215,7 @@ export async function listEnvironmentsFor(userId: string | null) {
   return {
     mine: await Promise.all(memberships.map((m) => shape(m.environment, m.role, permissionsFor(m, m.environment.guestAccess)))),
     open: await Promise.all(open.map((e) => shape(e, "GUEST", permissionsFor(null, true)))),
+    dev: await Promise.all(closed.map((e) => shape(e, "DEV", DEV_PERMISSIONS))),
   };
 }
 
@@ -310,7 +341,7 @@ export async function removeMember(actor: Access, userId: string) {
 
 /** Sair por conta própria. O proprietário não sai (o ambiente ficaria sem dono). */
 export async function leaveEnvironment(access: Access) {
-  if (!access.userId || access.role === "GUEST") return { ok: false as const, status: 400, error: "Você não participa deste ambiente." };
+  if (!access.userId || access.role === "GUEST" || access.role === "DEV") return { ok: false as const, status: 400, error: "Você não participa deste ambiente." };
   if (access.role === "OWNER") return { ok: false as const, status: 400, error: "O proprietário não pode sair do próprio ambiente. Arquive-o se não for mais usá-lo." };
   await db.membership.delete({ where: { environmentId_userId: { environmentId: access.environment.id, userId: access.userId } } });
   return { ok: true as const };

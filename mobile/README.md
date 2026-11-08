@@ -57,7 +57,7 @@ mobile/
 
 - **Código compartilhado**: `@shared/*` aponta para `../src/lib` (slug, texto, datas, cores)
   e `@content/*` para `../src/content` (texto "Sobre"). Configurado em `tsconfig.json` e `metro.config.js`.
-- **Autenticação**: `POST /api/mobile/auth/login` (mesmas credenciais da tela /entrar) ou
+- **Autenticação**: `POST /api/mobile/auth/login` (credenciais configuradas no backend) ou
   `/auth/guest` devolvem um token JWT assinado com o `SESSION_SECRET` do backend, guardado no
   Keychain (`expo-secure-store`) e enviado como `Authorization: Bearer`. No backend,
   `getSession()`/`getAccessRole()` aceitam esse token quando não há cookie, então todas as
@@ -66,8 +66,8 @@ mobile/
   pensamento → pasta (categorias), pensamento → imagem (imagens citadas no Markdown) e
   pensamento → pensamento (links `/pensamento/...` no texto). Layout por `d3-force`, desenho com
   React Native Skia e gestos (arrastar, pinça, toque) com Gesture Handler + Reanimated.
-- **Editor**: edita o mesmo Markdown que o Tiptap do site grava, com barra de formatação e prévia.
-  Conteúdo criado no app abre no editor do site e vice-versa.
+- **Editor**: Markdown com barra de formatação e prévia (o mesmo formato dos pensamentos antigos,
+  escritos no editor da primeira versão do site).
 
 ## Verificações
 
@@ -77,24 +77,35 @@ npm run doctor      # expo-doctor (compatibilidade com a SDK)
 npx expo export --platform ios   # empacota como o Expo Go recebe
 ```
 
-Para testar no navegador do PC (opcional, só desenvolvimento):
+### Web
+
+A versão web publicada é a raiz do site (`minhamente.space/`), servida pelo próprio Next:
+
+```bash
+npm run export:web   # exporta para ../public (index.html, _expo/, assets/…)
+```
+
+O build web usa a origem da página como endereço da API (sem CORS). Na web as abas viram barra
+lateral a partir de 768 px e o conteúdo tem largura máxima de leitura (`src/theme/layout.ts`).
+
+Para desenvolver no navegador do PC com recarga automática:
 
 ```bash
 npm run web:setup   # copia o CanvasKit do Skia para public/
 npm run web
 ```
 
-O navegador exige CORS: defina `MOBILE_WEB_ORIGIN=http://localhost:8081` no backend que for usado.
-O app nativo não precisa disso.
+Nesse modo o navegador exige CORS: defina `MOBILE_WEB_ORIGIN=http://localhost:8081` no backend
+que for usado. O app nativo não precisa disso.
 
 ## Limitações conhecidas (Expo Go / estado atual)
 
-- **Editor**: não é visual como o Tiptap (que é web); é Markdown com barra de ferramentas e prévia.
+- **Editor**: não é visual (WYSIWYG); é Markdown com barra de ferramentas e prévia.
   Tabelas e blocos recolhíveis entram por modelos prontos.
-- **Fórmulas matemáticas**: o backend não renderiza fórmulas (o site também não), então o app não as exibe.
+- **Fórmulas matemáticas**: o backend não renderiza fórmulas, então o app não as exibe.
 - **Anexos/PDFs e gerenciamento de usuários**: não existem no backend atual (há um administrador e
   um leitor configurados por variáveis de ambiente). Nada foi removido; não há o que adaptar ainda.
-- **Ditado por voz** do editor (Whisper) ainda não foi portado para o app; continua no site.
-- **Leitura assistida**: guardada só enquanto o app está aberto (no site fica no localStorage).
+- **Ditado por voz no editor** (Whisper): o editor do app não tem; o áudio entra pela Kally.
+- **Leitura assistida**: guardada só enquanto o app está aberto.
 - **Pinça no mapa**: testada só no código e no navegador com botões de zoom; o gesto de dois dedos
   precisa ser conferido no aparelho.

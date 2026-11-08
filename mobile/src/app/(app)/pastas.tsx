@@ -6,9 +6,11 @@ import type { Category } from "@/lib/types";
 import { AppText, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 /** Equivalente à página /arquivo do site: pensamentos organizados por assunto. */
 export default function FoldersScreen() {
+  const container = useContainer("content");
   const { api } = useCurrentEnvironment();
   const [categories, setCategories] = useState<(Category & { count: number })[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function FoldersScreen() {
     <FlatList
       data={categories ?? []}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={{ padding: space.lg, gap: space.sm }}
+      contentContainerStyle={[{ padding: space.lg, gap: space.sm }, container]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
       ListHeaderComponent={<AppText color={colors.muted} style={{ marginBottom: space.md }}>Pensamentos organizados por assunto.</AppText>}
       renderItem={({ item }) => (

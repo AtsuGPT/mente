@@ -28,6 +28,11 @@ function devServerHost(): string | null {
 const isExpoTunnel = (host: string) => !/^\d{1,3}(\.\d{1,3}){3}$/.test(host) && !host.endsWith(".local");
 
 function resolveApiUrl() {
+  // App web exportado (npm run export:web) e servido pelo próprio backend: usa a origem da
+  // página (minhamente.space, o IP da rede ou localhost), sem CORS e sem endereço fixo no build.
+  if (Platform.OS === "web" && process.env.EXPO_PUBLIC_WEB_SAME_ORIGIN === "1" && typeof window !== "undefined") {
+    return { url: window.location.origin, source: "mesmo endereço do site" as const };
+  }
   const explicit = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
   if (explicit) return { url: explicit, source: "EXPO_PUBLIC_API_URL" as const };
   const host = devServerHost();

@@ -13,11 +13,31 @@ public/uploads/
 .DS_Store
 npm-debug.log*
 
-# App web exportado (mobile: npm run export:web)
-/public/app/
+# App web exportado para a raiz do site (mobile: npm run export:web)
+/public/_expo/
+/public/assets/
+/public/index.html
+/public/metadata.json
+/public/favicon.ico
+/public/canvaskit.wasm
+/public/.export-web.json
 __pycache__/
 
 # Registro de desempenho da Kally (server/ai/perf.ts)
 /logs/
 # Vetores dos exemplos de referência da Kally (server/kally/competences)
 /.cache/
+
+# Ambientes e caches locais
+/.venv/
+/.expo/
+
+# Arquivos locais de assistentes de IA (instruções, skills e configurações pessoais).
+# AGENTS.md é reescrito pelo "next dev" e mobile/AGENTS.md pelo plugin do Expo.
+/AGENTS.md
+/CLAUDE.md
+/.agents/
+/skills-lock.json
+/mobile/AGENTS.md
+/mobile/CLAUDE.md
+/mobile/.claude/

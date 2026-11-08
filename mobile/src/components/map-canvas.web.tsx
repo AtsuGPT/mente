@@ -6,7 +6,7 @@ import { AppText } from "./ui/primitives";
 import { colors, space } from "@/theme/tokens";
 
 /**
- * Navegador (expo start --web, só para testes): o Skia precisa carregar o CanvasKit
+ * Navegador (app web em "/" e expo start --web): o Skia precisa carregar o CanvasKit
  * (WebAssembly) antes de qualquer componente dele ser importado.
  * public/canvaskit.wasm é copiado por "npm run web:setup".
  */
@@ -19,7 +19,7 @@ export const MapCanvas = forwardRef<KnowledgeMapHandle, Props>(function MapCanva
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Publicado em /app (EXPO_PUBLIC_WEB_BASE), o canvaskit.wasm fica em /app/canvaskit.wasm.
+    // Na raiz, o canvaskit.wasm fica em /canvaskit.wasm; publicado em subpasta (EXPO_PUBLIC_WEB_BASE), dentro dela.
     LoadSkiaWeb({ locateFile: (file) => `${process.env.EXPO_PUBLIC_WEB_BASE ?? ""}/${file}` })
       .then(() => import("./knowledge-map"))
       .then((module) => setMap(() => module.KnowledgeMap as unknown as MapComponent))

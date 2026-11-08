@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 const BACKGROUND = "#080808";
 const FALLBACK = "#929292";
 
@@ -42,13 +40,4 @@ export function readableAccent(hex: string, minContrast = 4.5): string {
     rgb = [rgb[0] + (255 - rgb[0]) * 0.06, rgb[1] + (255 - rgb[1]) * 0.06, rgb[2] + (255 - rgb[2]) * 0.06];
   }
   return toHex(rgb);
-}
-
-/** Variáveis CSS de destaque, para aplicar em style={...} no escopo de uma categoria. */
-export function accentVars(color: string | null | undefined): CSSProperties {
-  const base = color && HEX_COLOR.test(color) ? color : FALLBACK;
-  return {
-    "--accent": base,
-    "--accent-text": readableAccent(base),
-  } as CSSProperties;
 }

@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { useCurrentEnvironment } from "@/lib/environment";
-import { stackOptions } from "../_layout";
+import { screenLayout, stackOptions } from "../_layout";
 
 /**
  * Telas de dentro de um ambiente. As de gestão só existem para quem tem a permissão
@@ -11,7 +11,7 @@ export default function EnvironmentStack() {
   const canWrite = permissions.publish || permissions.manageContent;
 
   return (
-    <Stack screenOptions={stackOptions}>
+    <Stack screenOptions={stackOptions} screenLayout={screenLayout}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="post/[slug]" options={{ title: "" }} />
       <Stack.Screen name="categoria/[slug]" options={{ title: "" }} />

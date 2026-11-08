@@ -2,7 +2,7 @@
  * Sistema visual do Minha Mente (app): escuro, com o roxo como identidade.
  * O roxo marca o que é interativo ou selecionado; cinzas carregam o secundário.
  * Contrastes medidos sobre bg: text 16.9:1, muted 7.6:1, violet300 10.2:1, violet400 6.7:1.
- * faint (3.8:1) só para rótulos e detalhes; violet500 (4.3:1) só para linhas e
+ * faint 5.0:1 (4.6:1 sobre surfaceRaised): texto secundário, dentro do AA; violet500 (4.3:1) só para linhas e
  * preenchimentos, nunca para texto. Botão primário: branco sobre violet600 = 7.9:1.
  */
 
@@ -27,7 +27,7 @@ export const colors = {
 
   text: "#ECE9F5",
   muted: "#A19CB3",
-  faint: "#6E6884",
+  faint: "#817B97",
 
   danger: "#F2777A",
   dangerSoft: "#3A1418",
@@ -60,7 +60,7 @@ export const type = {
   ui: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
   uiMedium: { fontFamily: fonts.sansMedium, fontSize: 15, lineHeight: 21 },
   small: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
-  label: { fontFamily: fonts.sansMedium, fontSize: 11, lineHeight: 14, letterSpacing: 1.4, textTransform: "uppercase" as const },
+  label: { fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16, letterSpacing: 1.4, textTransform: "uppercase" as const },
 } as const;
 
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Dimensions, Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { readingMinutes, stripMarkdown } from "@shared/text";
 import { slugify } from "@shared/slug";
@@ -11,6 +11,7 @@ import { pickImage, uploadablePart } from "@/lib/upload";
 import { Markdown } from "@/components/markdown/markdown";
 import { AppText, Button, Chip, SectionLabel, TextField, Touchable } from "@/components/ui/primitives";
 import { colors, fonts, radius, space } from "@/theme/tokens";
+import { useContainer, useLayout } from "@/theme/layout";
 import { takeDraft } from "@/lib/draft-handoff";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
@@ -56,6 +57,12 @@ function insertBlock(text: string, sel: Selection, block: string) {
 
 export default function EditorScreen() {
   const { api } = useCurrentEnvironment();
+  const container = useContainer("reading");
+  const { height } = useLayout();
+  // Com altura máxima o campo rola por dentro e o cursor continua acima do teclado;
+  // em telas baixas a altura mínima cede para o campo não passar da janela.
+  const contentMax = Math.max(200, Math.round(height * 0.5));
+  const contentHeight = { maxHeight: contentMax, minHeight: Math.min(320, contentMax) };
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === "novo";
   // Rascunho vindo da Kally (só ao abrir um novo pensamento).
@@ -264,7 +271,7 @@ export default function EditorScreen() {
   return (
     <KeyboardScreen header>
       <Stack.Screen options={{ title: isNew ? "Novo pensamento" : number ? `Editar · Nº ${formatNumber(number)}` : "Editar" }} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, container]} keyboardShouldPersistTaps="handled">
         <View style={styles.statusRow}>
           <AppText variant="label" color={published ? colors.success : colors.warning}>{isNew ? "Novo" : published ? "Publicado" : "Rascunho"}</AppText>
           <AppText variant="label" color={colors.faint}>{words} palavras · {readingMinutes(content)} min</AppText>
@@ -318,7 +325,7 @@ export default function EditorScreen() {
               multiline
               textAlignVertical="top"
               autoCorrect
-              style={[styles.contentInput, err("content") ? { borderColor: colors.danger } : null]}
+              style={[styles.contentInput, contentHeight, err("content") ? { borderColor: colors.danger } : null]}
             />
             {err("content") ? <AppText variant="small" color={colors.danger}>{err("content")}</AppText> : null}
           </>
@@ -368,7 +375,7 @@ export default function EditorScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           error={err("slug")}
-          hint={published && originalSlug && slug !== originalSlug ? "Atenção: o link antigo deste pensamento deixará de funcionar." : `/pensamento/${slug || "…"}`}
+          hint={published && originalSlug && slug !== originalSlug ? "Atenção: o link antigo deste pensamento deixará de funcionar." : `/post/${slug || "…"}`}
           maxLength={120}
         />
 
@@ -419,12 +426,9 @@ const styles = StyleSheet.create({
   tab: { paddingVertical: space.sm, borderBottomWidth: 1.5, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: colors.violet400 },
   toolbar: { gap: space.xs },
-  tool: { minWidth: 40, height: 36, paddingHorizontal: space.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  tool: { minWidth: 44, height: 44, paddingHorizontal: space.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   toolAccent: { borderColor: colors.violet700, backgroundColor: colors.violet950 },
   contentInput: {
-    minHeight: 320,
-    // Com altura máxima o campo rola por dentro e o cursor continua acima do teclado.
-    maxHeight: Math.round(Dimensions.get("window").height * 0.45),
     fontFamily: fonts.serif,
     fontSize: 17,
     lineHeight: 26,

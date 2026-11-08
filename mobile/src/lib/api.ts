@@ -124,7 +124,7 @@ export const api = {
     request<{ id: string; status: KallyDocument["status"]; reused: boolean; detail: string }>("/api/mobile/kally/documentos", { method: "POST", form, timeoutMs: 4 * 60_000 }),
   deleteKallyDocument: (id: string) => request<{ ok: true }>(`/api/mobile/kally/documentos/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  environments: () => request<{ mine: EnvironmentCard[]; open: EnvironmentCard[] }>("/api/mobile/environments"),
+  environments: () => request<{ mine: EnvironmentCard[]; open: EnvironmentCard[]; dev?: EnvironmentCard[] }>("/api/mobile/environments"),
   createEnvironment: (input: EnvironmentInput) =>
     request<{ environment: EnvironmentInfo }>("/api/mobile/environments", { method: "POST", json: input }),
   previewInvite: (code: string) => request<InvitePreview>(`/api/mobile/invites/${encodeURIComponent(code)}`),
@@ -172,7 +172,7 @@ export function envApi(environmentId: string) {
 
     /** Kally: o envio de mensagens é em tempo real (lib/stream) em kallyPath. */
     kallyPath: `${base}/kally`,
-    kallyConversations: () => request<{ conversations: KallyConversation[] }>(`${base}/kally`),
+    kallyConversations: () => request<{ conversations: KallyConversation[]; allUsers?: boolean }>(`${base}/kally`),
     kallyConversation: (id: string) =>
       request<KallyConversation & { messages: KallyMessage[] }>(`${base}/kally/${encodeURIComponent(id)}`),
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),

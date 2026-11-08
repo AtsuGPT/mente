@@ -186,7 +186,8 @@ model Visitor {
   visits      Int      @default(1)
 }
 
-/// Conversa com a Kally: de uma pessoa, dentro de um ambiente. Nunca é compartilhada.
+/// Conversa com a Kally: de uma pessoa, dentro de um ambiente. Nunca é compartilhada;
+/// só o dev da plataforma (legacyKind "ADMIN") pode lê-la, sem continuar nem apagar.
 model KallyConversation {
   id            String   @id @default(cuid())
   environmentId String

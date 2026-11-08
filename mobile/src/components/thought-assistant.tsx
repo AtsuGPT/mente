@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
+import { enter, layoutTransition } from "@/theme/motion";
 import { streamEvents } from "@/lib/stream";
 import { Markdown } from "./markdown/markdown";
 import { AppText, Chip } from "./ui/primitives";
@@ -67,7 +68,7 @@ export function ThoughtAssistant({ slug, revision }: { slug: string; revision: s
       {status === "connecting" ? <AppText variant="small" color={colors.muted} style={{ marginTop: space.md }}>Conectando ao Ollama…</AppText> : null}
       {error ? <AppText variant="small" color={colors.danger} style={{ marginTop: space.md }}>{error}</AppText> : null}
       {text ? (
-        <Animated.View entering={FadeIn.duration(250)} style={styles.result}>
+        <Animated.View entering={enter.fade} layout={layoutTransition} style={styles.result}>
           <AppText variant="label" color={colors.violet300} style={{ marginBottom: space.sm }}>
             {actions.find((a) => a.mode === selected)?.label} · {status === "reading" ? "gerando" : "pronto"}
           </AppText>

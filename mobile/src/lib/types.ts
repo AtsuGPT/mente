@@ -4,7 +4,8 @@
  */
 
 export type MemberRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
-export type AccessRole = MemberRole | "GUEST";
+/** DEV: o dev da plataforma num ambiente do qual não participa (só leitura). */
+export type AccessRole = MemberRole | "GUEST" | "DEV";
 
 export type User = { id: string; username: string; displayName: string; legacyKind?: string | null };
 
@@ -152,5 +153,6 @@ export type KallySuggestion = { tipo: string; trecho: string; sugestao: string; 
 export type KallyReview = { resumo: string; sugestoes: KallySuggestion[]; truncated: boolean; postId: string | null; slug: string | null };
 export type KallyAttachment = { name: string; kind: "pdf" | "imagem" | "texto" | "docx" | "csv" | "audio"; text: string; pages?: number; truncated?: boolean };
 export type KallyImage = { title: string; url: string; thumb: string; author: string; license: string; page: string };
-export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string };
+/** owner: só nas conversas de outra pessoa, que o dev da plataforma pode ler (nas próprias é null). */
+export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string; owner?: { username: string; displayName: string } | null };
 export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };

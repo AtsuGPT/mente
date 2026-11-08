@@ -8,21 +8,11 @@ import { ROLES, type Role } from "./role";
 
 export const SESSION_COOKIE = "mm_session";
 export const ACCESS_COOKIE = "mm_access";
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 dias
 
 export type SessionPayload = { email: string };
 
 function key(secret: string) {
   return new TextEncoder().encode(secret);
-}
-
-export async function signSessionToken(email: string, secret: string): Promise<string> {
-  return new SignJWT({ email })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject("admin")
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
-    .sign(key(secret));
 }
 
 export async function verifySessionToken(
@@ -80,15 +70,7 @@ export async function verifyMobileToken(
   }
 }
 
-export async function signAccessToken(role: Role, secret: string): Promise<string> {
-  return new SignJWT({ role })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject("site-access")
-    .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
-    .sign(key(secret));
-}
-
+/** Cookies da primeira versão do site: só são lidos (nada mais os emite) até expirarem. */
 export async function verifyAccessToken(token: string | undefined, secret: string | undefined): Promise<Role | null> {
   if (!token || !secret || secret.length < 32) return null;
   try {

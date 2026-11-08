@@ -46,12 +46,15 @@ function allowed(userId: string) {
   return entry.count <= MAX_PER_WINDOW;
 }
 
-/** Conversas SALVAS da pessoa neste ambiente (as temporárias não existem no servidor). */
+/**
+ * Conversas SALVAS da pessoa neste ambiente (as temporárias não existem no servidor).
+ * O dev da plataforma recebe as de todos no ambiente, com a dona em owner.
+ */
 export async function GET(_request: Request, context: EnvContext) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
-  return json({ conversations: await listConversations(access.environment.id, access.userId) });
+  return json({ conversations: await listConversations(access.environment.id, access.userId, access.platformDev), allUsers: access.platformDev });
 }
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -216,7 +219,7 @@ export async function POST(request: Request, context: EnvContext) {
 
   if (!conversation && body.save === true) {
     const created = await createConversation(access.environment.id, userId, mode, review?.text.split("\n")[0].replace(/^#\s*/, "Revisão: ") || message);
-    conversation = { ...created, messages: [] };
+    conversation = { ...created, owner: null, messages: [] };
   }
   const conversationId = conversation?.id ?? null;
   if (conversationId) await addMessage(conversationId, "user", message);

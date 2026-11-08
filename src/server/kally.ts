@@ -365,24 +365,34 @@ export async function reviewText(text: string, environmentName: string): Promise
 
 const conversationSelect = { id: true, mode: true, title: true, createdAt: true, updatedAt: true } as const;
 
-export function listConversations(environmentId: string, userId: string) {
-  return db.kallyConversation.findMany({
-    where: { environmentId, userId },
-    select: conversationSelect,
+const ownerSelect = { userId: true, user: { select: { username: true, displayName: true } } } as const;
+type Owned = { userId: string; user: { username: string; displayName: string } };
+/** owner só aparece nas conversas de outra pessoa (o que o dev da plataforma vê); nas próprias é null. */
+const withOwner = <T extends Owned>({ userId: ownerId, user, ...rest }: T, viewerId: string) => ({ ...rest, owner: ownerId === viewerId ? null : user });
+
+/** Conversas da pessoa; com allUsers (só o dev da plataforma), as de todos neste ambiente. */
+export async function listConversations(environmentId: string, userId: string, allUsers = false) {
+  const rows = await db.kallyConversation.findMany({
+    where: allUsers ? { environmentId } : { environmentId, userId },
+    select: { ...conversationSelect, ...ownerSelect },
     orderBy: { updatedAt: "desc" },
-    take: 50,
+    take: allUsers ? 200 : 50,
   });
+  return rows.map((row) => withOwner(row, userId));
 }
 
-/** Só a dona da conversa, no mesmo ambiente, a encontra. */
-export async function getConversation(environmentId: string, userId: string, id: string) {
+/**
+ * Só a dona da conversa, no mesmo ambiente, a encontra. readAsDev (só para LER, nunca para
+ * continuar ou apagar) deixa o dev da plataforma abrir a de qualquer pessoa do ambiente.
+ */
+export async function getConversation(environmentId: string, userId: string, id: string, readAsDev = false) {
   const conversation = await db.kallyConversation.findFirst({
-    where: { id, environmentId, userId },
-    select: { ...conversationSelect, messages: { select: { id: true, role: true, content: true, sources: true, createdAt: true }, orderBy: { createdAt: "asc" } } },
+    where: readAsDev ? { id, environmentId } : { id, environmentId, userId },
+    select: { ...conversationSelect, ...ownerSelect, messages: { select: { id: true, role: true, content: true, sources: true, createdAt: true }, orderBy: { createdAt: "asc" } } },
   });
   if (!conversation) return null;
   return {
-    ...conversation,
+    ...withOwner(conversation, userId),
     messages: conversation.messages.map((m) => ({ ...m, sources: JSON.parse(m.sources) as Source[] })),
   };
 }

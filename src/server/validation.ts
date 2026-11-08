@@ -12,7 +12,6 @@ const slugField = z
   .regex(SLUG_PATTERN, "Use apenas letras minúsculas, números e hífens.");
 
 export const POST_INTENTS = ["save", "publish", "unpublish"] as const;
-export type PostIntent = (typeof POST_INTENTS)[number];
 
 export const postSchema = z
   .object({
@@ -43,12 +42,6 @@ export const categorySchema = z.object({
 export type CategoryInput = z.infer<typeof categorySchema>;
 
 export type FieldErrors = Record<string, string[] | undefined>;
-
-export type ActionState = {
-  ok: boolean;
-  message?: string;
-  fieldErrors?: FieldErrors;
-};
 
 /** Lê o formulário do pensamento, com defaults seguros, antes de validar. */
 export function parsePostForm(formData: FormData) {

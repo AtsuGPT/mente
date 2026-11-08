@@ -15,18 +15,8 @@ const short = new Intl.DateTimeFormat("pt-BR", {
   timeZone: TIME_ZONE,
 });
 
-const withTime = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: TIME_ZONE,
-});
-
 export const formatDateLong = (d: Date) => long.format(d);
 export const formatDateShort = (d: Date) => short.format(d).replace(/\./g, "");
-export const formatDateTime = (d: Date) => withTime.format(d).replace(/\./g, "");
 
 /** "007" */
 export const formatNumber = (n: number) => String(n).padStart(3, "0");

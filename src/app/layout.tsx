@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/newsreader/opsz.css";
-import "@fontsource-variable/newsreader/opsz-italic.css";
 import "@fontsource-variable/instrument-sans/wght.css";
 import "./globals.css";
 import { site } from "@/config/site";
 import { siteUrl } from "@/lib/env";
 
+/**
+ * Layout das poucas páginas renderizadas pelo Next (convite, 404, erro). A interface
+ * principal é o app web exportado do Expo e servido em "/" (ver next.config.ts).
+ */
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: site.name, template: `%s — ${site.name}` },
@@ -18,26 +21,17 @@ export const metadata: Metadata = {
     title: site.name,
     description: site.tagline,
   },
-  twitter: { card: "summary_large_image", title: site.name, description: site.tagline },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080808",
+  themeColor: "#07060B",
   colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>
-        <a
-          href="#conteudo"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-fg focus:px-3 focus:py-2 focus:font-sans focus:text-sm focus:text-bg"
-        >
-          Pular para o conteúdo
-        </a>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

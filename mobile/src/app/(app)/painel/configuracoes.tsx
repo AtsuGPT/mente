@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import { ApiError } from "@/lib/api";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { pickImage, uploadablePart } from "@/lib/upload";
@@ -8,10 +8,12 @@ import { EnvironmentGlyph } from "@/components/environment-glyph";
 import { goToEnvironments } from "@/components/environment-header";
 import { AppText, Button, Card, SectionLabel } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Configurações do ambiente (só o proprietário; o servidor confere). */
 export default function EnvironmentSettingsScreen() {
+  const container = useContainer("form");
   const { api, environment, session, refresh } = useCurrentEnvironment();
   const [busy, setBusy] = useState<"upload" | "remove" | "archive" | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -72,7 +74,7 @@ export default function EnvironmentSettingsScreen() {
 
   return (
     <KeyboardScreen header>
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.xl, paddingBottom: space.xxxl }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[{ padding: space.lg, gap: space.xl, paddingBottom: space.xxxl }, container]} keyboardShouldPersistTaps="handled">
         <EnvironmentForm
           initial={environment}
           submitLabel="Salvar configurações"

@@ -13,9 +13,8 @@ import {
 } from "@/server/users";
 
 /**
- * Login e cadastro do app. As regras de login seguem accessLoginAction (lib/auth/login.ts):
- * limite de tentativas, mensagem genérica e tempo igual para usuário inexistente.
- * Fica fora de login.ts porque lá tudo que é exportado vira Server Action.
+ * Login e cadastro do app (celular e web): limite de tentativas, mensagem genérica e
+ * tempo igual para usuário inexistente.
  */
 
 type User = { id: string; username: string; displayName: string };

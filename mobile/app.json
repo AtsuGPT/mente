@@ -21,7 +21,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "lang": "pt-BR",
+      "description": "Um espaço pessoal para pensamentos, reflexões, ideias e aprendizados, organizados por ambientes e categorias.",
+      "themeColor": "#07060B"
     },
     "plugins": [
       "expo-router",

@@ -6,6 +6,7 @@ import type { Invite, Member, MemberRole } from "@/lib/types";
 import { AppText, Button, Chip, SectionLabel, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 
 const ROLE_LABEL: Record<MemberRole, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor" };
 const FLAGS = [
@@ -17,6 +18,7 @@ const FLAGS = [
 
 /** Participantes, papéis, permissões e convites do ambiente. O servidor confere cada ação. */
 export default function MembersScreen() {
+  const container = useContainer("form");
   const { api, environment, role: myRole, permissions } = useCurrentEnvironment();
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -60,7 +62,7 @@ export default function MembersScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: space.xxxl }}
+      contentContainerStyle={[{ padding: space.lg, gap: space.lg, paddingBottom: space.xxxl }, container]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
     >
       <SectionLabel>{`${members.length} ${members.length === 1 ? "participante" : "participantes"}`}</SectionLabel>
@@ -75,7 +77,7 @@ export default function MembersScreen() {
                 <AppText variant="uiMedium" numberOfLines={1}>{member.user.displayName}</AppText>
                 <AppText variant="small" color={colors.faint}>{formatHandle(member.user.username)} · desde {formatDateShort(member.createdAt)}</AppText>
               </View>
-              <View style={styles.rolePill}><AppText variant="label" color={colors.violet200} style={{ fontSize: 10 }}>{ROLE_LABEL[member.role]}</AppText></View>
+              <View style={styles.rolePill}><AppText variant="label" color={colors.violet200} style={{ fontSize: 11, letterSpacing: 1 }}>{ROLE_LABEL[member.role]}</AppText></View>
               {editable ? <Icon name={expanded ? "close" : "edit"} size={16} color={colors.faint} /> : null}
             </Touchable>
 
@@ -89,7 +91,7 @@ export default function MembersScreen() {
                 {FLAGS.filter((f) => f.key !== "canManageMembers" || myRole === "OWNER").map((flag) => (
                   <View key={flag.key} style={styles.flagRow}>
                     <AppText style={{ flex: 1 }}>{flag.label}</AppText>
-                    {member[flag.key] !== null ? <AppText variant="label" color={colors.violet300} style={{ fontSize: 9 }}>Ajustado</AppText> : null}
+                    {member[flag.key] !== null ? <AppText variant="label" color={colors.violet300} style={{ fontSize: 11, letterSpacing: 1 }}>Ajustado</AppText> : null}
                     <Switch
                       value={member.permissions[flag.perm]}
                       onValueChange={(value) => void run(() => api.updateMember(member.userId, { [flag.key]: value }))}
@@ -184,7 +186,7 @@ function InvitesSection({ invites, assignable, onChange }: { invites: Invite[]; 
               <AppText variant="small" color={colors.faint}>
                 {ROLE_LABEL[invite.role]} · {invite.uses}/{invite.maxUses ?? "∞"} usos{invite.expiresAt ? ` · até ${formatDateShort(invite.expiresAt)}` : ""}
               </AppText>
-              <AppText variant="label" color={status.color} style={{ fontSize: 10 }}>{status.text}</AppText>
+              <AppText variant="label" color={status.color} style={{ fontSize: 11, letterSpacing: 1 }}>{status.text}</AppText>
             </View>
             {active ? (
               <>

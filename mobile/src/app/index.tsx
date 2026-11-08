@@ -1,9 +1,9 @@
 import { AmbientGlow } from "@/components/ambient-glow";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useEnvironment } from "@/lib/environment";
@@ -14,16 +14,19 @@ import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "
 import { Icon } from "@/components/ui/icon";
 import { formatHandle } from "@/lib/format";
 import { colors, fonts, radius, space } from "@/theme/tokens";
-import { KeyboardScreen } from "@/components/keyboard-screen";
+import { Sheet } from "@/components/ui/sheet";
+import { enter as appear } from "@/theme/motion";
+import { useContainer } from "@/theme/layout";
 
-const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante" };
+const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor", GUEST: "Visitante", DEV: "Dev" };
 
 /** Central de ambientes: a primeira tela. Escolher um ambiente pede login quando ele exige. */
 export default function EnvironmentsScreen() {
   const insets = useSafeAreaInsets();
+  const container = useContainer("form");
   const { user, signOut, state } = useAuth();
   const { current, enter, exit, pending, setPending, lastEnvironmentId } = useEnvironment();
-  const [data, setData] = useState<{ mine: EnvironmentCard[]; open: EnvironmentCard[] } | null>(null);
+  const [data, setData] = useState<{ mine: EnvironmentCard[]; open: EnvironmentCard[]; dev?: EnvironmentCard[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
@@ -108,10 +111,10 @@ export default function EnvironmentsScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <AmbientGlow />
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xxxl, paddingHorizontal: space.lg }}
+        contentContainerStyle={[{ paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xxxl }, container]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
       >
-        <Animated.View entering={FadeIn.duration(500)} style={styles.brandRow}>
+        <Animated.View entering={appear.fade} style={styles.brandRow}>
           <NeuralBrain width={92} />
           <View style={{ flex: 1 }}>
             <AppText variant="label" color={colors.violet300}>Plataforma de ambientes</AppText>
@@ -166,6 +169,14 @@ export default function EnvironmentsScreen() {
                 ))}
               </Section>
             ) : null}
+
+            {data.dev?.length ? (
+              <Section title="Fechados · acesso de dev">
+                {data.dev.map((env, index) => (
+                  <EnvironmentTile key={env.id} env={env} index={index + data.mine.length + data.open.length} last={env.id === lastEnvironmentId} busy={opening === env.id} onPress={() => void open(env.id, env.name)} />
+                ))}
+              </Section>
+            ) : null}
           </>
         )}
 
@@ -210,7 +221,7 @@ function Section({ title, empty, children }: { title: string; empty?: string; ch
 
 function EnvironmentTile({ env, index, last, busy, onPress }: { env: EnvironmentCard; index: number; last: boolean; busy: boolean; onPress: () => void }) {
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 60).duration(380)}>
+    <Animated.View entering={appear.stagger(index)}>
       <Touchable accessibilityRole="button" accessibilityLabel={`Abrir ${env.name}`} onPress={onPress} disabled={busy} haptic style={[styles.tile, { borderColor: withAlpha(env.color, 0.28) }]}>
         <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: withAlpha(env.color, 0.06) }]} />
         <EnvironmentGlyph color={env.color} icon={env.icon} image={env.image} size={54} />
@@ -221,11 +232,11 @@ function EnvironmentTile({ env, index, last, busy, onPress }: { env: Environment
           </View>
           {env.description ? <AppText variant="small" color={colors.muted} numberOfLines={2}>{env.description}</AppText> : null}
           <View style={styles.meta}>
-            <View style={styles.rolePill}><AppText variant="label" color={colors.violet200} style={{ fontSize: 10 }}>{ROLE_LABEL[env.role] ?? env.role}</AppText></View>
+            <View style={styles.rolePill}><AppText variant="label" color={colors.violet200} style={{ fontSize: 11, letterSpacing: 1 }}>{ROLE_LABEL[env.role] ?? env.role}</AppText></View>
             <AppText variant="small" color={colors.faint}>
               {env.stats.posts} {env.stats.posts === 1 ? "pensamento" : "pensamentos"} · {env.stats.members} {env.stats.members === 1 ? "pessoa" : "pessoas"}
             </AppText>
-            {env.archivedAt ? <AppText variant="label" color={colors.warning} style={{ fontSize: 10 }}>Arquivado</AppText> : null}
+            {env.archivedAt ? <AppText variant="label" color={colors.warning} style={{ fontSize: 11, letterSpacing: 1 }}>Arquivado</AppText> : null}
           </View>
         </View>
         <View style={{ transform: [{ rotate: "180deg" }], opacity: busy ? 0.3 : 1 }}>
@@ -250,7 +261,6 @@ function AddEnvironmentSheet({
   onAccepted: (environmentId: string, name: string) => Promise<void>;
   onNeedLogin: (code: string, name: string) => void;
 }) {
-  const insets = useSafeAreaInsets();
   const [input, setInput] = useState("");
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [error, setError] = useState("");
@@ -294,11 +304,7 @@ function AddEnvironmentSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardScreen>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
-        <View style={styles.grabber} />
+    <Sheet visible={visible} onClose={onClose} keyboard style={styles.sheet}>
         <AppText variant="title">Adicionar ambiente</AppText>
         <AppText color={colors.muted} style={{ marginTop: space.xs }}>Cole o link ou digite o código que você recebeu.</AppText>
         <TextField
@@ -309,15 +315,20 @@ function AddEnvironmentSheet({
             setError("");
           }}
           placeholder="ABCD-EFGH ou https://…/convite/ABCD-EFGH"
+          accessibilityLabel="Código ou link do convite"
           autoCapitalize="characters"
           autoCorrect={false}
           returnKeyType="go"
           onSubmitEditing={() => void check()}
           containerStyle={{ marginTop: space.lg }}
         />
-        {error ? <AppText variant="small" color={colors.danger} style={{ marginTop: space.sm }}>{error}</AppText> : null}
+        {error ? (
+          <Animated.View entering={appear.fade} accessibilityLiveRegion="polite">
+            <AppText variant="small" color={colors.danger} style={{ marginTop: space.sm }}>{error}</AppText>
+          </Animated.View>
+        ) : null}
         {preview ? (
-          <Animated.View entering={FadeIn.duration(220)} style={[styles.preview, { borderColor: withAlpha(preview.environment.color, 0.4) }]}>
+          <Animated.View entering={appear.rise} style={[styles.preview, { borderColor: withAlpha(preview.environment.color, 0.4) }]}>
             <EnvironmentGlyph color={preview.environment.color} icon={preview.environment.icon} size={46} />
             <View style={{ flex: 1 }}>
               <AppText variant="heading">{preview.environment.name}</AppText>
@@ -333,14 +344,11 @@ function AddEnvironmentSheet({
           )}
           <Button label="Cancelar" variant="ghost" onPress={onClose} />
         </View>
-      </View>
-      </KeyboardScreen>
-    </Modal>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  glow: { position: "absolute", top: -160, left: -80, width: 420, height: 420, borderRadius: 210, backgroundColor: colors.violet950 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   account: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet900, borderWidth: 1, borderColor: colors.violet700 },
@@ -351,8 +359,6 @@ const styles = StyleSheet.create({
   meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: space.sm, marginTop: space.xs },
   rolePill: { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   actions: { marginTop: space.xxl, gap: space.sm },
-  backdrop: { flex: 1, backgroundColor: "rgba(5,4,9,0.6)" },
-  sheet: { width: "100%", maxWidth: 480, alignSelf: "center", padding: space.xl, paddingTop: space.md, borderTopLeftRadius: radius.xl + 6, borderTopRightRadius: radius.xl + 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.violet800 },
-  grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong, marginBottom: space.lg },
+  sheet: { paddingHorizontal: space.xl, backgroundColor: colors.surface, borderColor: colors.violet800 },
   preview: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.lg, padding: space.md, borderRadius: radius.lg, borderWidth: 1, backgroundColor: colors.bg },
 });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -7,10 +7,12 @@ import { useEnvironment } from "@/lib/environment";
 import type { FieldErrors } from "@/lib/types";
 import { AppText, Button, TextField } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 /** Criar conta. Depois de criada, a pessoa já entra e volta à central de ambientes. */
 export default function RegisterScreen() {
+  const container = useContainer("form");
   const { register } = useAuth();
   const { pending: intent } = useEnvironment();
   const [displayName, setDisplayName] = useState("");
@@ -44,7 +46,7 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardScreen header>
-      <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[{ padding: space.xl, gap: space.lg }, container]} keyboardShouldPersistTaps="handled">
         <View>
           <AppText variant="title">Sua conta no Minha Mente</AppText>
           <AppText color={colors.muted} style={{ marginTop: space.xs }}>

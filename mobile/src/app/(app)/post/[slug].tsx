@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { readingMinutes, stripMarkdown } from "@shared/text";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { formatDateLong, formatDateShort, formatNumber } from "@/lib/format";
@@ -9,12 +9,16 @@ import type { PostCard, PostFull } from "@/lib/types";
 import { Markdown } from "@/components/markdown/markdown";
 import { CategoryTag } from "@/components/post-card";
 import { ThoughtAssistant } from "@/components/thought-assistant";
-import { AppText, Divider, IconButton, SectionLabel, StateView, Touchable } from "@/components/ui/primitives";
+import { AppText, Divider, IconButton, SectionLabel, Skeleton, StateView, Touchable } from "@/components/ui/primitives";
+import { enter } from "@/theme/motion";
 import { colors, space } from "@/theme/tokens";
+import { useContainer, useLayout } from "@/theme/layout";
 
 export default function PostScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { api, environment } = useCurrentEnvironment();
+  const container = useContainer("reading");
+  const { size } = useLayout();
   const [canEdit, setCanEdit] = useState(false);
   const [post, setPost] = useState<PostFull | null>(null);
   const [related, setRelated] = useState<PostCard[]>([]);
@@ -51,20 +55,31 @@ export default function PostScreen() {
         }}
       />
       {!post ? (
-        <StateView loading={!error} error={error} onRetry={() => void load()} />
+        error ? (
+          <StateView error={error} onRetry={() => void load()} />
+        ) : (
+          // A forma do texto aparece antes dele: título, data e parágrafos.
+          <View style={[styles.content, container, { gap: space.md }]} accessibilityLabel="Carregando pensamento">
+            <Skeleton style={{ width: 32, height: 2 }} />
+            <Skeleton style={{ width: "86%", height: 34, marginTop: space.md }} />
+            <Skeleton style={{ width: 180, height: 12 }} />
+            <View style={{ height: space.lg }} />
+            {[100, 96, 92, 98, 64].map((w, i) => <Skeleton key={i} style={{ width: `${w}%`, height: 15 }} />)}
+          </View>
+        )
       ) : (
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, container]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
         >
-          <Animated.View entering={FadeIn.duration(300)}>
+          <Animated.View entering={enter.rise}>
             {primary ? <View style={[styles.rule, { backgroundColor: primary.color }]} /> : null}
             <View style={styles.meta}>
               {post.categories.map((category) => (
                 <CategoryTag key={category.id} category={category} onPress={() => router.push({ pathname: "/categoria/[slug]", params: { slug: category.slug } })} />
               ))}
             </View>
-            <AppText variant="display" style={styles.title}>{post.title}</AppText>
+            <AppText variant="display" accessibilityRole="header" style={[styles.title, size === "expanded" && styles.titleWide]}>{post.title}</AppText>
             <AppText variant="small" color={colors.muted}>
               {formatDateLong(post.publishedAt)} · {readingMinutes(post.content)} min de leitura
             </AppText>
@@ -98,5 +113,6 @@ const styles = StyleSheet.create({
   rule: { width: 32, height: 2, marginBottom: space.lg },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: space.lg },
   title: { marginTop: space.md, marginBottom: space.md, fontSize: 34, lineHeight: 40 },
+  titleWide: { fontSize: 44, lineHeight: 50, letterSpacing: -1 },
   related: { flexDirection: "row", alignItems: "baseline", gap: space.lg, paddingVertical: space.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
 });

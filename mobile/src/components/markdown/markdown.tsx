@@ -1,4 +1,5 @@
-import { Fragment, memo, useMemo, useState, type ReactNode } from "react";
+import { Fragment, memo, useEffect, useMemo, useState, type ReactNode } from "react";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -7,6 +8,8 @@ import { absoluteUrl } from "@/lib/config";
 import { AppText, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, fonts, radius, space, type } from "@/theme/tokens";
+import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
+import { enter, exit, layoutTransition, spring } from "@/theme/motion";
 import { splitDetails, type Segment } from "./details";
 
 /**
@@ -55,6 +58,7 @@ function parseImage(href: string) {
 
 function PostImage({ href, alt }: { href: string; alt: string }) {
   const [open, setOpen] = useState(false);
+  useDialogKeyboard(open, () => setOpen(false));
   const { width: screen } = useWindowDimensions();
   const image = parseImage(href);
   if (!image) return null;
@@ -253,20 +257,28 @@ function Table({ token }: { token: Tokens.Table }) {
 
 /* --------------------------- Blocos recolhíveis -------------------------- */
 
+/** Abre e fecha crescendo no lugar: a caixa muda de altura com transição e o + gira até virar ×. */
 function Details({ summary, body }: { summary: string; body: Segment[] }) {
   const [open, setOpen] = useState(false);
+  const turn = useSharedValue(0);
+  useEffect(() => {
+    turn.value = withSpring(open ? 1 : 0, spring.selection);
+  }, [open, turn]);
+  const icon = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value * 45}deg` }] }));
   return (
-    <View style={styles.details}>
-      <Touchable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((v) => !v)} style={styles.summary}>
+    <Animated.View layout={layoutTransition} style={styles.details}>
+      <Touchable accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={summary} onPress={() => setOpen((v) => !v)} pressScale={0.99} style={styles.summary}>
         <AppText variant="uiMedium" color={colors.violet200} style={{ flex: 1 }}>{summary}</AppText>
-        <AppText color={colors.violet300}>{open ? "−" : "+"}</AppText>
+        <Animated.View style={icon}>
+          <Icon name="plus" size={16} color={colors.violet300} />
+        </Animated.View>
       </Touchable>
       {open ? (
-        <View style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
+        <Animated.View entering={enter.rise} exiting={exit.fade} style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
           <SegmentList segments={body} />
-        </View>
+        </Animated.View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 

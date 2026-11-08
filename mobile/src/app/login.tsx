@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, useWindowDimensions, type TextInputInstance } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions, type TextInputInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
@@ -11,13 +11,15 @@ import { NeuralBrain } from "@/components/neural-brain";
 import { AppText, Button, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, fonts, radius, space } from "@/theme/tokens";
+import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 export default function LoginScreen() {
   const { signIn, state } = useAuth();
   const { pending: intent } = useEnvironment();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const container = useContainer("form");
   const passwordRef = useRef<TextInputInstance>(null);
 
   const [username, setUsername] = useState("");
@@ -45,14 +47,15 @@ export default function LoginScreen() {
     }
   }
 
-  const illustration = Math.min(width - space.xxl * 2, 340);
+  // Em telas baixas (celular deitado) a ilustração encolhe para o formulário caber.
+  const illustration = Math.max(120, Math.min(width - space.xxl * 2, 340, Math.round(height * 0.34)));
 
   return (
-    <KeyboardScreen style={{ backgroundColor: colors.bg }}>
+    <KeyboardScreen style={{ backgroundColor: colors.bg, overflow: "hidden" }}>
       <View pointerEvents="none" style={styles.glow} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }, container]}
       >
         <Animated.View entering={FadeIn.duration(900)} style={{ alignItems: "center" }}>
           <NeuralBrain width={illustration} />
@@ -100,7 +103,7 @@ export default function LoginScreen() {
               accessibilityRole="button"
               accessibilityLabel={showPassword ? "Ocultar senha" : "Mostrar senha"}
               onPress={() => setShowPassword((value) => !value)}
-              hitSlop={10}
+              hitSlop={6}
               style={styles.eye}
             >
               <Icon name="eye" size={20} color={showPassword ? colors.violet300 : colors.faint} />
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
   brand: { alignItems: "center", gap: space.sm, marginTop: space.lg },
   title: { textAlign: "center", marginTop: space.xs },
   form: { marginTop: space.xxl, gap: space.lg },
-  eye: { position: "absolute", right: 14, bottom: 15 },
+  eye: { position: "absolute", right: 4, bottom: 3, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   error: {
     borderWidth: 1,
     borderColor: "#5A2228",

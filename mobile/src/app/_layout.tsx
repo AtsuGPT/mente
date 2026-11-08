@@ -1,10 +1,11 @@
-import { useEffect } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { useEffect, type ReactNode } from "react";
+import { Platform } from "react-native";
 import { DarkTheme, Stack, ThemeProvider, type Theme } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 // Cada peso importado direto: importar da raiz do pacote embutiria todos os pesos.
 import { Newsreader_400Regular } from "@expo-google-fonts/newsreader/400Regular";
 import { Newsreader_400Regular_Italic } from "@expo-google-fonts/newsreader/400Regular_Italic";
@@ -17,6 +18,7 @@ import { EnvironmentProvider, useEnvironment } from "@/lib/environment";
 import { AppText, Button } from "@/components/ui/primitives";
 import { NeuralBrain } from "@/components/neural-brain";
 import { colors, fonts, space } from "@/theme/tokens";
+import { duration, enter } from "@/theme/motion";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -34,21 +36,21 @@ const theme: Theme = {
 };
 
 /**
- * Na web (minhamente.space/app) o app fica numa coluna com largura de celular no centro da
- * janela; esticado na tela inteira as proporções do layout ficavam erradas. No celular não muda nada.
+ * Na web o app ocupa a janela inteira; cada tela limita a própria largura de leitura
+ * (theme/layout.ts) e, em telas largas, as abas viram barra lateral. No celular não muda nada.
  */
-const WEB_MAX_WIDTH = 480;
 function WebFrame({ children }: { children: React.ReactNode }) {
   // O fundo da própria página também fica escuro (ao rolar além do fim e atrás dos modais).
   useEffect(() => {
-    if (Platform.OS === "web") document.body.style.backgroundColor = colors.bg;
+    if (Platform.OS !== "web") return;
+    document.body.style.backgroundColor = colors.bg;
+    // Foco visível ao navegar pelo teclado (o react-native-web remove o contorno padrão dos campos).
+    const style = document.createElement("style");
+    style.id = "mm-focus";
+    style.textContent = "input:focus-visible,textarea:focus-visible{outline:2px solid " + colors.violet400 + ";outline-offset:2px}";
+    if (!document.getElementById(style.id)) document.head.appendChild(style);
   }, []);
-  if (Platform.OS !== "web") return <>{children}</>;
-  return (
-    <View style={styles.webOuter}>
-      <View style={styles.webColumn}>{children}</View>
-    </View>
-  );
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -93,7 +95,22 @@ export const stackOptions = {
   headerBackButtonDisplayMode: "minimal" as const,
   contentStyle: { backgroundColor: colors.bg },
   animation: "slide_from_right" as const,
+  // Android: duração da transição de pilha dentro da faixa de navegação (iOS usa a nativa).
+  animationDuration: duration.navigation,
 };
+
+/**
+ * Web: cada página entra com um esmaecimento curto (o native-stack não anima na web e a
+ * troca era seca). No celular ficam as transições nativas, que já acompanham o gesto.
+ */
+export const screenLayout =
+  Platform.OS === "web"
+    ? ({ children }: { children: ReactNode }) => (
+        <Animated.View entering={enter.fade} style={{ flex: 1 }}>
+          {children}
+        </Animated.View>
+      )
+    : undefined;
 
 function RootStack() {
   const { state, retry } = useAuth();
@@ -101,27 +118,27 @@ function RootStack() {
 
   if (state.status === "loading") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}>
         <NeuralBrain width={200} />
-      </View>
+      </Animated.View>
     );
   }
 
   if (state.status === "offline") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: space.xxl }}>
+      <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: space.xxl }}>
         <NeuralBrain width={180} />
         <AppText variant="title" style={{ marginTop: space.xl, textAlign: "center" }}>Sem conexão</AppText>
         <AppText color={colors.muted} style={{ marginTop: space.sm, textAlign: "center" }}>{state.message}</AppText>
-        <Button label="Tentar de novo" onPress={() => void retry()} style={{ marginTop: space.xl, alignSelf: "stretch" }} />
-      </View>
+        <Button label="Tentar de novo" onPress={() => void retry()} style={{ marginTop: space.xl, alignSelf: "center", width: "100%", maxWidth: 360 }} />
+      </Animated.View>
     );
   }
 
   // Primeiro a central de ambientes; o grupo (app) só existe com um ambiente aberto.
   // Ao sair do ambiente, o grupo inteiro é desmontado: nada de um ambiente vaza para outro.
   return (
-    <Stack screenOptions={stackOptions}>
+    <Stack screenOptions={stackOptions} screenLayout={screenLayout}>
       <Stack.Screen name="index" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="login" options={{ headerShown: false, animation: "fade_from_bottom" }} />
       <Stack.Screen name="cadastro" options={{ title: "Criar conta" }} />
@@ -133,7 +150,3 @@ function RootStack() {
   );
 }
 
-const styles = StyleSheet.create({
-  webOuter: { flex: 1, alignItems: "center", backgroundColor: colors.bg },
-  webColumn: { flex: 1, width: "100%", maxWidth: WEB_MAX_WIDTH, overflow: "hidden", borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-});
