@@ -1,5 +1,6 @@
 import { Children, Fragment, useEffect, useState, type ReactNode } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, type Href } from "expo-router";
 import { useAuth } from "@/lib/auth";

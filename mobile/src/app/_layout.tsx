@@ -18,6 +18,7 @@ import { EnvironmentProvider, useEnvironment } from "@/lib/environment";
 import { AppText, Button } from "@/components/ui/primitives";
 import { NeuralBrain } from "@/components/neural-brain";
 import { ScreenBackdrop, ScreenFrame } from "@/components/ui/surface";
+import { AlertHost } from "@/components/ui/alert-host";
 import { colors, fonts, space } from "@/theme/tokens";
 import { duration, enter } from "@/theme/motion";
 
@@ -79,6 +80,7 @@ export default function RootLayout() {
             <StatusBar style="light" />
             <WebFrame>
               <RootStack />
+              <AlertHost />
             </WebFrame>
           </EnvironmentProvider>
         </AuthProvider>

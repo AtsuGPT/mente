@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import Animated from "react-native-reanimated";
@@ -133,6 +134,8 @@ export default function EnvironmentsScreen() {
               </View>
               <Touchable
                 accessibilityRole="button"
+                accessibilityLabel="Sair da conta"
+                hitSlop={6}
                 onPress={() => Alert.alert("Sair da conta?", "Você continuará vendo os ambientes abertos a visitantes.", [{ text: "Cancelar", style: "cancel" }, { text: "Sair", style: "destructive", onPress: () => void signOut() }])}
                 style={styles.accountAction}
               >

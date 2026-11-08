@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, FlatList, Platform, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { api } from "@/lib/api";

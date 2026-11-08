@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { contrastRatio, HEX_COLOR, readableAccent } from "@shared/color";
 import { slugify } from "@shared/slug";
 import { ApiError } from "@/lib/api";

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, RefreshControl, ScrollView, Share, StyleSheet, Switch, View } from "react-native";
+import { RefreshControl, ScrollView, Share, StyleSheet, Switch, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { formatDateShort, formatHandle } from "@/lib/format";
 import type { Invite, Member, MemberRole } from "@/lib/types";

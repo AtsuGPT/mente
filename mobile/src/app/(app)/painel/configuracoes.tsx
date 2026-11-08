@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { ApiError } from "@/lib/api";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { pickImage, uploadablePart } from "@/lib/upload";
