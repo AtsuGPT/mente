@@ -281,8 +281,15 @@ export function buildPrompt(input: {
     return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: input.message }, ...closing];
   }
   const material = materialBlock(input.posts, input.web ?? [], input.attachment ?? null, input.reviewText ?? null, true, documents, input.userName);
+  // Pergunta sobre o ambiente com material encontrado: a regra de orientação da identidade ficava longe do fim do
+  // prompt e o modelo de 4B quase não a seguia (2 de 40 respostas da v6 orientavam). Na calibração humana, "curto
+  // demais" foi a queixa mais comum em respostas certas. O lembrete vai por último, onde o qwen3 segue melhor.
+  if (input.mode === "chat" && (found || documents.length) && closing.length) closing[0].content += ` ${ORIENTATION_REMINDER}`;
   return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
 }
+
+const ORIENTATION_REMINDER =
+  "Depois de responder exatamente o que foi perguntado, feche com uma frase que ajude a pessoa a usar a informação: um detalhe útil do mesmo trecho (dia, formato, prazo, quem procurar) ou um próximo passo concreto. Nada de oferta genérica de ajuda, de repetir a resposta ou de avisar o que não encontrou.";
 
 /**
  * Histórico que cabe no contexto (8192 tokens): as mensagens mais recentes até o orçamento,
