@@ -288,7 +288,9 @@ export async function POST(request: Request, context: EnvContext) {
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
           // Servidor de testes (KALLY_EVAL=1): as métricas vão para qualquer conta, para a simulação separar falha de
           // busca de falha de interpretação. Fora dele, nada muda.
-          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || process.env.KALLY_EVAL === "1";
+          // Em produção, KALLY_EVAL_AMBIENTES (slugs separados por vírgula) liga as métricas só nos ambientes da simulação.
+          const evalEnvironment = process.env.KALLY_EVAL === "1" || (process.env.KALLY_EVAL_AMBIENTES ?? "").split(",").map((x) => x.trim()).includes(access.environment.slug);
+          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
           // Conversa comum com o mesmo teto dos outros modos: com 800, o código pedido pelo Rafael e a conta da Sônia
@@ -310,7 +312,7 @@ export async function POST(request: Request, context: EnvContext) {
               ...(stats ?? { model: modelName }),
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
-              ...(process.env.KALLY_EVAL === "1"
+              ...(evalEnvironment
                 ? { retrieval: { mode, competence, casual, skippedMemory: skipMemory, posts: posts.length, documents: documents.length, seconds: seconds(retrievalMs) } }
                 : {}),
               memory: await ollamaMemory(modelName),
