@@ -44,8 +44,12 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   const wantsMemory = /\b(meus?|minhas?|nossos?) (posts?|textos?|pensamentos?|ideias|rascunhos?|projetos?)\b|o que (eu )?(escrevi|publiquei|pensei)|\bno ambiente\b|\bnos (posts|pensamentos|textos)\b|\banalis|\brelacion|\bconect|\bresum/.test(m);
   // "revisão" sozinha é substantivo ("a revisão de literatura dele") e não pedido: a pergunta sobre os
   // artigos da revisão do Igor caía em Revisar sem texto e a Kally não buscava nada (simulação, rodada 1).
-  if (/\b(revis[ae] |revisar|corrij[ae]|corrigir|melhor[ae] (meu|este|esse) texto)|(faz|fa[cç]a|fazer) uma revisão/.test(m)) return { mode: "revisar", casual: false, wantsMemory: true };
-  if (/(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
+  if (/\b(revis[ae] |revisar|corrij[ae]|corrig[ei] |corrigir|melhor[ae] (meu|este|esse) texto)|(faz|fa[cç]a|fazer) uma revisão/.test(m)) return { mode: "revisar", casual: false, wantsMemory: true };
+  // Pergunta de informação que só menciona post ou publicar ("o que é preciso publicar no fim do ciclo?",
+  // "se a Kally me ajudou a escrever o post, tenho que avisar?") não é pedido de post: virava Idealizar e a
+  // Kally respondia com uma pergunta em vez da regra (simulação, rodada 1).
+  const infoQuestion = m.includes("?") && /(^|[\s,])(qu[ae]l|quais|qu?ando|quant[oa]s?|quem|onde|o que|tenho que|preciso|é preciso|posso|pode-se|se a kally|se eu)\b/.test(m) && !/\b(quero|queria|me ajud[ae]|escrev[ae] |cri[ae] |fa[zç]a? |monte|monta|transform)/.test(m);
+  if (!infoQuestion && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
