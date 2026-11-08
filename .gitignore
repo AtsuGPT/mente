@@ -41,3 +41,19 @@ __pycache__/
 /mobile/AGENTS.md
 /mobile/CLAUDE.md
 /mobile/.claude/
+/mobile/.agents/
+/mobile/skills-lock.json
+/.claude/
+/.cursor/
+/.cursorrules
+/.codex/
+/.gemini/
+/GEMINI.md
+/.windsurf/
+/.windsurfrules
+/.aider*
+/.mcp.json
+/.github/copilot-instructions.md
+
+# Notas de continuidade das sessões com assistentes (ficam só na máquina)
+/mobile/CONTINUIDADE.md

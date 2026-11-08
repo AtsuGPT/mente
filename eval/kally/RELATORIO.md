@@ -100,7 +100,7 @@ Em ordem de prioridade (qualidade, custo, velocidade, memória):
 
 ## Limitações
 
-- **Um avaliador só** (eu, Claude), que também escreveu os 30 exemplos de referência. As notas foram dadas às cegas e contra critérios escritos antes, mas convém conferir uma amostra. Sugestões: B4 (a viagem inventada), D1 (LGPD), A2 (API REST) e C2 (EAD).
+- **Um avaliador só**, o mesmo que escreveu os 30 exemplos de referência. As notas foram dadas às cegas e contra critérios escritos antes, mas convém conferir uma amostra. Sugestões: B4 (a viagem inventada), D1 (LGPD), A2 (API REST) e C2 (EAD).
 - **Amostra pequena:** 3 a 9 respostas por grupo. Diferenças menores que ~0,5 ponto não são conclusivas.
 - **Configuração da produção:** foi medida com as configurações novas do Ollama (camadas na placa, cache de contexto compacto) e com a busca por significado nova; os tempos da Kally de hoje são um pouco maiores.
 - **Cobertura:** casos longos em português, sem histórico de conversa e sem busca na internet.
