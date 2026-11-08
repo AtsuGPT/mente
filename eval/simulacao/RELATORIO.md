@@ -93,52 +93,64 @@ As versões:
 - **produção:** o código que roda hoje no app;
 - **v1** (`214a3f5`): regras de intenção, autoria, privacidade, teto de tokens, trechos de 600;
 - **v2** (`be2ebcd`): conversas salvas, corte de 0,40, autor citado, "você" nos documentos;
-- **v3** (`cdbd005`): a falta de informação não vira afirmação.
+- **v3** (`cdbd005`): a falta de informação não vira afirmação;
+- **v4** (`6ac4619`): pasta com peso 1 na busca, conversa com temperatura 0,2;
+- **v5** (`bb8b819`): a memória de posts divide por parágrafo.
 
-| Métrica | Produção | v1 | v2 | v3 |
-|---|---|---|---|---|
-| Nota média (0–5) | 2,50 | 3,60 | 4,17 | **4,22** |
-| Respostas 5/5 | 30% | 55% | 68% | **70%** |
-| Respostas 4 ou 5 | 40% | 60% | 80% | 78% |
-| Fatos completos | 29% | 77% | 97% | 94% |
-| Fonte certa recuperada | 42% | 77% | 97% | 97% |
-| Armadilhas: disse que não encontrou | 75% | 75% | 50% | 75% |
-| Erro factual (precisão ≤ 2) | 53% | 25% | 13% | **10%** |
-| Inventou | 10% | 5% | 8% | 5% |
+| Métrica | Produção | v1 | v2 | v3 | v4 | v5 |
+|---|---|---|---|---|---|---|
+| Nota média (0–5) | 2,50 | 3,60 | 4,17 | 4,22 | 4,30 | **4,40** |
+| Respostas 5/5 | 30% | 55% | 68% | 70% | 68% | **73%** |
+| Respostas 4 ou 5 | 40% | 60% | 80% | 78% | 83% | **88%** |
+| Fatos completos | 29% | 77% | 97% | 94% | 97% | 97% |
+| Fonte certa recuperada | 42% | 77% | 97% | 97% | 97% | 97% |
+| Armadilhas: disse que não encontrou | 75% | 75% | 50% | 75% | 75% | 75% |
+| Erro factual (precisão ≤ 2) | 53% | 25% | 13% | 10% | 8% | 10% |
+| Inventou | 10% | 5% | 8% | 5% | 5% | 5% |
 
 **A instância local reproduz a produção:** a versão produção teve 29% de fatos completos (produção real: 32%) e 42% de fonte certa (igual).
 
-**A v2 piorou as armadilhas.** Com a busca trazendo mais conteúdo, a Kally passou a afirmar a partir da ausência ("o ambiente é gratuito"). A v3 corrigiu isso sem perder o resto.
+**Ruído entre execuções.** A v3 rodou duas vezes, com a mesma versão e o mesmo conteúdo ([v3 × v3](resultados/ab-rodada-01-depois3-x-depois3r/relatorio.md)):
+- nota 4,22 × 4,25; 5/5 70% × 65%; fatos 94% × 97%; armadilhas 75% nas duas;
+- só 12 das 40 respostas saíram com texto idêntico, e 7 perguntas mudaram de nota.
 
-Com 5 armadilhas por prova, cada uma vale 20 pontos percentuais. Diferenças de 2 a 3 pontos entre v2 e v3 são ruído.
+Diferenças abaixo de ~0,1 na nota e de ~5 pontos percentuais nas porcentagens são ruído. Portanto:
+- os ganhos de produção → v1 → v2 são reais;
+- v3, v4 e v5 somam uma melhora pequena e contínua (4,17 → 4,40), mas cada passo isolado está no limite do ruído.
 
-**O que ainda falha na v3 (6 de 40 respostas abaixo de 4):**
-- **Post contaminado (2):** o post da Sônia publicado na rodada 1 com os dados privados dela continua sendo citado. Precisa ser editado.
-- **Limite do Diário (2):** a busca prefere um post *da* pasta Diário (a pasta conta 3 pontos na busca por palavras) ao guia que fala *sobre* o Diário.
-- **Coordenação inventada (1):** a Kally deduz que a "Coordenação do Treinamento" coordena o encontro por ser a autora do guia.
-- **Interpretação a mais (1):** na explicação do "pão do menino", acrescenta leituras que não estão na crônica.
-- **Voz:** uma resposta sobre o documento da própria Carla ainda mistura a primeira pessoa.
+**A v2 piorou as armadilhas.** Com a busca trazendo mais conteúdo, a Kally passou a afirmar a partir da ausência ("o ambiente é gratuito"). A v3 corrigiu isso, e o resultado se repetiu nas duas execuções.
 
-Relatórios: [produção × v1](resultados/ab-rodada-01-antes-x-depois/relatorio.md), [v1 × v2](resultados/ab-rodada-01-depois-x-depois2/relatorio.md) e [v2 × v3](resultados/ab-rodada-01-depois2-x-depois3/relatorio.md). Os nomes das pastas usam antes, depois, depois2 e depois3. Painel: [eval/painel.html](../painel.html).
+**v4 e v5:**
+- A v4 não teve efeito mensurável. A temperatura mais baixa não reduziu os acréscimos de interpretação.
+- A v5 corrigiu um bug real: os posts viravam uma linha só e eram cortados no meio das frases. Com isso, a Kally passou a corrigir a premissa falsa do Diário com o valor certo (1.500).
 
-## 6. Limites
+**O que ainda falha na v5 (5 de 40 respostas abaixo de 4):**
+- **Post contaminado (2):** os dados privados da Sônia aparecem porque o teste replica o conteúdo original da rodada 1. Em produção, o post já foi editado.
+- **Limite do Diário:** "qual o limite de caracteres no Diário?" deixa o guia com nota ~0,39, logo abaixo do filtro de 0,40.
+- **Coordenação inventada:** a Kally deduz que a "Coordenação do Treinamento" coordena o encontro por ser a autora do guia.
+- **Interpretação a mais:** na explicação do "pão do menino", acrescenta leituras e chama o pão de "biscoito".
+- **Voz:** uma resposta sobre o documento da própria Carla ainda sai em primeira pessoa.
 
-- **O servidor de produção ainda roda a versão antiga.** As correções valem na branch e foram medidas na instância local. Para valer no app, é preciso publicar a branch no servidor.
-- **CPU em vez de GPU:** na instância local, o modelo roda na CPU deste container. A qualidade é a mesma (mesmo modelo e quantização), mas os tempos não são os da GPU.
-- **Amostra pequena:** 40 perguntas por versão. Diferenças de uma ou duas perguntas são ruído. As diferenças grandes (fatos 29% → 77%) não são.
-- **Juiz único:** o juiz é um modelo, e falta revisar à mão uma amostra de ~20 notas.
-- **Dado contaminado:** o post da Sônia publicado na rodada 1 continua com os dados dela. As correções evitam novos posts assim, mas esse precisa ser editado.
-- **O modelo de 4B ainda erra conteúdo** (detalhes inventados em crônicas, erros jurídicos). Prompt e regras ajudam pouco nisso.
+Relatórios por par de versões: [produção × v1](resultados/ab-rodada-01-antes-x-depois/relatorio.md), [v1 × v2](resultados/ab-rodada-01-depois-x-depois2/relatorio.md), [v2 × v3](resultados/ab-rodada-01-depois2-x-depois3/relatorio.md), [v3 × v4](resultados/ab-rodada-01-depois3-x-depois4/relatorio.md) e [v4 × v5](resultados/ab-rodada-01-depois4-x-depois5/relatorio.md). Os nomes das pastas usam antes, depois, depois2 e assim por diante. Painel: [eval/painel.html](../painel.html).
 
-## 7. Próximos passos
+## 6. Calibração do juiz
 
-1. **Publicar a branch no servidor** e editar o post "Bolo de pote com sabor de pequi" (pela conta da Sônia ou da coordenação).
-2. **Rodada 2 em produção** ([rodadas/rodada-02.json](rodadas/rodada-02.json), já pronta):
-   - entram as 10 personas novas;
-   - 4 pedidos que falharam na rodada 1 são repetidos com o mesmo texto;
-   - a prova tem o mesmo núcleo, mais 10 novas e 5 armadilhas.
+Relatório: [resultados/calibracao/relatorio.md](resultados/calibracao/relatorio.md).
 
-   Antes, defina `REGISTER_MAX_PER_WINDOW` no servidor durante a criação das contas e rode `preparar` e depois `rodada 2`.
-3. **Rodadas 3 a 5:** o número de personas sobe até 100 (40, 70 e 100), sempre com o mesmo núcleo da prova.
-4. **Revisar à mão** ~20 notas do juiz para calibrá-lo.
+- **Consistência:** em respostas com o mesmo texto corrigidas em folhas diferentes (só correções independentes; as notas reaproveitadas entre folhas ficam de fora), a nota foi a mesma nos 37 pares. São quase sempre respostas simples, então isso mostra coerência, não validade.
+- **Concordância com a checagem objetiva:** em 94% das 186 respostas a perguntas com resposta na base, a nota de precisão do juiz bate com "os fatos do gabarito estão na resposta".
+- **Correção humana:** falta. As 20 respostas sorteadas, estratificadas pelas faixas de nota, estão na página "Calibração do juiz", para corrigir às cegas. A concordância com o juiz (exata, ±1 e kappa ponderado) sai de `calibrar-juiz.mjs comparar`.
 
+## 7. Limites
+
+- **O servidor de produção ainda roda a versão antiga.** A pasta "minha-mente" do seu computador não é oferecida a sessões na nuvem. O `publicar-servidor.ps1` faz a publicação na sua máquina.
+- **Amostra:** 40 perguntas por versão, com a margem de ruído medida acima. A rodada 2 e as seguintes trazem mais perguntas (100 no total, com 25 de núcleo fixo).
+- **CPU em vez de GPU:** a instância local roda na CPU deste container. A qualidade é a mesma (mesmo modelo e quantização), mas os tempos não são os da GPU.
+- **O modelo de 4B ainda erra conteúdo:** detalhes acrescentados em explicações e textos criativos, e erros jurídicos fora da base. Prompt e regras ajudam pouco nisso.
+
+## 8. Próximos passos
+
+1. **Publicar no servidor:** `powershell -ExecutionPolicy Bypass -File eval\simulacao\publicar-servidor.ps1` e reiniciar o servidor.
+2. **Calibração humana:** corrigir as 20 respostas da página.
+3. **Rodada 2 em produção:** `preparar` (cria as 10 contas novas) e `rodada 2`. Depois, `publicar-servidor.ps1 -FimDoCadastro`.
+4. **Rodadas 3 a 5:** roteiros e prova já gerados para 100 personas. A cada rodada, rodar `preparar` (só cria quem falta) e `rodada N`.
