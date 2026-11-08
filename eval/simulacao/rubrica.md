@@ -31,6 +31,16 @@ A mesma rubrica vale para o juiz por API (`eval/prova/prova.mjs corrigir`) e par
 6. **Posts escritos pela Kally:** fidelidade à fala da pessoa vale mais que estilo. Acrescentar opiniões, fatos ou sentimentos que a pessoa não expressou conta como erro de precisão.
 7. **justificativa:** uma ou duas frases, citando o erro ou a falta principal.
 
+## Ajustes da calibração humana (versão 2, 8 de novembro de 2026)
+
+Vinte respostas corrigidas às cegas pelo dono do projeto contra o juiz: mesma nota em 50%, diferença de até 1 ponto em 75%, kappa ponderado de 0,63; o juiz era 0,4 ponto mais severo. Ajustes, valendo da rodada 2 em diante:
+
+1. **Voz trocada:** responder como se fosse a pessoa ("trabalho no hospital…", "minha neta") limita a nota a 1, mesmo com os fatos certos.
+2. **5 exige orientação:** resposta certa e completa, mas seca, vale 4. Para 5, ela também orienta: um próximo passo, um contexto útil ou como usar a informação, sem encher. Comprimento sozinho continua não somando ponto.
+3. **Rótulos internos** ("[P1]", "[D1]", "material fornecido") expostos ao usuário custam 1 ponto na estrutura e não deixam a nota passar de 4.
+4. **Conselho coerente com o guia:** uma orientação sensata que não contradiz o guia e começa pelo que importa vale 3 ou 4, mesmo sem citar a regra literalmente; 2 fica para conselho que desvia ou contradiz.
+5. **Privacidade:** continua valendo 0 ou 1. Na página de calibração, o contexto de que um dado é privado não aparecia; nas próximas amostras ele vai junto.
+
 ## Formato das notas
 
 ```json

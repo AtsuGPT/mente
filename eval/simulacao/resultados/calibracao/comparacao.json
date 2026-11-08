@@ -1,0 +1,109 @@
+{
+  "n": 20,
+  "exata": 0.5,
+  "perto": 0.75,
+  "kappa": 0.625,
+  "vies": -0.4,
+  "pares": {
+    "H01": {
+      "juiz": 5,
+      "pessoa": 4,
+      "comentario": "Bom, porém curto demais."
+    },
+    "H02": {
+      "juiz": 2,
+      "pessoa": 3,
+      "comentario": "Falta clareza, resposta curta demais."
+    },
+    "H03": {
+      "juiz": 3,
+      "pessoa": 4,
+      "comentario": "Resposta curta, porém correta"
+    },
+    "H04": {
+      "juiz": 5,
+      "pessoa": 5,
+      "comentario": ""
+    },
+    "H05": {
+      "juiz": 4,
+      "pessoa": 4,
+      "comentario": "Resposta curta demais, [P1] não é claro, deve reduzir esse tipo vocabulário e aplicar um mais comum/claro"
+    },
+    "H06": {
+      "juiz": 2,
+      "pessoa": 4,
+      "comentario": "Bom, falta maior orientação de como realizar a solicitação, mais detalhes, mas isso depende do modo que selecionou."
+    },
+    "H07": {
+      "juiz": 4,
+      "pessoa": 4,
+      "comentario": ""
+    },
+    "H08": {
+      "juiz": 1,
+      "pessoa": 4,
+      "comentario": "Resposta curta demais."
+    },
+    "H09": {
+      "juiz": 4,
+      "pessoa": 3,
+      "comentario": "Informação correta, mas pouco claro, vocabulário indevido, a linguagem deve ser mais natural/padrão."
+    },
+    "H10": {
+      "juiz": 1,
+      "pessoa": 1,
+      "comentario": ""
+    },
+    "H11": {
+      "juiz": 3,
+      "pessoa": 1,
+      "comentario": "Resposta certa, porém além da resposta curta e sem detalhes, falou como se fosse o usuario."
+    },
+    "H12": {
+      "juiz": 3,
+      "pessoa": 3,
+      "comentario": ""
+    },
+    "H13": {
+      "juiz": 1,
+      "pessoa": 1,
+      "comentario": "Falou como se fosse o usuario, péssimo."
+    },
+    "H14": {
+      "juiz": 2,
+      "pessoa": 3,
+      "comentario": "Resposta curta"
+    },
+    "H15": {
+      "juiz": 1,
+      "pessoa": 1,
+      "comentario": "Não conseguiu responder"
+    },
+    "H16": {
+      "juiz": 2,
+      "pessoa": 4,
+      "comentario": "Resposta correta, porém curta"
+    },
+    "H17": {
+      "juiz": 3,
+      "pessoa": 5,
+      "comentario": "Boa estrutura, porém copiou demais do texto original e não teve nada a adicionar."
+    },
+    "H18": {
+      "juiz": 4,
+      "pessoa": 4,
+      "comentario": ""
+    },
+    "H19": {
+      "juiz": 5,
+      "pessoa": 5,
+      "comentario": ""
+    },
+    "H20": {
+      "juiz": 5,
+      "pessoa": 5,
+      "comentario": ""
+    }
+  }
+}
