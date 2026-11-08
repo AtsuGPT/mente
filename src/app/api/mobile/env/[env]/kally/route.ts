@@ -271,7 +271,9 @@ export async function POST(request: Request, context: EnvContext) {
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
-          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig;
+          // Servidor de testes (KALLY_EVAL=1): as métricas vão para qualquer conta, para a simulação separar falha de
+          // busca de falha de interpretação. Fora dele, nada muda.
+          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || process.env.KALLY_EVAL === "1";
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
           // Conversa comum com o mesmo teto dos outros modos: com 800, o código pedido pelo Rafael e a conta da Sônia
@@ -293,6 +295,9 @@ export async function POST(request: Request, context: EnvContext) {
               ...(stats ?? { model: modelName }),
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
+              ...(process.env.KALLY_EVAL === "1"
+                ? { retrieval: { mode, competence, casual, skippedMemory: skipMemory, posts: posts.length, documents: documents.length, seconds: seconds(retrievalMs) } }
+                : {}),
               memory: await ollamaMemory(modelName),
               ...(pipeline
                 ? {
