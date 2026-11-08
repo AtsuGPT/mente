@@ -150,7 +150,7 @@ export async function recall(
   const drafts = options.allDrafts ? { status: "DRAFT" as const } : draftAuthor ? { status: "DRAFT" as const, authorId: draftAuthor } : null;
   const posts = await db.post.findMany({
     where: { ...scopeFilter(scope), OR: [publiclyVisible(), ...(drafts ? [drafts] : [])] },
-    select: { id: true, title: true, slug: true, status: true, content: true, categories: { select: { id: true, name: true } } },
+    select: { id: true, title: true, slug: true, status: true, content: true, categories: { select: { id: true, name: true } }, author: { select: { displayName: true } } },
     orderBy: { publishedAt: "desc" },
     take: MAX_CANDIDATES,
   });
@@ -184,8 +184,12 @@ export async function recall(
     const title = normalize(post.title);
     const cats = normalize(post.categories.map((c) => c.name).join(" "));
     const text = normalize(post.content);
+    // Nome de quem escreveu pesa como o título: "o EP do Theo", "o estudo da Luíza". O nome não está no texto do
+    // post, e sem isso essas perguntas não passavam do filtro da conversa (simulação, rodada 1: post certo passando
+    // no filtro de 18/24 para 21/24, com o mesmo número de posts errados; eval/simulacao/analisar-busca.mjs).
+    const author = new Set(normalize(post.author?.displayName ?? "").match(/[\p{L}\p{N}]{3,}/gu) ?? []);
     let lexical = 0;
-    for (const term of words) lexical += (title.includes(term) ? 5 : 0) + (cats.includes(term) ? 3 : 0) + (text.includes(term) ? 1 : 0);
+    for (const term of words) lexical += (title.includes(term) ? 5 : 0) + (cats.includes(term) ? 3 : 0) + (text.includes(term) ? 1 : 0) + (author.has(term) ? 5 : 0);
     const sem = semantic.get(post.id);
     const meaning = sem && sem.score >= profile.min ? Math.min((sem.score - profile.floor) / profile.span, 1) : 0;
     // Com um modelo fraco em português (nomic), as palavras no título/pasta pesam mais (weight menor).
