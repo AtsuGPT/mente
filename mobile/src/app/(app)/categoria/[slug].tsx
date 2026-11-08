@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { readableAccent } from "@shared/color";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
@@ -35,7 +36,7 @@ export default function CategoryScreen() {
         ListHeaderComponent={
           category ? (
             <View style={{ marginBottom: space.md }}>
-              <View style={{ width: 32, height: 2, backgroundColor: category.color, marginBottom: space.md }} />
+              <LinearGradient colors={[category.color, `${category.color}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 96, height: 3, borderRadius: 2, marginBottom: space.md }} />
               <AppText variant="label" color={readableAccent(category.color)}>Pasta</AppText>
               <AppText variant="display" style={{ marginTop: space.xs }}>{category.name}</AppText>
               {category.description ? <AppText color={colors.muted} style={{ marginTop: space.sm }}>{category.description}</AppText> : null}

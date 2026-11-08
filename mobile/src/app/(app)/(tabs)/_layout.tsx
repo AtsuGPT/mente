@@ -1,8 +1,6 @@
 import { Tabs } from "expo-router/js-tabs";
-import { Easing } from "react-native";
 import { AppTabBar } from "@/components/tab-bar";
 import type { IconName } from "@/components/ui/icon";
-import { colors } from "@/theme/tokens";
 import { useLayout } from "@/theme/layout";
 
 const tabs: { name: string; title: string; icon: IconName }[] = [
@@ -26,10 +24,12 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarPosition: sidebar ? "left" : "bottom",
-        // Troca de aba: esmaecimento curto com desaceleração (as telas já estão montadas).
-        animation: "fade",
-        transitionSpec: { animation: "timing", config: { duration: 200, easing: Easing.bezier(0.2, 0, 0, 1) } },
-        sceneStyle: { backgroundColor: colors.bg },
+        // Troca de aba: a nova tela desliza um pouco e acende, com mola firme (sem rebote),
+        // e a anterior recua no sentido oposto. As telas continuam montadas (estado preservado).
+        animation: "shift",
+        transitionSpec: { animation: "spring", config: { stiffness: 700, damping: 72, mass: 1, overshootClamping: true } },
+        // Cenas transparentes: a moldura (gradiente e aurora) fica por baixo de todas as abas.
+        sceneStyle: { backgroundColor: "transparent" },
       }}
     >
       {tabs.map((tab) => (

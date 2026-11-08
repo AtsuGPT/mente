@@ -2,12 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import { GestureDetector, GestureHandlerRootView, usePanGesture } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
 import { useLayout } from "@/theme/layout";
 import { spring, timing } from "@/theme/motion";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, gradients, radius, space } from "@/theme/tokens";
 
 /**
  * Folha (celular) ou diálogo centralizado (telas largas), com o mesmo comportamento em
@@ -111,6 +112,8 @@ export function Sheet({
         surface,
       ]}
     >
+      <LinearGradient pointerEvents="none" colors={gradients.surfaceRaised} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={["rgba(199,183,250,0)", "rgba(199,183,250,0.45)", "rgba(199,183,250,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sheen} />
       {dialog ? null : (
         <GestureDetector gesture={pan}>
           <View style={styles.handleArea} accessibilityLabel="Arraste para baixo para fechar">
@@ -145,8 +148,9 @@ const styles = StyleSheet.create({
   frame: { flex: 1 },
   frameSheet: { justifyContent: "flex-end", alignItems: "center" },
   frameDialog: { justifyContent: "center", alignItems: "center", padding: space.xl },
-  backdrop: { backgroundColor: "rgba(4,3,8,0.66)" },
-  surface: { backgroundColor: colors.bg, borderColor: colors.line, padding: space.lg, paddingTop: space.sm, overflow: "hidden" },
+  backdrop: { backgroundColor: "rgba(6,2,16,0.7)" },
+  surface: { backgroundColor: colors.surfaceRaised, borderColor: colors.lineStrong, padding: space.lg, paddingTop: space.sm, overflow: "hidden" },
+  sheen: { position: "absolute", left: 0, right: 0, top: 0, height: 1 },
   handleArea: { alignSelf: "stretch", alignItems: "center", paddingVertical: space.sm, marginTop: -space.xs, marginBottom: space.xs },
-  grabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong },
+  grabber: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.violet700 },
 });

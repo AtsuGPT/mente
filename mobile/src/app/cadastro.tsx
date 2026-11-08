@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useEnvironment } from "@/lib/environment";
 import type { FieldErrors } from "@/lib/types";
 import { AppText, Button, TextField } from "@/components/ui/primitives";
+import { Surface } from "@/components/ui/surface";
 import { colors, space } from "@/theme/tokens";
 import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
@@ -48,11 +49,12 @@ export default function RegisterScreen() {
     <KeyboardScreen header>
       <ScrollView contentContainerStyle={[{ padding: space.xl, gap: space.lg }, container]} keyboardShouldPersistTaps="handled">
         <View>
-          <AppText variant="title">Sua conta no Minha Mente</AppText>
+          <AppText variant="hero">Sua conta no Minha Mente</AppText>
           <AppText color={colors.muted} style={{ marginTop: space.xs }}>
             {intent ? `Depois de criar, continuamos para ${intent.name}.` : "Com uma conta você cria ambientes e aceita convites."}
           </AppText>
         </View>
+        <Surface elevated contentStyle={{ padding: space.xl, gap: space.lg }}>
         <TextField label="Como quer ser chamado" value={displayName} onChangeText={setDisplayName} error={err("displayName")} maxLength={60} autoComplete="name" />
         <TextField
           label="Nome de usuário"
@@ -69,6 +71,7 @@ export default function RegisterScreen() {
         <TextField label="Repita a senha" value={confirm} onChangeText={setConfirm} error={err("confirm")} secureTextEntry autoComplete="new-password" maxLength={1024} onSubmitEditing={() => void submit()} />
         {message && !Object.keys(errors).length ? <AppText variant="small" color={colors.danger}>{message}</AppText> : null}
         <Button label="Criar conta" icon="check" loading={busy} onPress={() => void submit()} />
+        </Surface>
       </ScrollView>
     </KeyboardScreen>
   );

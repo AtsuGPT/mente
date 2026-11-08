@@ -11,7 +11,8 @@ import { CategoryTag } from "@/components/post-card";
 import { ThoughtAssistant } from "@/components/thought-assistant";
 import { AppText, Divider, IconButton, SectionLabel, Skeleton, StateView, Touchable } from "@/components/ui/primitives";
 import { enter } from "@/theme/motion";
-import { colors, space } from "@/theme/tokens";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors, radius, space } from "@/theme/tokens";
 import { useContainer, useLayout } from "@/theme/layout";
 
 export default function PostScreen() {
@@ -73,7 +74,7 @@ export default function PostScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
         >
           <Animated.View entering={enter.rise}>
-            {primary ? <View style={[styles.rule, { backgroundColor: primary.color }]} /> : null}
+            {primary ? <LinearGradient colors={[primary.color, `${primary.color}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rule} /> : null}
             <View style={styles.meta}>
               {post.categories.map((category) => (
                 <CategoryTag key={category.id} category={category} onPress={() => router.push({ pathname: "/categoria/[slug]", params: { slug: category.slug } })} />
@@ -110,9 +111,9 @@ export default function PostScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: space.xl, paddingBottom: space.xxxl * 2 },
-  rule: { width: 32, height: 2, marginBottom: space.lg },
+  rule: { width: 96, height: 3, borderRadius: radius.pill, marginBottom: space.lg },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: space.lg },
   title: { marginTop: space.md, marginBottom: space.md, fontSize: 34, lineHeight: 40 },
   titleWide: { fontSize: 44, lineHeight: 50, letterSpacing: -1 },
-  related: { flexDirection: "row", alignItems: "baseline", gap: space.lg, paddingVertical: space.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  related: { flexDirection: "row", alignItems: "baseline", gap: space.lg, padding: space.lg, marginTop: space.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
 });

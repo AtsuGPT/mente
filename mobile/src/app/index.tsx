@@ -1,4 +1,3 @@
-import { AmbientGlow } from "@/components/ambient-glow";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,8 +11,9 @@ import { EnvironmentGlyph, withAlpha } from "@/components/environment-glyph";
 import { NeuralBrain } from "@/components/neural-brain";
 import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
+import { LinearGradient } from "expo-linear-gradient";
 import { formatHandle } from "@/lib/format";
-import { colors, fonts, radius, space } from "@/theme/tokens";
+import { colors, elevation, fonts, radius, space } from "@/theme/tokens";
 import { Sheet } from "@/components/ui/sheet";
 import { enter as appear } from "@/theme/motion";
 import { useContainer } from "@/theme/layout";
@@ -108,18 +108,17 @@ export default function EnvironmentsScreen() {
   const notice = state.status === "ready" ? state.notice : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <AmbientGlow />
+    <View style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={[{ paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xxxl }, container]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
       >
         <Animated.View entering={appear.fade} style={styles.brandRow}>
-          <NeuralBrain width={92} />
+          <NeuralBrain width={118} />
           <View style={{ flex: 1 }}>
             <AppText variant="label" color={colors.violet300}>Plataforma de ambientes</AppText>
-            <AppText variant="title" style={{ marginTop: 2 }}>
-              Minha <AppText variant="title" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
+            <AppText variant="hero" style={{ marginTop: 2 }}>
+              Minha <AppText variant="hero" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
             </AppText>
           </View>
         </Animated.View>
@@ -223,7 +222,7 @@ function EnvironmentTile({ env, index, last, busy, onPress }: { env: Environment
   return (
     <Animated.View entering={appear.stagger(index)}>
       <Touchable accessibilityRole="button" accessibilityLabel={`Abrir ${env.name}`} onPress={onPress} disabled={busy} haptic style={[styles.tile, { borderColor: withAlpha(env.color, 0.28) }]}>
-        <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: withAlpha(env.color, 0.06) }]} />
+        <LinearGradient pointerEvents="none" colors={[withAlpha(env.color, 0.26), withAlpha(env.color, 0.02)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} style={styles.tileWash} />
         <EnvironmentGlyph color={env.color} icon={env.icon} image={env.image} size={54} />
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
@@ -350,15 +349,15 @@ function AddEnvironmentSheet({
 
 const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", gap: space.md },
-  account: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet900, borderWidth: 1, borderColor: colors.violet700 },
+  account: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.card },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet700, borderWidth: 1, borderColor: colors.violet400 },
   accountAction: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.md },
-  tile: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, paddingVertical: space.lg, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.surface, overflow: "hidden" },
-  tileWash: { ...StyleSheet.absoluteFill },
+  tile: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, paddingVertical: space.lg + 2, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.glass, ...elevation.card },
+  tileWash: { ...StyleSheet.absoluteFill, borderRadius: radius.xl - 1 },
   lastDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.violet400 },
   meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: space.sm, marginTop: space.xs },
   rolePill: { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   actions: { marginTop: space.xxl, gap: space.sm },
-  sheet: { paddingHorizontal: space.xl, backgroundColor: colors.surface, borderColor: colors.violet800 },
-  preview: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.lg, padding: space.md, borderRadius: radius.lg, borderWidth: 1, backgroundColor: colors.bg },
+  sheet: { paddingHorizontal: space.xl, backgroundColor: colors.glass, borderColor: colors.violet800 },
+  preview: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.lg, padding: space.md, borderRadius: radius.lg, borderWidth: 1, backgroundColor: colors.surfaceRaised },
 });

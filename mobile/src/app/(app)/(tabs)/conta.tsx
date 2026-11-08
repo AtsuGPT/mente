@@ -10,7 +10,7 @@ import { EnvironmentHeader, goToEnvironments } from "@/components/environment-he
 import { AppText, Button, SectionLabel, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { formatHandle } from "@/lib/format";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, elevation, radius, space } from "@/theme/tokens";
 import { useContainer } from "@/theme/layout";
 
 const ROLE_HINT: Record<string, string> = {
@@ -70,7 +70,7 @@ export default function EnvironmentTab() {
   }
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[{ padding: space.lg, paddingTop: insets.top + space.md, paddingBottom: space.xxxl, gap: space.xl }, container]}>
+    <ScrollView contentContainerStyle={[{ padding: space.lg, paddingTop: insets.top + space.md, paddingBottom: space.xxxl, gap: space.xl }, container]}>
       <EnvironmentHeader title="Ambiente" />
 
       <View style={styles.card}>
@@ -139,7 +139,7 @@ export default function EnvironmentTab() {
 }
 
 const styles = StyleSheet.create({
-  card: { padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, gap: space.xs },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  rowIcon: { width: 36, height: 36, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet900 },
+  card: { padding: space.lg, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, gap: space.xs, ...elevation.card },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, paddingVertical: space.md + 2, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, ...elevation.card },
+  rowIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet800, borderWidth: 1, borderColor: colors.violet600 },
 });

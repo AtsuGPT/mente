@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ComponentProps, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { DarkTheme, Stack, ThemeProvider, type Theme } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { EnvironmentProvider, useEnvironment } from "@/lib/environment";
 import { AppText, Button } from "@/components/ui/primitives";
 import { NeuralBrain } from "@/components/neural-brain";
+import { ScreenBackdrop, ScreenFrame } from "@/components/ui/surface";
 import { colors, fonts, space } from "@/theme/tokens";
 import { duration, enter } from "@/theme/motion";
 
@@ -88,29 +89,26 @@ export default function RootLayout() {
 
 /** Opções comuns das pilhas de navegação (raiz e dentro do ambiente). */
 export const stackOptions = {
-  headerStyle: { backgroundColor: colors.bg },
+  // O cabeçalho tem a cor do topo do fundo das telas: os dois parecem uma superfície só.
+  headerStyle: { backgroundColor: colors.bgTop },
   headerTintColor: colors.violet300,
   headerTitleStyle: { fontFamily: fonts.sansSemibold, color: colors.text, fontSize: 16 },
   headerShadowVisible: false,
   headerBackButtonDisplayMode: "minimal" as const,
   contentStyle: { backgroundColor: colors.bg },
+  headerTitleAlign: "center" as const,
   animation: "slide_from_right" as const,
   // Android: duração da transição de pilha dentro da faixa de navegação (iOS usa a nativa).
   animationDuration: duration.navigation,
 };
 
 /**
- * Web: cada página entra com um esmaecimento curto (o native-stack não anima na web e a
- * troca era seca). No celular ficam as transições nativas, que já acompanham o gesto.
+ * Toda tela das pilhas é desenhada sobre a moldura do novo visual (gradiente, aurora e
+ * vinheta), opaca, para que nenhuma tela fique com o fundo antigo e as transições nativas
+ * não mostrem a tela de baixo. Na web, a página ainda entra com um esmaecimento curto.
  */
-export const screenLayout =
-  Platform.OS === "web"
-    ? ({ children }: { children: ReactNode }) => (
-        <Animated.View entering={enter.fade} style={{ flex: 1 }}>
-          {children}
-        </Animated.View>
-      )
-    : undefined;
+export const screenLayout = ({ children, navigation, route }: { children: ReactNode; navigation: ComponentProps<typeof ScreenFrame>["navigation"]; route: { name: string } }) =>
+  route.name === "(app)" ? <>{children}</> : <ScreenFrame navigation={navigation}>{children}</ScreenFrame>;
 
 function RootStack() {
   const { state, retry } = useAuth();
@@ -119,6 +117,7 @@ function RootStack() {
   if (state.status === "loading") {
     return (
       <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}>
+        <ScreenBackdrop />
         <NeuralBrain width={200} />
       </Animated.View>
     );
@@ -127,6 +126,7 @@ function RootStack() {
   if (state.status === "offline") {
     return (
       <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: space.xxl }}>
+        <ScreenBackdrop />
         <NeuralBrain width={180} />
         <AppText variant="title" style={{ marginTop: space.xl, textAlign: "center" }}>Sem conexão</AppText>
         <AppText color={colors.muted} style={{ marginTop: space.sm, textAlign: "center" }}>{state.message}</AppText>

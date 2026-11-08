@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
@@ -16,16 +16,17 @@ import { pickImage, uploadablePart } from "@/lib/upload";
 import { getItem, setItem } from "@/lib/secure-storage";
 import type { KallyAttachment, KallyConversation, KallyImage, KallyMode, KallyReview, KallySource } from "@/lib/types";
 import { Markdown } from "@/components/markdown/markdown";
-import { EnvironmentHeader } from "@/components/environment-header";
+import { EnvironmentHeader, goToEnvironments, ROLE_LABEL } from "@/components/environment-header";
 import { VoiceButton } from "@/components/voice-button";
-import { AmbientGlow } from "@/components/ambient-glow";
 import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { colors, radius, space, type } from "@/theme/tokens";
+import { colors, elevation, gradients, radius, space, type } from "@/theme/tokens";
 import { KeyboardScreen } from "@/components/keyboard-screen";
-import { KallyOrb, useKallyActivity, type KallyOrbState } from "@/components/kally-orb";
+import { KallyOrbital, useKallyActivity, type KallyOrbitalState } from "@/components/kally/orbital";
+import { LinearGradient } from "expo-linear-gradient";
+import { Surface } from "@/components/ui/surface";
 import { Sheet } from "@/components/ui/sheet";
-import { enter, exit, layoutTransition, timing } from "@/theme/motion";
+import { enter, exit, layoutTransition, spring, timing } from "@/theme/motion";
 import { maxWidths, useContainer, useLayout } from "@/theme/layout";
 
 /**
@@ -116,9 +117,13 @@ export default function KallyScreen() {
   const container = useContainer("form");
   if (user) return <Kally />;
   return (
-    <View style={[{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + space.lg, paddingBottom: space.xl }, container]}>
+    <View style={[{ flex: 1, paddingTop: insets.top + space.lg, paddingBottom: space.xl }, container]}>
       <EnvironmentHeader title="Kally" />
-      <StateView empty="Entre com sua conta para conversar com a Kally." />
+      <View style={styles.guest}>
+        <KallyOrbital size={168} state="idle" interactive announce />
+        <AppText variant="hero" style={{ textAlign: "center" }}>Converse com a Kally</AppText>
+        <AppText color={colors.muted} style={{ textAlign: "center", maxWidth: 320 }}>Entre com sua conta para conversar com a Kally.</AppText>
+      </View>
       <Button label="Entrar" onPress={() => router.push("/login")} />
     </View>
   );
@@ -128,7 +133,7 @@ function Kally() {
   const insets = useSafeAreaInsets();
   const { gutter } = useLayout();
   const column = { flex: 1, width: "100%" as const, maxWidth: maxWidths.content + gutter * 2, alignSelf: "center" as const };
-  const { api, environment, permissions } = useCurrentEnvironment();
+  const { api, environment, permissions, role } = useCurrentEnvironment();
   const [mode, setMode] = useState<KallyMode>("auto");
   const [modeMenu, setModeMenu] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -163,6 +168,13 @@ function Kally() {
   const list = useAnimatedRef<FlatList<Message>>();
   const attachSeq = useRef(0);
   const { activity, kick } = useKallyActivity();
+  // Voz: nível real do microfone (0–1) alimenta a órbita no estado "escutando".
+  const voiceLevel = useSharedValue(0);
+  const [listening, setListening] = useState(false);
+  const onVoiceLevel = useCallback((value: number) => {
+    voiceLevel.value = withTiming(value, { duration: 90 });
+  }, [voiceLevel]);
+  const composerFocus = useSharedValue(0);
 
   // Rolagem previsível: a conversa só acompanha o fim se a pessoa já está nele; quem subiu
   // para reler não é puxado de volta a cada pedaço de texto.
@@ -452,23 +464,30 @@ function Kally() {
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
   const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} />, [loading, messages.length]);
   const lastMessage = messages[messages.length - 1];
-  // Estado real da geração: preparando (sem texto ainda), respondendo (texto chegando) ou pronta.
-  const orbState: KallyOrbState = loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "speaking" : "thinking") : attachment?.status === "processing" ? "thinking" : "idle";
+  // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
+  // chegando), falha na última resposta, ou pronta.
+  const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
+  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
   const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
-    <KeyboardScreen style={{ backgroundColor: colors.bg }} insetMirror={keyboardInset}>
-      <AmbientGlow intensity={0.55} />
+    <KeyboardScreen insetMirror={keyboardInset}>
       <View style={column}>
-      <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
-        <View style={{ flex: 1 }}>
-          <EnvironmentHeader title={devOn ? "Kally · dev" : "Kally"} subtitle={readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente"} />
-        </View>
+      <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         {started ? (
-          <Animated.View entering={enter.fade} exiting={exit.fade} style={styles.headerOrb}>
-            <KallyOrb size={34} state={orbState} activity={activity} announce />
+          <Animated.View entering={enter.fade} exiting={exit.fade}>
+            <KallyOrbital size={48} state={orbState} activity={activity} level={voiceLevel} interactive announce />
           </Animated.View>
         ) : null}
+        <Animated.View layout={layoutTransition} style={{ flex: 1 }}>
+          <Touchable onPress={goToEnvironments} pressScale={0.98} accessibilityRole="button" accessibilityLabel={`Trocar de ambiente (atual: ${environment.name})`} style={styles.envLink}>
+            <AppText variant="label" color={colors.violet300} numberOfLines={1} style={{ flexShrink: 1 }}>{environment.name}</AppText>
+            <AppText variant="label" color={colors.faint} numberOfLines={1}>· {ROLE_LABEL[role] ?? role}</AppText>
+            <Icon name="swap" size={12} color={colors.violet300} />
+          </Touchable>
+          <AppText variant="title" style={styles.headerTitle}>{devOn ? "Kally · dev" : "Kally"}</AppText>
+          <AppText variant="small" color={colors.faint} numberOfLines={1}>{subtitle}</AppText>
+        </Animated.View>
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
         {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
@@ -505,17 +524,19 @@ function Kally() {
         windowSize={9}
         ListEmptyComponent={
           <Animated.View entering={enter.rise} exiting={exit.fade} style={styles.empty}>
-            <KallyOrb size={76} state={orbState} activity={activity} announce />
-            <AppText variant="title" style={{ textAlign: "center", marginTop: space.md }}>Oi! Sobre o que vamos conversar?</AppText>
+            <KallyOrbital size={156} state={orbState} activity={activity} level={voiceLevel} interactive announce />
+            <AppText variant="hero" style={{ textAlign: "center", marginTop: space.lg }}>Oi! Sobre o que{"\n"}vamos conversar?</AppText>
             <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
               Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.
             </AppText>
-            <Touchable onPress={() => setSave((v) => !v)} style={styles.saveToggle} accessibilityRole="switch" accessibilityState={{ checked: save }}>
-              <View style={[styles.check, save && styles.checkOn]}>{save ? <Icon name="check" size={14} color="#FFFFFF" strokeWidth={2.4} /> : null}</View>
-              <View style={{ flex: 1 }}>
-                <AppText variant="uiMedium">Salvar esta conversa</AppText>
-                <AppText variant="small" color={colors.faint}>{save ? "Fica no seu histórico deste ambiente (só você vê)." : "Temporária: nada fica guardado quando você sair."}</AppText>
-              </View>
+            <Touchable onPress={() => setSave((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: save }} aria-checked={save} pressScale={0.98} style={{ alignSelf: "stretch", marginTop: space.xl }}>
+              <Surface active={save} contentStyle={styles.saveToggle}>
+                <View style={[styles.check, save && styles.checkOn]}>{save ? <Icon name="check" size={14} color="#FFFFFF" strokeWidth={2.4} /> : null}</View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="uiMedium">Salvar esta conversa</AppText>
+                  <AppText variant="small" color={colors.faint}>{save ? "Fica no seu histórico deste ambiente (só você vê)." : "Temporária: nada fica guardado quando você sair."}</AppText>
+                </View>
+              </Surface>
             </Touchable>
           </Animated.View>
         }
@@ -592,42 +613,52 @@ function Kally() {
         </View>
       ) : (
       <>
-      <View style={styles.tools}>
-        <Touchable onPress={() => setModeMenu(true)} style={[styles.tool, mode !== "auto" && styles.toolOn]} accessibilityLabel={`Modo: ${current.label}. Tocar para trocar`}>
-          <Icon name={current.icon} size={14} color={mode !== "auto" ? colors.violet200 : colors.muted} />
-          <AppText variant="small" color={mode !== "auto" ? colors.violet200 : colors.muted}>{current.label} ▾</AppText>
-        </Touchable>
-        <Touchable onPress={() => setWeb((v) => !v)} style={[styles.tool, web && styles.toolOn]} accessibilityRole="switch" accessibilityState={{ checked: web }} accessibilityLabel="Permitir pesquisa na internet">
-          <Icon name="globe" size={14} color={web ? colors.violet200 : colors.muted} />
-          <AppText variant="small" color={web ? colors.violet200 : colors.muted}>Web</AppText>
-        </Touchable>
-        <Touchable onPress={attach} disabled={attachment?.status === "processing"} style={styles.tool} accessibilityLabel="Anexar arquivo">
-          <Icon name="clip" size={14} color={colors.muted} />
-          <AppText variant="small" color={colors.muted}>Anexo</AppText>
-        </Touchable>
-      </View>
-
-      <View style={[styles.composer, { paddingBottom: space.md }]}>
-        <VoiceButton
-          transcribe={api.transcribe}
-          disabled={loading || !permissions.publish}
-          onText={(text) => {
-            setDraft((value) => (value.trim() ? `${value.trim()}\n\n${text}` : text));
-            setTranscribed(true);
-          }}
-        />
+      <View style={styles.composerWrap}>
+      <ComposerFrame focus={composerFocus}>
         <TextInput
           value={draft}
           onChangeText={setDraft}
+          onFocus={() => {
+            composerFocus.value = withTiming(1, timing.micro);
+          }}
+          onBlur={() => {
+            composerFocus.value = withTiming(0, timing.short);
+          }}
           placeholder={mode === "revisar" ? (reviewTarget ? "Algum foco? (opcional)" : "Cole o texto para revisar…") : mode === "ideia" ? "Conte sua ideia…" : mode === "aprender" ? "O que você quer aprender?" : permissions.publish ? "Fale com a Kally… (/post cria um post)" : "Fale com a Kally…"}
           placeholderTextColor={colors.faint}
           selectionColor={colors.violet400}
           maxLength={mode === "revisar" ? 4000 : 4000}
           multiline
           accessibilityLabel="Mensagem para a Kally"
-          style={styles.input}
+          style={styles.composerInput}
         />
-        <SendButton disabled={sendDisabled} busy={loading || queued !== null} onPress={() => void send(draft)} />
+        <View style={styles.composerBar}>
+          <Touchable onPress={attach} disabled={attachment?.status === "processing"} accessibilityLabel="Anexar arquivo" pressScale={0.9} style={styles.roundTool}>
+            <Icon name="clip" size={17} color={colors.violet300} />
+          </Touchable>
+          <Touchable onPress={() => setModeMenu(true)} style={[styles.tool, styles.toolShrink, mode !== "auto" && styles.toolOn]} accessibilityLabel={`Modo: ${current.label}. Tocar para trocar`} pressScale={0.95}>
+            <Icon name={current.icon} size={14} color={mode !== "auto" ? "#FFFFFF" : colors.muted} />
+            <AppText variant="small" numberOfLines={1} color={mode !== "auto" ? "#FFFFFF" : colors.muted} style={{ flexShrink: 1 }}>{current.label}</AppText>
+            <AppText variant="small" color={mode !== "auto" ? "#FFFFFF" : colors.muted}>▾</AppText>
+          </Touchable>
+          <Touchable onPress={() => setWeb((v) => !v)} style={[styles.tool, web && styles.toolOn]} accessibilityRole="switch" accessibilityState={{ checked: web }} aria-checked={web} accessibilityLabel="Permitir pesquisa na internet" pressScale={0.95}>
+            <Icon name="globe" size={14} color={web ? "#FFFFFF" : colors.muted} />
+            <AppText variant="small" color={web ? "#FFFFFF" : colors.muted}>Web</AppText>
+          </Touchable>
+          <View style={{ flex: 1 }} />
+          <VoiceButton
+            transcribe={api.transcribe}
+            disabled={loading || !permissions.publish}
+            onLevel={onVoiceLevel}
+            onRecordingChange={setListening}
+            onText={(text) => {
+              setDraft((value) => (value.trim() ? `${value.trim()}\n\n${text}` : text));
+              setTranscribed(true);
+            }}
+          />
+          <SendButton disabled={sendDisabled} busy={loading || queued !== null} onPress={() => void send(draft)} />
+        </View>
+      </ComposerFrame>
       </View>
       </>
       )}
@@ -776,16 +807,26 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
   const documents = item.sources?.filter(isDocument) ?? [];
   const external = item.sources?.filter((s) => s.kind === "web") ?? [];
   return (
-    <Animated.View entering={animate ? enter.rise : undefined} style={[styles.bubble, isUser ? styles.user : styles.assistant, item.failed && { borderColor: colors.danger }]}>
-      <AppText variant="label" color={isUser ? colors.violet300 : colors.faint} style={{ marginBottom: space.xs }}>
-        {isUser ? "Você" : item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.model ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
-      </AppText>
+    <Animated.View entering={animate ? enter.rise : undefined} style={[isUser ? styles.user : styles.assistant, item.failed && styles.failed]}>
+      {isUser ? (
+        <>
+          <LinearGradient colors={gradients.bubble} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.userFill]} />
+          <AppText variant="label" color={colors.violet200} style={styles.userLabel}>Você</AppText>
+        </>
+      ) : (
+        <View style={styles.assistantHead}>
+          <KallyMark failed={!!item.failed} />
+          <AppText variant="label" color={item.failed ? colors.danger : colors.faint} numberOfLines={1} style={{ flexShrink: 1 }}>
+            {item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.model ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
+          </AppText>
+        </View>
+      )}
       {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
       {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
       {!item.content ? (
-        <View style={styles.typing}><KallyOrb size={24} state="thinking" /><AppText variant="small" color={colors.muted}>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</AppText></View>
+        <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</Shimmer></View>
       ) : isUser ? (
-        <AppText>{item.content}</AppText>
+        <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
       ) : (
         <>
           {before ? <Markdown>{before}</Markdown> : null}
@@ -1057,18 +1098,61 @@ function ImagePickerSheet({ visible, query, onClose, onInsert }: { visible: bool
   );
 }
 
-/** Enviar: desabilitado e ocupado mudam com transição, no mesmo lugar (sem trocar de tamanho). */
+/**
+ * Enviar: círculo em gradiente que acende e cresce com mola quando há o que enviar; apagado e
+ * menor quando não há. Ocupado troca a seta pelo indicador, no mesmo lugar.
+ */
 function SendButton({ disabled, busy, onPress }: { disabled: boolean; busy: boolean; onPress: () => void }) {
-  const off = useSharedValue(disabled ? 1 : 0);
+  const ready = useSharedValue(disabled ? 0 : 1);
   useEffect(() => {
-    off.value = withTiming(disabled ? 1 : 0, timing.short);
-  }, [disabled, off]);
-  const style = useAnimatedStyle(() => ({ opacity: 1 - off.value * 0.6 }));
+    ready.value = withSpring(disabled ? 0 : 1, spring.selection);
+  }, [disabled, ready]);
+  const look = useAnimatedStyle(() => ({ opacity: 0.35 + ready.value * 0.65, transform: [{ scale: 0.9 + ready.value * 0.1 }] }));
   return (
-    <Touchable accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.9} style={[styles.send, style]}>
-      {busy ? <ActivityIndicator color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" strokeWidth={2} />}
+    <Touchable accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.88} style={[styles.send, elevation.glow, look]}>
+      <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.sendFill]} />
+      {busy ? <ActivityIndicator color="#FFFFFF" /> : <View style={{ transform: [{ rotate: "-45deg" }] }}><Icon name="send" size={18} color="#FFFFFF" strokeWidth={2.2} /></View>}
     </Touchable>
   );
+}
+
+/** Moldura do compositor: vidro roxo; no foco, a borda acende e o halo aparece (sem salto). */
+function ComposerFrame({ focus, children }: { focus: SharedValue<number>; children: ReactNode }) {
+  const lit = useAnimatedStyle(() => ({ opacity: focus.value }));
+  const halo = useAnimatedStyle(() => ({ shadowOpacity: 0.2 + focus.value * 0.45 }));
+  return (
+    <Animated.View style={[styles.composerShadow, halo]}>
+      <LinearGradient colors={gradients.border} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, styles.composerRadius]} />
+      <Animated.View style={[StyleSheet.absoluteFill, lit]}>
+        <LinearGradient colors={gradients.borderActive} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={[StyleSheet.absoluteFill, styles.composerRadius]} />
+      </Animated.View>
+      <LinearGradient colors={["rgba(32,23,58,0.98)", "rgba(16,11,30,0.98)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.composerBody}>
+        {children}
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+/** Marca estática da Kally nas mensagens (a órbita animada fica no cabeçalho e no "pensando"). */
+function KallyMark({ failed }: { failed: boolean }) {
+  return (
+    <LinearGradient colors={failed ? [colors.danger, colors.dangerSoft] : gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mark}>
+      <View style={styles.markPupil} />
+    </LinearGradient>
+  );
+}
+
+/** Texto do "pensando…" com uma luz que passa por ele, devagar (parado com "reduzir movimento"). */
+function Shimmer({ children }: { children: string }) {
+  const reduceMotion = useReducedMotion();
+  const glow = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    glow.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin) }), -1, true);
+    return () => cancelAnimation(glow);
+  }, [glow, reduceMotion]);
+  const style = useAnimatedStyle(() => ({ opacity: 0.55 + glow.value * 0.45, color: interpolateColor(glow.value, [0, 1], [colors.muted, colors.violet200]) }));
+  return <Animated.Text style={[type.uiMedium, style]}>{children}</Animated.Text>;
 }
 
 /** Sugestões da revisão textual: a pessoa marca as que quer e leva ao editor (nada é salvo aqui). */
@@ -1122,41 +1206,56 @@ function ReviewCard({ review, source }: { review: KallyReview; source?: string }
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.lg, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  guest: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md, paddingHorizontal: space.lg },
+  header: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md },
+  envLink: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 24 },
+  headerTitle: { fontSize: 28, lineHeight: 32 },
   modes: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: space.xxl },
   headerOrb: { marginRight: space.xs },
   jump: { position: "absolute", bottom: space.md },
-  jumpButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.violet800 },
-  saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignSelf: "stretch" },
+  jumpButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.violet600, ...elevation.float },
+  saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg },
   check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet600, borderColor: colors.violet600 },
-  bubble: { borderRadius: radius.lg, padding: space.md, borderWidth: 1 },
-  user: { alignSelf: "flex-end", maxWidth: "88%", backgroundColor: colors.violet950, borderColor: colors.violet800 },
-  assistant: { backgroundColor: colors.surface, borderColor: colors.line },
+  user: { alignSelf: "flex-end", maxWidth: "86%", paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: 22, borderBottomRightRadius: 6, ...elevation.card },
+  userFill: { borderRadius: 22, borderBottomRightRadius: 6 },
+  userLabel: { fontSize: 10, lineHeight: 14, marginBottom: 2, opacity: 0.85 },
+  assistant: { paddingRight: space.sm },
+  assistantHead: { flexDirection: "row", alignItems: "center", gap: space.sm, marginBottom: space.sm },
+  failed: { borderLeftWidth: 2, borderLeftColor: colors.danger, paddingLeft: space.md },
+  mark: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  markPupil: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#FFFFFF" },
   card: { marginTop: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.surfaceRaised },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
   suggestion: { flexDirection: "row", gap: space.sm, paddingVertical: space.xs },
   sources: { marginTop: space.sm, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, gap: space.xs },
   link: { flexDirection: "row", alignItems: "center", gap: space.xs },
   note: { paddingHorizontal: space.lg },
-  attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, marginTop: space.xs, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
-  tools: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
-  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, minHeight: 36, borderRadius: 999, borderWidth: 1, borderColor: colors.line },
-  toolOn: { borderColor: colors.violet600, backgroundColor: colors.violet950 },
-  composer: { flexDirection: "row", alignItems: "flex-end", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
-  input: { ...type.ui, flex: 1, color: colors.text, maxHeight: 140, minHeight: 44, paddingHorizontal: space.md, paddingVertical: 11, borderRadius: radius.md, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.surface },
-  send: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.violet600, alignItems: "center", justifyContent: "center" },
+  attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, marginTop: space.xs, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet700, backgroundColor: colors.glass },
+  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(21,16,38,0.6)" },
+  toolOn: { borderColor: colors.violet400, backgroundColor: colors.violet700 },
+  roundTool: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: "rgba(21,16,38,0.6)" },
+  composerWrap: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.md },
+  composerShadow: { borderRadius: 26, shadowColor: colors.violet500, shadowRadius: 22, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  composerRadius: { borderRadius: 26 },
+  composerBody: { margin: 1, borderRadius: 25, paddingTop: space.sm, paddingBottom: space.sm, paddingHorizontal: space.sm },
+  composerInput: { ...type.ui, fontSize: 16, color: colors.text, maxHeight: 150, minHeight: 44, paddingHorizontal: space.sm, paddingTop: 10, paddingBottom: 8 },
+  composerBar: { flexDirection: "row", alignItems: "center", gap: 6 },
+  toolShrink: { flexShrink: 1, minWidth: 0 },
+  sendFill: { borderRadius: 20 },
+  input: { ...type.ui, flex: 1, color: colors.text, maxHeight: 140, minHeight: 44, paddingHorizontal: space.md, paddingVertical: 11, borderRadius: radius.md, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass },
+  send: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   cardRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   cardDone: { borderColor: colors.violet600 },
   confirm: { marginTop: space.md, padding: space.md, gap: space.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet600, backgroundColor: colors.violet950 },
   titleInput: { marginTop: space.sm, minHeight: 40, flex: 0 },
   bodyInput: { marginTop: space.sm, minHeight: 140, maxHeight: 280, flex: 0, textAlignVertical: "top" },
-  attachThumb: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface },
-  attachIcon: { width: 44, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-  bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.surface },
-  typing: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  attachThumb: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.glass },
+  attachIcon: { width: 44, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.glass },
+  bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.glass },
+  typing: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 36 },
   reviewBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   modeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
   modeRowDev: { borderWidth: 1, borderColor: colors.warning },
@@ -1164,6 +1263,6 @@ const styles = StyleSheet.create({
   modeRowOn: { backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   row2: { flexDirection: "row", alignItems: "center", gap: space.sm, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
-  thumb: { width: "31%", aspectRatio: 1, borderRadius: radius.sm, overflow: "hidden", backgroundColor: colors.surface },
-  preview: { width: "100%", height: 220, borderRadius: radius.md, backgroundColor: colors.surface },
+  thumb: { width: "31%", aspectRatio: 1, borderRadius: radius.sm, overflow: "hidden", backgroundColor: colors.glass },
+  preview: { width: "100%", height: 220, borderRadius: radius.md, backgroundColor: colors.glass },
 });

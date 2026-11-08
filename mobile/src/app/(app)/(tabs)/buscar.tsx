@@ -37,7 +37,6 @@ export default function SearchScreen() {
 
   return (
     <FlatList
-      style={{ backgroundColor: colors.bg }}
       data={filters && !feed.loading ? feed.posts : []}
       keyExtractor={(item) => item.id}
       keyboardShouldPersistTaps="handled"

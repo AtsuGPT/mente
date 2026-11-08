@@ -104,6 +104,16 @@ function rgba(hex: string, alpha: number) {
   return `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${alpha})`;
 }
 
+/** Esfera com volume: luz no alto à esquerda, cor no meio, sombra na borda. */
+function Sphere({ x, y, r, color, light = 0.38 }: { x: number; y: number; r: number; color: string; light?: number }) {
+  const stops = useMemo(() => [`rgba(255,255,255,${light})`, rgba(color, 0.95), rgba(color, 0.55), "rgba(5,3,9,0.95)"], [color, light]);
+  return (
+    <Circle cx={x} cy={y} r={r}>
+      <RadialGradient c={vec(x - r * 0.35, y - r * 0.4)} r={r * 1.55} colors={stops} positions={[0, 0.28, 0.62, 1]} />
+    </Circle>
+  );
+}
+
 /** Brilho suave ao redor de um ponto: degradê radial (barato), no lugar de um desfoque. */
 function Glow({ x, y, r, color, strength, opacity }: { x: number; y: number; r: number; color: string; strength: number; opacity?: number | SharedValue<number> }) {
   const stops = useMemo(() => [rgba(color, strength), rgba(color, strength * 0.35), rgba(color, 0)], [color, strength]);
@@ -174,13 +184,16 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
 
   const fitScale = useMemo(() => {
     const { minX, minY, maxX, maxY } = layout.bounds;
-    const s = Math.min((width - 24) / Math.max(1, maxX - minX), (height - 60) / Math.max(1, maxY - minY));
+    const s = Math.min((width - 40) / Math.max(1, maxX - minX), (height - 150) / Math.max(1, maxY - minY));
     return Math.min(1.1, Math.max(MIN_SCALE, s));
   }, [layout, width, height]);
 
   const scale = useSharedValue(fitScale);
-  const tx = useSharedValue(width / 2);
-  const ty = useSharedValue(height / 2);
+  // Enquadra pelo centro do conteúdo (não pelo núcleo): um mapa com nós só de um lado
+  // não fica cortado na borda.
+  const center = useMemo(() => ({ x: (layout.bounds.minX + layout.bounds.maxX) / 2, y: (layout.bounds.minY + layout.bounds.maxY) / 2 }), [layout]);
+  const tx = useSharedValue(width / 2 - center.x * fitScale);
+  const ty = useSharedValue(height / 2 - center.y * fitScale);
 
   const transform = useDerivedValue(() => [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }]);
   // Camada distante: anda a meia velocidade e aproxima menos (paralaxe).
@@ -220,6 +233,8 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
   const blobAColors = useDerivedValue(() => [interpolateColor(0.5 + 0.5 * Math.sin(clock.value * TAU * 2), [0, 1], ["rgba(91,58,174,0.24)", "rgba(67,42,128,0.16)"]), "rgba(67,42,128,0)"]);
   const blobBColors = useDerivedValue(() => [interpolateColor(0.5 + 0.5 * Math.cos(clock.value * TAU * 2), [0, 1], ["rgba(44,28,85,0.3)", "rgba(124,92,224,0.14)"]), "rgba(44,28,85,0)"]);
   const blobRadius = Math.max(width, height) * 0.62;
+  const blobC = useDerivedValue(() => ({ x: width * (0.55 + 0.1 * Math.sin(clock.value * TAU * 2 + 2.4)), y: height * (0.18 + 0.05 * Math.cos(clock.value * TAU + 0.7)) }));
+  const blobCColors = useDerivedValue(() => [interpolateColor(0.5 + 0.5 * Math.sin(clock.value * TAU * 3), [0, 1], ["rgba(182,92,242,0.16)", "rgba(132,97,240,0.1)"]), "rgba(182,92,242,0)"]);
 
   // Gestos: um leve realce das partículas enquanto se arrasta ou aproxima (sinal de resposta).
   const gesturing = useSharedValue(0);
@@ -252,7 +267,7 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
       const node = layout.byId.get(id);
       if (node) animateTo(Math.max(scale.value, node.kind === "pensamento" || node.kind === "imagem" ? 1.4 : 0.9), node.x, node.y);
     },
-    fit: () => animateTo(fitScale, 0, 0),
+    fit: () => animateTo(fitScale, center.x, center.y),
     zoomBy: (factor) => {
       const worldX = (width / 2 - tx.value) / scale.value;
       const worldY = (height / 2 - ty.value) / scale.value;
@@ -428,6 +443,13 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
           <RadialGradient c={blobB} r={blobRadius * 0.85} colors={blobBColors} />
         </Rect>
 
+        <Rect x={0} y={0} width={width} height={height}>
+          <RadialGradient c={blobC} r={blobRadius * 0.6} colors={blobCColors} />
+        </Rect>
+        <Rect x={0} y={0} width={width} height={height}>
+          <RadialGradient c={vec(width / 2, height / 2)} r={Math.max(width, height) * 0.75} colors={["rgba(5,3,9,0)", "rgba(5,3,9,0.55)"]} positions={[0.55, 1]} />
+        </Rect>
+
         {/* (2) Partículas distantes, com paralaxe */}
         <Group transform={farTransform}>
           <Points points={backdrop.particles} mode="points" strokeWidth={2.2} strokeCap="round" color={colors.violet800} opacity={particleOpacity} />
@@ -553,14 +575,27 @@ function MapNodeShape(props: NodeProps) {
 
 const centered = (font: SkFont | null, text: string) => (font ? font.measureText(text).width / 2 : 0);
 
-function HubNode({ node, opacity, selected, fonts, subtitle }: NodeProps<NodeOf<"ambiente">>) {
+function HubNode({ node, opacity, selected, fonts, subtitle, clock }: NodeProps<NodeOf<"ambiente">>) {
   const name = truncate(node.label, 16);
+  // Dois anéis inclinados, girando em sentidos opostos (múltiplos inteiros do relógio: o fim
+  // do ciclo coincide com o começo, sem salto).
+  const rings = useMemo(() => {
+    const make = (rx: number, ry: number) => Skia.PathBuilder.Make().addOval({ x: node.x - rx, y: node.y - ry, width: rx * 2, height: ry * 2 }).detach();
+    return { a: make(node.r * 1.55, node.r * 0.42), b: make(node.r * 1.35, node.r * 0.34) };
+  }, [node.x, node.y, node.r]);
+  const spinA = useDerivedValue(() => [{ rotate: 0.35 + clock.value * TAU }]);
+  const spinB = useDerivedValue(() => [{ rotate: 2.1 - clock.value * TAU * 2 }]);
   return (
     <Group opacity={opacity}>
-      <Glow x={node.x} y={node.y} r={node.r + 34} color={colors.violet500} strength={selected ? 0.5 : 0.34} />
-      <Circle cx={node.x} cy={node.y} r={node.r} color={colors.violet950} />
-      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={2.4} color={colors.violet400} />
-      <Circle cx={node.x} cy={node.y} r={node.r - 7} style="stroke" strokeWidth={1} color={colors.violet800} />
+      <Glow x={node.x} y={node.y} r={node.r + 46} color={colors.violet500} strength={selected ? 0.55 : 0.38} />
+      <Group origin={vec(node.x, node.y)} transform={spinA}>
+        <Path path={rings.a} style="stroke" strokeWidth={1.4} color={colors.violet400} opacity={0.6} />
+      </Group>
+      <Group origin={vec(node.x, node.y)} transform={spinB}>
+        <Path path={rings.b} style="stroke" strokeWidth={1.1} color={colors.orchid} opacity={0.45} />
+      </Group>
+      <Sphere x={node.x} y={node.y} r={node.r} color={colors.violet700} light={0.3} />
+      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={2} color={colors.violet300} opacity={0.85} />
       <NodeIcon name={node.icon} x={node.x} y={node.y - 12} size={30} color={colors.violet200} />
       {fonts.hubFont ? <Text x={node.x - centered(fonts.hubFont, name)} y={node.y + 20} text={name} font={fonts.hubFont} color={colors.text} /> : null}
       {subtitle && fonts.smallFont ? <Text x={node.x - centered(fonts.smallFont, subtitle)} y={node.y + node.r + 20} text={subtitle} font={fonts.smallFont} color={colors.muted} /> : null}
@@ -578,9 +613,9 @@ function FolderNode({ node, opacity, selected, fonts, clock }: NodeProps<NodeOf<
   return (
     <Group opacity={opacity}>
       <Glow x={node.x} y={node.y} r={node.r + 22} color={node.color} strength={selected ? 0.55 : 0.3} opacity={breathe} />
-      <Circle cx={node.x} cy={node.y} r={node.r} color={colors.surface} />
-      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={selected ? 2.6 : 1.8} color={node.color} />
-      <NodeIcon name="folder" x={node.x} y={node.y} size={24} color={accent} />
+      <Sphere x={node.x} y={node.y} r={node.r} color={node.color} light={0.32} />
+      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={selected ? 2.6 : 1.6} color={accent} opacity={0.9} />
+      <NodeIcon name="folder" x={node.x} y={node.y} size={24} color="#FFFFFF" />
       {fonts.folderFont ? <Text x={node.x - centered(fonts.folderFont, name)} y={node.y + node.r + 19} text={name} font={fonts.folderFont} color={colors.text} /> : null}
       {fonts.smallFont ? <Text x={node.x - centered(fonts.smallFont, conn)} y={node.y + node.r + 33} text={conn} font={fonts.smallFont} color={colors.muted} /> : null}
     </Group>
@@ -604,15 +639,15 @@ function ThoughtNode({ node, opacity, selected, fonts, labelOpacity }: NodeProps
   const width = fonts.labelFont?.measureText(label).width ?? 0;
   const outward = Math.cos(node.angle) >= 0;
   const lx = outward ? node.x + node.r + 7 : node.x - node.r - 7 - width;
-  const stroke = node.draft ? colors.warning : selected ? colors.violet200 : colors.violet500;
+  const stroke = node.draft ? colors.warning : selected ? colors.violet200 : colors.violet400;
   return (
     <Group opacity={opacity}>
       <Glow x={node.x} y={node.y} r={node.r + 10} color={colors.violet500} strength={selected ? 0.5 : 0.16} />
-      <Circle cx={node.x} cy={node.y} r={node.r} color={colors.surfaceRaised} />
-      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={selected ? 2 : 1.3} color={stroke}>
+      <Sphere x={node.x} y={node.y} r={node.r} color={node.draft ? colors.violet800 : colors.violet600} light={0.45} />
+      <Circle cx={node.x} cy={node.y} r={node.r} style="stroke" strokeWidth={selected ? 2 : 1.2} color={stroke}>
         {node.draft ? <DashPathEffect intervals={[3, 2.5]} /> : null}
       </Circle>
-      <NodeIcon name="doc" x={node.x} y={node.y} size={13} color={node.private ? colors.violet200 : colors.violet300} />
+      <NodeIcon name="doc" x={node.x} y={node.y} size={13} color={node.private ? colors.violet200 : "#FFFFFF"} />
       {fonts.labelFont ? (
         <Group opacity={selected ? 1 : labelOpacity}>
           <Text x={lx} y={node.y + 4} text={label} font={fonts.labelFont} color={selected ? colors.violet200 : colors.muted} />

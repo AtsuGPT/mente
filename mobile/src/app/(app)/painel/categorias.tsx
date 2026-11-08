@@ -151,7 +151,7 @@ export default function AdminCategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
   rowOpen: { borderColor: colors.violet700 },
   swatch: { width: 14, height: 14, borderRadius: 7 },
   form: { marginTop: space.sm, padding: space.lg, gap: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },

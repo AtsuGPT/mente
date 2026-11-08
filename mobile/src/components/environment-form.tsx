@@ -90,11 +90,11 @@ export function EnvironmentForm({
 }
 
 const styles = StyleSheet.create({
-  preview: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.surface },
+  preview: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.glass },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
-  option: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  option: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, alignItems: "center", justifyContent: "center" },
   optionOn: { borderColor: colors.violet500, backgroundColor: colors.violet950 },
   swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "transparent" },
   swatchOn: { borderColor: colors.text },
-  switchRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
 });

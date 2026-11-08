@@ -130,6 +130,6 @@ export default function AdminPostsScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: space.md, padding: space.md, paddingLeft: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, overflow: "hidden" },
+  row: { flexDirection: "row", gap: space.md, padding: space.md, paddingLeft: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, overflow: "hidden" },
   edge: { position: "absolute", left: 0, top: space.md, bottom: space.md, width: 2 },
 });

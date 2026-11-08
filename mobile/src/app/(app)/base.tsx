@@ -84,7 +84,6 @@ export default function KnowledgeBaseScreen() {
 
   return (
     <FlatList
-      style={{ backgroundColor: colors.bg }}
       contentContainerStyle={[{ padding: space.lg, gap: space.md }, container]}
       data={data.documents}
       keyExtractor={(d) => d.id}
@@ -132,5 +131,5 @@ export default function KnowledgeBaseScreen() {
 
 const styles = StyleSheet.create({
   chips: { flexDirection: "row", gap: space.sm },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.glass },
 });

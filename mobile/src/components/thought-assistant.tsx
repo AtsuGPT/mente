@@ -81,7 +81,7 @@ export function ThoughtAssistant({ slug, revision }: { slug: string; revision: s
 }
 
 const styles = StyleSheet.create({
-  box: { marginTop: space.xxl, padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },
+  box: { marginTop: space.xxl, padding: space.lg, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.violet700, backgroundColor: colors.glass },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
   result: { marginTop: space.lg, paddingTop: space.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.violet800 },
 });

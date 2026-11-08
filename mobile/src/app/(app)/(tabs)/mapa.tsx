@@ -13,7 +13,7 @@ import { MapCanvas } from "@/components/map-canvas";
 import { EnvironmentHeader } from "@/components/environment-header";
 import { AppText, Button, Chip, IconButton, StateView } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, elevation, radius, space } from "@/theme/tokens";
 import { useLayout } from "@/theme/layout";
 import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
 import { useAmbientActive } from "@/lib/use-ambient";
@@ -95,7 +95,7 @@ export default function MapScreen() {
   useDialogKeyboard(!!viewing, () => setViewing(null));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1 }}>
       <View style={[styles.top, { paddingTop: insets.top + space.md }]}>
         <View style={styles.titleRow}>
           <EnvironmentHeader
@@ -210,8 +210,8 @@ function Legend({ shape, label }: { shape: "folder" | "post" | "draft" | "privat
       <View
         style={[
           styles.legendShape,
-          shape === "folder" && { width: 14, height: 14, borderRadius: 7, borderColor: colors.violet400, backgroundColor: colors.violet950 },
-          shape === "post" && { borderColor: colors.violet500 },
+          shape === "folder" && { width: 14, height: 14, borderRadius: 7, borderColor: colors.violet300, backgroundColor: colors.violet600 },
+          shape === "post" && { borderColor: colors.violet400, backgroundColor: colors.violet700 },
           shape === "draft" && { borderColor: colors.warning, borderStyle: "dashed" },
           shape === "image" && { borderRadius: 2, borderColor: colors.muted },
           shape === "private" && { borderColor: colors.violet500, alignItems: "center", justifyContent: "center" },
@@ -219,16 +219,16 @@ function Legend({ shape, label }: { shape: "folder" | "post" | "draft" | "privat
       >
         {shape === "private" ? <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.violet300 }} /> : null}
       </View>
-      <AppText variant="small" color={colors.muted}>{label}</AppText>
+      <AppText variant="small" color={colors.muted} style={{ fontSize: 12, lineHeight: 16 }}>{label}</AppText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  top: { gap: space.md, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, backgroundColor: colors.bg, zIndex: 2 },
+  top: { gap: space.md, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.lineStrong, backgroundColor: "rgba(13,7,25,0.92)", zIndex: 2 },
   titleRow: { paddingHorizontal: space.lg },
-  controls: { position: "absolute", right: space.md, top: space.md, gap: space.xs, padding: 4, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(13,11,20,0.92)" },
-  legend: { position: "absolute", left: space.lg, bottom: space.lg, flexDirection: "row", flexWrap: "wrap", gap: space.md, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: "rgba(13,11,20,0.85)", borderWidth: 1, borderColor: colors.line },
+  controls: { position: "absolute", right: space.md, top: space.md, gap: space.xs, padding: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.float },
+  legend: { position: "absolute", left: space.md, bottom: space.md, flexDirection: "column", gap: 6, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.line },
   legendShape: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.4, backgroundColor: colors.surfaceRaised },
   panel: {
     position: "absolute",
@@ -241,7 +241,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.violet800,
-    backgroundColor: "rgba(13,11,20,0.97)",
+    backgroundColor: "rgba(21,16,38,0.96)",
+    ...elevation.float,
   },
   // Em telas largas o painel vira um cartão no canto, sem cobrir o mapa de ponta a ponta.
   panelWide: { left: space.lg, right: undefined, bottom: space.lg, width: 420 },

@@ -294,7 +294,7 @@ export default function EditorScreen() {
         <View style={styles.tabs}>
           {(["write", "preview"] as const).map((t) => (
             <Touchable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
-              <AppText variant="label" color={tab === t ? colors.violet200 : colors.faint}>{t === "write" ? "Escrever" : "Prévia"}</AppText>
+              <AppText variant="label" color={tab === t ? colors.text : colors.faint}>{t === "write" ? "Escrever" : "Prévia"}</AppText>
             </Touchable>
           ))}
         </View>
@@ -422,26 +422,26 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxxl * 2 },
   statusRow: { flexDirection: "row", justifyContent: "space-between" },
   titleInput: { fontFamily: fonts.serif, fontSize: 26, lineHeight: 32, minHeight: 56 },
-  tabs: { flexDirection: "row", gap: space.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  tab: { paddingVertical: space.sm, borderBottomWidth: 1.5, borderBottomColor: "transparent" },
-  tabActive: { borderBottomColor: colors.violet400 },
+  tabs: { flexDirection: "row", alignSelf: "flex-start", gap: 4, padding: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
+  tab: { paddingVertical: space.sm, paddingHorizontal: space.lg, borderRadius: radius.pill, borderWidth: 1, borderColor: "transparent" },
+  tabActive: { backgroundColor: colors.violet700, borderColor: colors.violet400 },
   toolbar: { gap: space.xs },
-  tool: { minWidth: 44, height: 44, paddingHorizontal: space.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
-  toolAccent: { borderColor: colors.violet700, backgroundColor: colors.violet950 },
+  tool: { minWidth: 44, height: 44, paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, alignItems: "center", justifyContent: "center" },
+  toolAccent: { borderColor: colors.violet500, backgroundColor: colors.violet800 },
   contentInput: {
     fontFamily: fonts.serif,
     fontSize: 17,
     lineHeight: 26,
     color: colors.text,
     padding: space.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.lineStrong,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glass,
   },
-  preview: { padding: space.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, gap: space.md },
+  preview: { padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, gap: space.md },
   section: { gap: space.md },
-  privateRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  privateRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   message: { padding: space.md, borderRadius: radius.md, borderWidth: 1 },
   messageError: { borderColor: "#5A2228", backgroundColor: colors.dangerSoft },

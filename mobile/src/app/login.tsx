@@ -10,9 +10,10 @@ import { API_SOURCE, API_URL } from "@/lib/config";
 import { NeuralBrain } from "@/components/neural-brain";
 import { AppText, Button, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
-import { colors, fonts, radius, space } from "@/theme/tokens";
+import { colors, elevation, fonts, radius, space } from "@/theme/tokens";
 import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
+import { RadialGlow } from "@/components/ui/surface";
 
 export default function LoginScreen() {
   const { signIn, state } = useAuth();
@@ -51,8 +52,8 @@ export default function LoginScreen() {
   const illustration = Math.max(120, Math.min(width - space.xxl * 2, 340, Math.round(height * 0.34)));
 
   return (
-    <KeyboardScreen style={{ backgroundColor: colors.bg, overflow: "hidden" }}>
-      <View pointerEvents="none" style={styles.glow} />
+    <KeyboardScreen style={{ overflow: "hidden" }}>
+      <RadialGlow size={460} color={colors.violet600} opacity={0.55} style={styles.glow} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }, container]}
@@ -146,16 +147,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -120,
     alignSelf: "center",
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    backgroundColor: colors.violet950,
-    opacity: 0.9,
   },
   content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.xl },
   brand: { alignItems: "center", gap: space.sm, marginTop: space.lg },
   title: { textAlign: "center", marginTop: space.xs },
-  form: { marginTop: space.xxl, gap: space.lg },
+  form: { marginTop: space.xxl, gap: space.lg, padding: space.xl, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.float },
   eye: { position: "absolute", right: 4, bottom: 3, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   error: {
     borderWidth: 1,

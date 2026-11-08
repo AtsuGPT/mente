@@ -30,7 +30,9 @@ import Animated, {
   type WithTimingConfig,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { accent, colors, fonts, radius, space, type } from "@/theme/tokens";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors, elevation, fonts, gradients, radius, space, type } from "@/theme/tokens";
+import { Surface } from "./surface";
 import { duration, easing, enter, spring, timing } from "@/theme/motion";
 import { Icon, type IconName } from "./icon";
 
@@ -134,9 +136,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 /** Cores de repouso, mouse por cima e pressionado. Transparentes como rgba para interpolar sem cinza. */
 const buttonPalette: Record<ButtonVariant, { bg: string; hover: string; pressed: string; fg: string; border: string }> = {
-  primary: { bg: accent.primary, hover: "#6441BC", pressed: accent.primaryPressed, fg: "#FFFFFF", border: colors.violet500 },
-  secondary: { bg: colors.surfaceRaised, hover: "#181326", pressed: colors.surfacePressed, fg: colors.text, border: colors.lineStrong },
-  ghost: { bg: "rgba(18,12,34,0)", hover: "rgba(18,12,34,0.7)", pressed: colors.violet950, fg: colors.violet300, border: "rgba(0,0,0,0)" },
+  // O primário pinta um gradiente por baixo; aqui só a camada de escurecer ao tocar.
+  primary: { bg: "rgba(5,3,9,0)", hover: "rgba(255,255,255,0.06)", pressed: "rgba(5,3,9,0.28)", fg: "#FFFFFF", border: "rgba(199,183,250,0.45)" },
+  secondary: { bg: "rgba(31,23,54,0.72)", hover: "rgba(43,32,74,0.82)", pressed: "rgba(53,41,87,0.9)", fg: colors.text, border: colors.lineStrong },
+  ghost: { bg: "rgba(19,11,38,0)", hover: "rgba(19,11,38,0.7)", pressed: colors.violet950, fg: colors.violet300, border: "rgba(0,0,0,0)" },
   danger: { bg: colors.dangerSoft, hover: "#431A1F", pressed: "#4D1D23", fg: colors.danger, border: "#5A2228" },
 };
 
@@ -166,9 +169,10 @@ export function Button({
   const off = useToggle(!!disabled);
   const busy = useToggle(!!loading, timing.micro);
   const surface = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(press.value, [0, 1], [interpolateColor(hover.value, [0, 1], [palette.bg, palette.hover]), palette.pressed]),
-    opacity: interpolate(off.value, [0, 1], [1, 0.45]),
+    backgroundColor: variant === "primary" ? "transparent" : interpolateColor(press.value, [0, 1], [interpolateColor(hover.value, [0, 1], [palette.bg, palette.hover]), palette.pressed]),
+    opacity: interpolate(off.value, [0, 1], [1, 0.42]),
   }));
+  const shade = useAnimatedStyle(() => ({ opacity: press.value * 0.28 + hover.value * 0.04 }));
   // O rótulo some e o indicador aparece no mesmo lugar: a largura do botão não muda.
   const content = useAnimatedStyle(() => ({ opacity: 1 - busy.value }));
   const spinner = useAnimatedStyle(() => ({ opacity: busy.value }));
@@ -183,12 +187,19 @@ export function Button({
       press={press}
       hover={hover}
       pressScale={0.98}
-      style={[styles.button, compact && styles.buttonCompact, { borderColor: palette.border }, surface, style]}
+      style={[styles.button, compact && styles.buttonCompact, { borderColor: palette.border }, variant === "primary" && elevation.glow, surface, style]}
     >
+      {variant === "primary" ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip]}>
+          <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={["rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]} style={styles.sheen} />
+        </View>
+      ) : null}
       <Animated.View style={[styles.buttonContent, content]}>
         {icon ? <Icon name={icon} size={18} color={palette.fg} /> : null}
         <Text style={[type.uiMedium, { color: palette.fg }]}>{label}</Text>
       </Animated.View>
+      {variant === "primary" ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip, styles.shade, shade]} /> : null}
       {loading ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center, spinner]}>
           <ActivityIndicator color={palette.fg} size="small" />
@@ -203,8 +214,8 @@ export function IconButton({ name, onPress, label, color = colors.text, active }
   const hover = useSharedValue(0);
   const on = useToggle(!!active);
   const surface = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(Math.max(on.value, hover.value * 0.5, press.value * 0.7), [0, 1], ["rgba(29,19,54,0)", colors.violet900]),
-    borderColor: interpolateColor(on.value, [0, 1], ["rgba(67,42,128,0)", colors.violet700]),
+    backgroundColor: interpolateColor(Math.max(on.value, hover.value * 0.5, press.value * 0.7), [0, 1], ["rgba(21,16,38,0.55)", colors.violet900]),
+    borderColor: interpolateColor(on.value, [0, 1], ["rgba(165,139,247,0.14)", colors.violet600]),
   }));
   return (
     <Touchable
@@ -231,7 +242,8 @@ export const TextField = forwardRef<TextInputInstance, TextInputProps & { label?
     const invalid = useToggle(!!error);
     const field = useAnimatedStyle(() => ({
       borderColor: interpolateColor(invalid.value, [0, 1], [interpolateColor(focus.value, [0, 1], [colors.lineStrong, colors.violet500]), colors.danger]),
-      backgroundColor: interpolateColor(focus.value, [0, 1], [colors.surface, "#100D19"]),
+      backgroundColor: interpolateColor(focus.value, [0, 1], ["rgba(21,16,38,0.7)", "rgba(30,18,64,0.85)"]),
+      shadowOpacity: focus.value * 0.5,
     }));
     const labelColor = useAnimatedStyle(() => ({ color: interpolateColor(focus.value, [0, 1], [colors.muted, colors.violet300]) }));
     return (
@@ -272,10 +284,10 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
   const on = useToggle(!!selected);
   const hover = useSharedValue(0);
   const surface = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.surface, colors.surfaceRaised]), colors.violet950]),
-    borderColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.line, colors.lineStrong]), colors.violet600]),
+    backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], ["rgba(21,16,38,0.6)", "rgba(31,23,54,0.8)"]), colors.violet700]),
+    borderColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.line, colors.lineStrong]), colors.violet400]),
   }));
-  const text = useAnimatedStyle(() => ({ color: interpolateColor(on.value, [0, 1], [colors.muted, colors.violet200]) }));
+  const text = useAnimatedStyle(() => ({ color: interpolateColor(on.value, [0, 1], [colors.muted, "#FFFFFF"]) }));
   return (
     <Touchable
       accessibilityRole="button"
@@ -295,7 +307,11 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
 /* ------------------------------ Superfícies ----------------------------- */
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <Surface elevated contentStyle={[styles.card, style]}>
+      {children}
+    </Surface>
+  );
 }
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -306,7 +322,7 @@ export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
 export function SectionLabel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[{ flexDirection: "row", alignItems: "center", gap: space.sm }, style]}>
-      <View style={{ width: 14, height: 1.5, backgroundColor: colors.violet500 }} />
+      <LinearGradient colors={[colors.violet400, "rgba(132,97,240,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 18, height: 2, borderRadius: 1 }} />
       <AppText variant="label" color={colors.muted}>{children}</AppText>
     </View>
   );
@@ -363,9 +379,9 @@ export function StateView({ loading, error, empty, onRetry }: { loading?: boolea
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 50,
+    minHeight: 52,
     paddingHorizontal: space.xl,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -373,17 +389,23 @@ const styles = StyleSheet.create({
   buttonContent: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm },
   buttonCompact: { minHeight: 44, paddingHorizontal: space.lg },
   center: { alignItems: "center", justifyContent: "center" },
+  clip: { borderRadius: radius.pill, overflow: "hidden" },
+  sheen: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
+  shade: { backgroundColor: "#050309" },
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
   },
   field: {
     borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    shadowColor: colors.violet500,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
   },
   input: {
     ...type.ui,
@@ -404,10 +426,6 @@ const styles = StyleSheet.create({
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
     padding: space.lg,
   },
   skeleton: { backgroundColor: colors.surfaceRaised, borderRadius: radius.sm },
