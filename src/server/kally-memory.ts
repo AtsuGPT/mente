@@ -29,6 +29,9 @@ export type Retrieved = {
   categories: string[];
   excerpt: string;
   score: number;
+  /** quem escreveu o pensamento (nulo nas conversas) */
+  authorId?: string | null;
+  author?: string | null;
   /** títulos de outros resultados ligados a este (mesma pasta ou link) */
   related: string[];
 };
@@ -150,7 +153,7 @@ export async function recall(
   const drafts = options.allDrafts ? { status: "DRAFT" as const } : draftAuthor ? { status: "DRAFT" as const, authorId: draftAuthor } : null;
   const posts = await db.post.findMany({
     where: { ...scopeFilter(scope), OR: [publiclyVisible(), ...(drafts ? [drafts] : [])] },
-    select: { id: true, title: true, slug: true, status: true, content: true, categories: { select: { id: true, name: true } }, author: { select: { displayName: true } } },
+    select: { id: true, title: true, slug: true, status: true, content: true, categories: { select: { id: true, name: true } }, authorId: true, author: { select: { displayName: true } } },
     orderBy: { publishedAt: "desc" },
     take: MAX_CANDIDATES,
   });
@@ -218,6 +221,8 @@ export async function recall(
       categories: post.categories.map((c) => c.name),
       excerpt,
       score,
+      authorId: post.authorId,
+      author: post.author?.displayName ?? null,
       related: all
         .filter((o) => o.post.id !== post.id && (o.post.categories.some((c) => post.categories.some((pc) => pc.id === c.id)) || o.post.content.includes(post.slug) || post.content.includes(o.post.slug)))
         .map((o) => o.post.title),

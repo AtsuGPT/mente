@@ -186,7 +186,10 @@ export async function POST(request: Request, context: EnvContext) {
       )
         .filter((p) => !review?.slug || p.slug !== review.slug)
         // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
-        .filter((p) => mode !== "chat" || p.score >= (intent.wantsMemory ? 0.2 : 0.4));
+        .filter((p) => mode !== "chat" || p.score >= (intent.wantsMemory ? 0.2 : 0.4))
+        // Quem escreveu, do ponto de vista de quem pergunta: num ambiente com várias pessoas, a Kally tratava o
+        // post de uma como se fosse de quem perguntava (simulação, rodada 1).
+        .map((p) => (p.kind === "conversa" ? p : { ...p, author: p.authorId === userId ? "a própria pessoa que está conversando com você" : `${p.author ?? "outra pessoa"} (outra pessoa do ambiente)` }));
 
   // Internet: só com permissão da pessoa, e só quando o ambiente não basta (ou para aprender/aprofundar).
   let web: WebResult[] = [];
