@@ -1,0 +1,749 @@
+[
+  {
+    "id": "N01",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O encontro de trocas é toda quarta-feira, às 20h.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.833,
+    "segundos": 7.462
+  },
+  {
+    "id": "N02",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Entendi: você está perguntando sobre o tempo de duração de cada ciclo do ambiente e sobre o que precisa ser publicado no final dele.\n\nQuais são os passos ou atividades que você faz no final de cada ciclo para fechá-lo?",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      },
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "ideia",
+    "erro": null,
+    "primeiroTexto": 21.992,
+    "segundos": 34.361
+  },
+  {
+    "id": "N03",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não há um limite oficial de caracteres definido para posts na pasta Diário do ambiente \"Minha Mente\". O espaço é flexível e não tem restrição fixa de comprimento. O que importa é a clareza e a evolução do pensamento ao longo do tempo, como você está fazendo com a redação. Se quiser, posso ajudar a organizar o que você escreve para manter o foco na melhoria contínua.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.794,
+    "segundos": 15.957
+  },
+  {
+    "id": "N04",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Entendi: você quer saber se, ao usar a Kally para escrever um post, há algo que você precisa dizer ou registrar para manter a autoria do texto.\n\nQual foi o momento em que você sentiu que a ajuda da Kally foi decisiva para o texto — um trecho, uma frase, uma ideia que você só conseguiu formular com ela?",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "ideia",
+    "erro": null,
+    "primeiroTexto": 13.336,
+    "segundos": 30.036
+  },
+  {
+    "id": "N05",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Não há um tempo padrão definido para cada pessoa no encontro de trocas, pois isso varia conforme o contexto — se for um evento informal, um grupo de amigos ou um programa estruturado. Em muitos casos, os encontros são curtos, de 15 a 30 minutos, com trocas rápidas e diretas. Em outros, podem durar mais, especialmente se houver reflexão ou compartilhamento profundo.\n\nSe você estiver se referindo a um modelo específico, como o de um grupo de troca de experiências ou um programa de desenvolvimento pessoal, posso ajudar a esclarecer com base no que foi descrito. Diga um pouco mais sobre o contexto, se quiser.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.879,
+    "segundos": 25.19
+  },
+  {
+    "id": "N06",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Não há informação no documento ou no ambiente sobre um estudo da Luíza ou sobre alunos participando de tal estudo. Não é possível determinar a quantidade de alunos ou a cidade em que o estudo ocorre com os dados disponíveis.",
+    "sources": [
+      {
+        "title": "igor-plano-doutorado",
+        "slug": "cmw8a11be00167di1v6w67dkr",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.701,
+    "segundos": 15.337
+  },
+  {
+    "id": "N07",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "A última redação do Dudu foi com 640. A meta dele é alcançar 800 no ENEM.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "contagem regressiva",
+        "slug": "contagem-regressiva",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.073,
+    "segundos": 7.826
+  },
+  {
+    "id": "N08",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "A padaria do Abílio funcionou de 1971 a 1996.",
+    "sources": [
+      {
+        "title": "A padaria do Abílio",
+        "slug": "a-padaria-do-abilio",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 6.259,
+    "segundos": 9.11
+  },
+  {
+    "id": "N09",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "O dataset do Rafael compõe 12.400 e-mails.  \nA proporção de mensagens urgentes é de 8%.  \n\nEssa informação vem do pensamento \"[P1] Pensamento 'ML do zero #1: precision, recall e por que accuracy engana'\".",
+    "sources": [
+      {
+        "title": "ML do zero #1: precision, recall e por que accuracy engana",
+        "slug": "ml-do-zero-1-precision-recall-e-por-que-accuracy-engana",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.541,
+    "segundos": 13.076
+  },
+  {
+    "id": "N10",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "Não há informação no ambiente sobre qual congresso a Beatriz vai enviar o artigo ou sobre o limite de páginas. Se houver detalhes específicos, precisaria de uma fonte ou contexto adicional para responder com precisão.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.573,
+    "segundos": 9.457
+  },
+  {
+    "id": "N11",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Não há informação no ambiente sobre o tamanho do sítio do João nem sobre o que ele planta consorciado. A pergunta não está ligada a nenhum conteúdo fornecido ([P…], [C…] ou [E…]) que traga esses detalhes. Se houver mais contexto, posso ajudar a analisar.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.918,
+    "segundos": 11.969
+  },
+  {
+    "id": "N12",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "Não tenho informações sobre a data da prova de residência da Carla. Se for uma questão específica de um curso ou instituição, talvez seja melhor consultar o edital oficial ou o responsável pelo processo. Se quiser, posso ajudar a interpretar algo que você encontrou.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.553,
+    "segundos": 8.521
+  },
+  {
+    "id": "N13",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "O Theo não lançou um EP com nome oficial conhecido no cenário musical de forma amplamente registrada. Não há registros confiáveis ou amplamente divulgados de um EP do Theo com nome específico e quantidade de faixas definida. Caso você esteja se referindo a um projeto específico, é possível que seja um lançamento independente ou regional, com pouca divulgação.\n\nSe puder me dizer mais sobre o contexto — como o estilo musical, o ano ou o nome completo do trabalho — posso tentar ajudar com mais precisão.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.698,
+    "segundos": 16.75
+  },
+  {
+    "id": "N14",
+    "condicao": "com-rag",
+    "quem": "joao",
+    "texto": "Não tenho informações sobre quanto Sonia gasta para fazer o bolo de pote ou por quanto o vende. Se você tiver um contexto específico — como um texto, anúncio ou relato —, posso ajudar a analisar com base nele. Caso contrário, essa informação não está disponível no ambiente atual.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.633,
+    "segundos": 10.912
+  },
+  {
+    "id": "N15",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Não tenho informações sobre quantos artigos o Igor está usando na revisão dele ou sobre o período dos mesmos. Para responder com precisão, precisaria de um texto, um documento ou uma citação específica que mencione esse conteúdo.\n\nPoderia me enviar o texto ou o trecho onde o Igor fala sobre a revisão dos artigos? Assim, posso identificar exatamente os artigos e o período mencionados.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "revisar",
+    "erro": null,
+    "primeiroTexto": 3.776,
+    "segundos": 15.953
+  },
+  {
+    "id": "N16",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "Sua orientadora é a professora Heloísa Duarte. A reunião fixa é toda segunda-feira às 14h, na sala 312 do departamento.  \n\nSe quiser, posso ajudar a organizar o que ainda está pendente, como a carta à Secretaria ou a revisão do termo de assentimento.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "luiza-reunioes-orientacao",
+        "slug": "cmw8a0rn7000n7di100l6fo2t",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 10.024,
+    "segundos": 21.027
+  },
+  {
+    "id": "N17",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "Pode me dizer o que você gosta de fazer, o que já está pensando em fazer ou o que te motiva? Isso ajuda a escolher algo que te conecte.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.529,
+    "segundos": 6.788
+  },
+  {
+    "id": "N18",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Seu livro não tem ninguém dedicado, a não ser você mesmo — quem escreve, quem escolhe o caminho e quem carrega a intenção. A dedicação está no que você faz, não em quem o recebe. Se quiser, posso ajudar a pensar em quem poderia ser um leitor ou um parceiro de leitura, se for isso que você quer. Mas, por enquanto, o livro é seu.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 6.377,
+    "segundos": 18.138
+  },
+  {
+    "id": "N19",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Você não trabalha em nenhuma empresa, segundo as suas notas do projeto. As suas notas — como a redação com 64 quando o objetivo é 800 no Enem — estão ligadas ao estudo e à preparação para o Enem, não a uma vaga de emprego ou a uma instituição de trabalho.\n\nO projeto \"A palha que não queima: um gesto que melhora a mandioca\" é uma iniciativa de pesquisa ou reflexão pessoal, ligada ao tema da mandioca e ao uso de gestos cotidianos, e não indica vínculo com empresa.\n\nSe você estiver se perguntando sobre o que você faz no dia a dia, talvez seja mais útil pensar em como você está organizando o estudo, do que em onde você \"trabalha\". Se quiser, posso ajudar a estruturar um plano semanal para a redação.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "A palha que não queima: um gesto que melhora a mandioca",
+        "slug": "a-palha-que-nao-queima-um-gesto-que-melhora-a-mandioca",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.783,
+    "segundos": 31.907
+  },
+  {
+    "id": "N20",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Não trabalho em nenhum hospital. Você está se referindo a algo que não está alinhado ao que eu sou — ou talvez esteja confundindo informações. Se quiser, posso ajudar a esclarecer ou orientar sobre como identificar a instituição onde você atua. Deseja isso?",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.483,
+    "segundos": 9.016
+  },
+  {
+    "id": "N21",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "O faturamento médio da sua confeitaria é de R$ 18.500 por mês.  \n\nEsse valor é a média dos últimos seis meses, conforme registrado no arquivo \"sonia-numeros-doce-prado.csv\".",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      },
+      {
+        "title": "sonia-numeros-doce-prado · linhas 2–8",
+        "slug": "cmw8a0zqc00127di1thtji3eu",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 12.678,
+    "segundos": 21.199
+  },
+  {
+    "id": "N22",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Não há informações sobre uma orientadora da Luíza ou sobre quando eles se reúnem no ambiente fornecido. Se essa informação estiver em um documento ou conversa específica, por favor, forneça mais contexto ou cite a fonte. Até então, não é possível responder com precisão.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.04,
+    "segundos": 10.054
+  },
+  {
+    "id": "N23",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "O faturamento mensal da confeitaria da Sônia não está explicitado no material fornecido. O que está mencionado é o faturamento médio mensal da padaria, que é de R$ 18.500 — mas essa informação se refere à padaria, não especificamente à confeitaria. Não há dados sobre o faturamento da confeitaria da Sônia separadamente.",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.529,
+    "segundos": 18.068
+  },
+  {
+    "id": "N24",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Não há informação no material fornecido sobre em qual hospital a Carla trabalha.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.73,
+    "segundos": 6.758
+  },
+  {
+    "id": "N25",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Não há informações no ambiente sobre a associação de produtores do João ou sobre quem a preside. Se houver um contexto específico, como um documento ou notícia, por favor, compartilhe para que eu possa ajudar com base em dados reais.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.913,
+    "segundos": 7.743
+  },
+  {
+    "id": "R1N01",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Quando termina a sua bolsa depende do prazo definido pelo programa de bolsa, da instituição que você está matriculado e do cronograma de atividades do seu curso. Se você puder me dizer o nome do curso ou a instituição, posso ajudar a localizar o período de conclusão. Se não, talvez seja melhor consultar o site oficial do programa ou o seu coordenador acadêmico.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.837,
+    "segundos": 14.009
+  },
+  {
+    "id": "R1N02",
+    "condicao": "com-rag",
+    "quem": "joao",
+    "texto": "Não tenho informações sobre quantas famílias estão na associação nem sobre quem é a presidente. Esses dados não estão disponíveis no ambiente \"Treinamento Kally\" ou nos conteúdos fornecidos. Se você tiver acesso a um documento oficial ou uma página da associação, posso ajudar a interpretar ou resumir o que lá está escrito.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.546,
+    "segundos": 11.364
+  },
+  {
+    "id": "R1N03",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "Não tenho registro nem memória de algo chamado \"o pão do menino na padaria do seu abílio\". Talvez seja uma referência ou uma história que não está no ambiente de dados que tenho. Se for algo que você lembra ou que quer compartilhar, fico feliz em ouvir.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.531,
+    "segundos": 10.233
+  },
+  {
+    "id": "R1N04",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Há quatro anos que o João espalha a palha do feijão em vez de queimar.",
+    "sources": [
+      {
+        "title": "A palha que não queima: um gesto que melhora a mandioca",
+        "slug": "a-palha-que-nao-queima-um-gesto-que-melhora-a-mandioca",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.399,
+    "segundos": 8.473
+  },
+  {
+    "id": "R1N05",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "Não tenho informações sobre o lançamento de um bolo de pote de pequi da Sonia nem sobre promoções associadas a esse evento. Se for algo recente ou regional, talvez não esteja registrado em fontes públicas ou não tenha sido divulgado oficialmente. Se quiser, posso ajudar a buscar informações com base em fontes confiáveis — basta me dizer o contexto ou localização.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.612,
+    "segundos": 11.253
+  },
+  {
+    "id": "R1N06",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "Começa com algo que mostre respeito e atenção ao trabalho da outra pessoa — por exemplo, “vi seu trabalho sobre [tema] e gostei da forma como você abordou [aspecto]”. Se for um comentário público, evita generalizações e mantém o foco no que foi feito, não no que você pensa que deveria ser. Se quiser, posso ajudar a montar uma frase específica, se você me contar um pouco mais do contexto.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.43,
+    "segundos": 13.917
+  },
+  {
+    "id": "R1N07",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "Em cada Encontro de Trocas, duas pessoas apresentam o projeto, cada uma por 10 minutos. A ordem das apresentações é sorteada no início do ciclo. Não há dados sobre quantas pessoas apresentam em cada encontro — o formato define sempre duas apresentações por encontro.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.287,
+    "segundos": 12.441
+  },
+  {
+    "id": "R1N08",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Não, outros não conseguem ver os documentos que você envia para a Kally. Eles são privados e só são acessados nas conversas que você mantém com a K0. O conteúdo é protegido e só é usado para ajudar no que você compartilha com a Kally — nunca é divulgado ou acessado por terceiros.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.915,
+    "segundos": 14.032
+  },
+  {
+    "id": "R1N09",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "Rafael pretende usar uma regressão logística como baseline no classificador. Isso está mencionado no pensamento \"ML do zero #1: precision, recall e por que accuracy engana\", onde se diz que \"próximo passo: treinar uma regressão logística como baseline\".",
+    "sources": [
+      {
+        "title": "ML do zero #1: precision, recall e por que accuracy engana",
+        "slug": "ml-do-zero-1-precision-recall-e-por-que-accuracy-engana",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.063,
+    "segundos": 12.441
+  },
+  {
+    "id": "R1N10",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Porque o kefir de água é uma bebida fermentada, com pouco sabor doce, que não contém leite — o que faz com que seja acessível para alunos com intolerância à lactose — e pode ser saborizado com frutas, tornando-o mais agradável para crianças do 6º ano. Esse fator é central na investigação, pois a pergunta do TCC é sobre a aceitação de uma bebida fermentada oferecida no lanche escolar.",
+    "sources": [
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.793,
+    "segundos": 19.122
+  },
+  {
+    "id": "R1A01",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "O ambiente Treinamento Kally não possui mensalidade. É um espaço de compartilhamento e desenvolvimento pessoal, sem custo para uso.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.065,
+    "segundos": 9.39
+  },
+  {
+    "id": "R1A02",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "O Encontro de Trocas é coordenado pelo próprio ambiente Treinamento Kally, que organiza e structura o evento como parte do ciclo de 14 dias. Não há uma pessoa específica mencionada como responsável, mas o fluxo é gerenciado pelo sistema do ambiente, seguindo o cronograma definido.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.816,
+    "segundos": 14.52
+  },
+  {
+    "id": "R1A03",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "Não há dados no ambiente sobre o recall de um modelo do Rafael na classe urgente. A informação não está presente nos materiais fornecidos ou em fontes externas que eu possa consultar. Se você tiver mais contexto ou um documento específico, posso ajudar a analisar.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.963,
+    "segundos": 10.019
+  },
+  {
+    "id": "R1A04",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O guia não menciona explicitamente que o Diário aceita até 3 mil caracteres. Isso não está no material [P1] ou [P2]. O que há é uma referência ao formato do Diário como um espaço para escrita pessoal, com foco em progresso e reflexão. Se houver limite de caracteres, ele não é detalhado no que foi fornecido. Para confirmar, seria melhor ver a política oficial do Diário, se disponível.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.587,
+    "segundos": 19.55
+  },
+  {
+    "id": "R1A05",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não há informação no ambiente sobre a nota que o Igor tirou na qualificação do doutorado.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": null,
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.899,
+    "segundos": 4.29
+  }
+]

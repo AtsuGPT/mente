@@ -1,0 +1,54 @@
+{
+  "rodada": 1,
+  "data": "2026-11-08T20:33:45.682Z",
+  "parametros": {
+    "commitLocal": "f9ca0ad",
+    "observacao": "Valores lidos do repositório local; o servidor testado pode estar em outra versão.",
+    "embeddings": "qwen3-embedding:0.6b",
+    "perfil": {
+      "floor": 0.3,
+      "min": 0.4,
+      "span": 0.3,
+      "weight": 0.7,
+      "conversationMin": 0.55
+    },
+    "trechoPosts": 900,
+    "trechoDocumentos": 600
+  },
+  "comRag": {
+    "nota": null,
+    "nota5": null,
+    "nota4ou5": null,
+    "fatosCompletos": 0.2903225806451613,
+    "fonteCerta": 0.41935483870967744,
+    "armadilhasAdmitiu": 0.75,
+    "inventou": null,
+    "erroFactual": null,
+    "segundosMediana": 12.441,
+    "segundosP90": 21.598100000000006
+  },
+  "semRag": {
+    "nota": null,
+    "nota5": null,
+    "fatosCompletos": null,
+    "armadilhasAdmitiu": null,
+    "inventou": null
+  },
+  "ganhoRag": null,
+  "interacoes": {
+    "nota": null,
+    "nota5": null,
+    "n": 0
+  },
+  "diagnostico": {
+    "ok": 9,
+    "acertou_sem_fonte": 0,
+    "erro_geracao": 5,
+    "erro_busca_ou_interpretacao": 18,
+    "erro_interpretacao": 0,
+    "erro_busca": 0,
+    "conteudo_ausente": 0
+  },
+  "vazamentos": 1,
+  "corrigidos": 0
+}

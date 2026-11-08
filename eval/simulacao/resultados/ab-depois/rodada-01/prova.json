@@ -1,0 +1,2258 @@
+[
+  {
+    "id": "N01",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O encontro de trocas é toda quarta-feira, às 20h.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1338,
+      "promptSeconds": 5.01,
+      "outputTokens": 19,
+      "outputSeconds": 2.54,
+      "tokensPerSecond": 7.5,
+      "totalSeconds": 7.56,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5,
+      "wallSeconds": 7.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.3,
+        "totalSeconds": 7.9
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.378,
+    "segundos": 7.926
+  },
+  {
+    "id": "N02",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Cada ciclo do ambiente dura 14 dias.  \nNo final de cada ciclo, cada pessoa publica um balanço curto na pasta Diário, respondendo a três perguntas:  \n- O que avancei  \n- O que travou  \n- O que vou tentar no próximo ciclo  \n\nEsse balanço é parte do Diário, como indicado no pensamento \"Guia do ambiente Treinamento Kally\".",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1347,
+      "promptSeconds": 5.11,
+      "outputTokens": 94,
+      "outputSeconds": 12.46,
+      "tokensPerSecond": 7.5,
+      "totalSeconds": 17.58,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.1,
+      "wallSeconds": 17.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 1.9
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.1,
+        "totalSeconds": 19.5
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 7.097,
+    "segundos": 19.558
+  },
+  {
+    "id": "N03",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não há informação no ambiente sobre o limite de caracteres para um post na pasta Diário.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1150,
+      "promptSeconds": 2.83,
+      "outputTokens": 19,
+      "outputSeconds": 2.34,
+      "tokensPerSecond": 8.1,
+      "totalSeconds": 5.18,
+      "thinkingChars": 0,
+      "firstTextSeconds": 2.9,
+      "wallSeconds": 5.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 3.2,
+        "totalSeconds": 5.5
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.213,
+    "segundos": 5.553
+  },
+  {
+    "id": "N04",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Se o post foi escrito com apoio da Kally, é válido marcar no final com \"(escrito com apoio da Kally)\", conforme o guia do ambiente. Isso mantém a transparência sobre quem ajudou na elaboração.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1265,
+      "promptSeconds": 3.76,
+      "outputTokens": 54,
+      "outputSeconds": 7.77,
+      "tokensPerSecond": 7,
+      "totalSeconds": 11.54,
+      "thinkingChars": 0,
+      "firstTextSeconds": 3.8,
+      "wallSeconds": 11.5,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 1.6
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.3,
+        "totalSeconds": 13.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.374,
+    "segundos": 13.147
+  },
+  {
+    "id": "N05",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Cada pessoa apresenta por 10 minutos no encontro de trocas.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1256,
+      "promptSeconds": 3.92,
+      "outputTokens": 18,
+      "outputSeconds": 2.28,
+      "tokensPerSecond": 7.9,
+      "totalSeconds": 6.22,
+      "thinkingChars": 0,
+      "firstTextSeconds": 3.9,
+      "wallSeconds": 6.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.3,
+        "totalSeconds": 6.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.322,
+    "segundos": 6.61
+  },
+  {
+    "id": "N06",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "O estudo de Luíza envolve 84 alunos do 6º ano, das duas escolas municipais de Contagem.",
+    "sources": [
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      },
+      {
+        "title": "igor-plano-doutorado",
+        "slug": "cmw8aj8uy001a7dnjw5j5yh1y",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1604,
+      "promptSeconds": 8.35,
+      "outputTokens": 30,
+      "outputSeconds": 3.96,
+      "tokensPerSecond": 7.6,
+      "totalSeconds": 12.33,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.4,
+      "wallSeconds": 12.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 8.7,
+        "totalSeconds": 12.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.762,
+    "segundos": 12.723
+  },
+  {
+    "id": "N07",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "A última redação do Dudu foi com 640 no simulado. A meta dele é alcançar 800 no Enem.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "contagem regressiva",
+        "slug": "contagem-regressiva",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1283,
+      "promptSeconds": 4.37,
+      "outputTokens": 32,
+      "outputSeconds": 4.31,
+      "tokensPerSecond": 7.4,
+      "totalSeconds": 8.69,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.4,
+      "wallSeconds": 8.7,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.7,
+        "totalSeconds": 9
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.731,
+    "segundos": 9.041
+  },
+  {
+    "id": "N08",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "A padaria do Abílio funcionou de 1971 a 1996.",
+    "sources": [
+      {
+        "title": "A padaria do Abílio",
+        "slug": "a-padaria-do-abilio",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1402,
+      "promptSeconds": 5.72,
+      "outputTokens": 23,
+      "outputSeconds": 3.13,
+      "tokensPerSecond": 7.3,
+      "totalSeconds": 8.86,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.7,
+      "wallSeconds": 8.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 1.4
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 7.1,
+        "totalSeconds": 10.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 7.137,
+    "segundos": 10.27
+  },
+  {
+    "id": "N09",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "O dataset do Rafael compõe 12.400 e-mails.  \nA proporção de mensagens urgentes é de 8%.  \n\nNão há informação no ambiente sobre a proporção específica de mensagens urgentes em relação ao total, exceto no pensamento [P1], que afirma claramente que 8% dos e-mails estão marcados como urgentes. Portanto, a proporção é de 8% dos 12.400 e-mails.",
+    "sources": [
+      {
+        "title": "ML do zero #1: precision, recall e por que accuracy engana",
+        "slug": "ml-do-zero-1-precision-recall-e-por-que-accuracy-engana",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1286,
+      "promptSeconds": 4.38,
+      "outputTokens": 104,
+      "outputSeconds": 14.36,
+      "tokensPerSecond": 7.2,
+      "totalSeconds": 18.77,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.4,
+      "wallSeconds": 18.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.4
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.8,
+        "totalSeconds": 19.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.819,
+    "segundos": 19.189
+  },
+  {
+    "id": "N10",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "Não há informação no ambiente sobre qual congresso a Beatriz vai enviar o artigo nem sobre o limite de páginas.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1058,
+      "promptSeconds": 1.49,
+      "outputTokens": 26,
+      "outputSeconds": 3.45,
+      "tokensPerSecond": 7.5,
+      "totalSeconds": 4.94,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.5,
+      "wallSeconds": 4.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 2
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 3.5,
+        "totalSeconds": 7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.575,
+    "segundos": 7.027
+  },
+  {
+    "id": "N11",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Não há informação no ambiente sobre o tamanho do sítio do João nem sobre o que ele planta consorciado.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0.01,
+      "promptTokens": 1057,
+      "promptSeconds": 1.5,
+      "outputTokens": 26,
+      "outputSeconds": 3.43,
+      "tokensPerSecond": 7.6,
+      "totalSeconds": 4.95,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.5,
+      "wallSeconds": 5,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 1.9,
+        "totalSeconds": 5.3
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.897,
+    "segundos": 5.33
+  },
+  {
+    "id": "N12",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "A prova de residência da Carla é em 22 de novembro. Ela mencionou que o conteúdo cobrado é SUS, farmacologia e cuidados críticos, e que tem medo porque a parte de SUS é sua mais fraca.",
+    "sources": [
+      {
+        "title": "contagem regressiva",
+        "slug": "contagem-regressiva",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1140,
+      "promptSeconds": 2.86,
+      "outputTokens": 56,
+      "outputSeconds": 7.37,
+      "tokensPerSecond": 7.6,
+      "totalSeconds": 10.24,
+      "thinkingChars": 0,
+      "firstTextSeconds": 2.9,
+      "wallSeconds": 10.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 3.2,
+        "totalSeconds": 10.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.251,
+    "segundos": 10.628
+  },
+  {
+    "id": "N13",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não há informação no ambiente sobre um EP do Theo. Não foi encontrado nenhum registro de EPs, faixas ou discos relacionados a Theo no material fornecido. Se houver uma fonte externa, preciso de um link específico para verificar.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1053,
+      "promptSeconds": 1.73,
+      "outputTokens": 56,
+      "outputSeconds": 7.63,
+      "tokensPerSecond": 7.3,
+      "totalSeconds": 9.37,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.7,
+      "wallSeconds": 9.4,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2.1,
+        "totalSeconds": 9.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.113,
+    "segundos": 9.751
+  },
+  {
+    "id": "N14",
+    "condicao": "com-rag",
+    "quem": "joao",
+    "texto": "O bolo de pote com sabor de pequi é produzido por Sônia Prado com custo de R$ 6,40 por unidade e vendido por R$ .  \n\nO projeto menciona que o custo de produção é de R$ 6,40, e o preço final é de R$ 12,00. Não há dados no ambiente sobre quanto tempo Sônia gasta para fazer o bolo — o tempo de produção não está informado nos materiais.  \n\nO valor de venda é de R$ 12,00 por unidade, mas o projeto também destaca que ainda não foi incluído o aluguel, a luz e o salário das funcionárias.",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1651,
+      "promptSeconds": 9.17,
+      "outputTokens": 160,
+      "outputSeconds": 23.47,
+      "tokensPerSecond": 6.8,
+      "totalSeconds": 32.66,
+      "thinkingChars": 0,
+      "firstTextSeconds": 9.2,
+      "wallSeconds": 32.7,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 4.5
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 13.7,
+        "totalSeconds": 37.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 13.768,
+    "segundos": 37.248
+  },
+  {
+    "id": "N15",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Não há informação no ambiente sobre quantos artigos o Igor está usando na revisão ou sobre o período em que eles estão. O material disponível não menciona o Igor ou qualquer detalhe sobre revisão de artigos.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1345,
+      "promptSeconds": 5.01,
+      "outputTokens": 46,
+      "outputSeconds": 5.9,
+      "tokensPerSecond": 7.8,
+      "totalSeconds": 10.92,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5,
+      "wallSeconds": 10.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.4,
+        "totalSeconds": 11.3
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.398,
+    "segundos": 11.301
+  },
+  {
+    "id": "N16",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "A sua orientadora é a professora Heloísa Duarte. A reunião fixa é toda segunda-feira às 14h, na sala 312 do departamento.",
+    "sources": [
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "luiza-reunioes-orientacao",
+        "slug": "cmw8aiz5o000n7dnjctfovx9c",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1638,
+      "promptSeconds": 8.51,
+      "outputTokens": 41,
+      "outputSeconds": 5.3,
+      "tokensPerSecond": 7.7,
+      "totalSeconds": 13.82,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.5,
+      "wallSeconds": 13.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 8.9,
+        "totalSeconds": 14.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.893,
+    "segundos": 14.195
+  },
+  {
+    "id": "N17",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "Quer fazer engenharia elétrica na UFBA, e se não der, o segundo plano é o IFBA.  \n\nVocê precisa de 720 de média para ter chance, segundo o simulado do cursinho.  \nAs matérias que mais dificultam são física (dinâmica e eletricidade) e redação.  \n\nEstudo 1h por dia no ônibus de ida e volta, mais 2h à noite.  \n\nSe quiser, posso ajudar a montar um plano de estudo com foco nessas áreas. Deseja?",
+    "sources": [
+      {
+        "title": "dudu-planos",
+        "slug": "cmw8aj0tb000r7dnjwfl16ej1",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1292,
+      "promptSeconds": 4.44,
+      "outputTokens": 130,
+      "outputSeconds": 17.09,
+      "tokensPerSecond": 7.6,
+      "totalSeconds": 21.55,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.5,
+      "wallSeconds": 21.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.8,
+        "totalSeconds": 21.9
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.838,
+    "segundos": 21.932
+  },
+  {
+    "id": "N18",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "O livro é dedicado à minha neta Clarice, que faz aguia 9 anos em agosto.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "marta-caderno-do-livro",
+        "slug": "cmw8aj2hc000u7dnj5jpcp9p2",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1556,
+      "promptSeconds": 7.79,
+      "outputTokens": 24,
+      "outputSeconds": 3.27,
+      "tokensPerSecond": 7.3,
+      "totalSeconds": 11.08,
+      "thinkingChars": 0,
+      "firstTextSeconds": 7.8,
+      "wallSeconds": 11.1,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 1,
+        "seconds": 0.4
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 8.2,
+        "totalSeconds": 11.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.207,
+    "segundos": 11.48
+  },
+  {
+    "id": "N19",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Você trabalha na Lumen Logística, no time de plataforma.  \n\nIsso está escrito no documento \"rafael-notas-projeto\" que você compartilhou.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      },
+      {
+        "title": "A palha que não queima: um gesto que melhora a mandioca",
+        "slug": "a-palha-que-nao-queima-um-gesto-que-melhora-a-mandioca",
+        "kind": "projeto"
+      },
+      {
+        "title": "rafael-notas-projeto",
+        "slug": "cmw8aj42p000y7dnjbzf3fyhu",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1750,
+      "promptSeconds": 9.37,
+      "outputTokens": 39,
+      "outputSeconds": 5.75,
+      "tokensPerSecond": 6.8,
+      "totalSeconds": 15.13,
+      "thinkingChars": 0,
+      "firstTextSeconds": 9.4,
+      "wallSeconds": 15.1,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 3,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 9.7,
+        "totalSeconds": 15.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 9.728,
+    "segundos": 15.487
+  },
+  {
+    "id": "N20",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Trabalho no Hospital São Vicente, UTI Adulto, escala 12x36 noturna.  \nSai do plantão às 7h, dormo até as 13h. O dia de folga é o único que rende.  \nTenho dois filhos, de 8 e 11 anos, levo na escola de manhã quando não estou de plantão.  \nMatérias: SUS e políticas de saúde (fraco), farmacologia (médio), cuidados críticos (forte).  \n\n[ D1 ] \"carla-rotina\" — rotina da carla (documento pessoal) código de conferência EF-61739-CM",
+    "sources": [
+      {
+        "title": "carla-rotina",
+        "slug": "cmw8aj5o100127dnjjtxksu8t",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1318,
+      "promptSeconds": 4.6,
+      "outputTokens": 157,
+      "outputSeconds": 19.75,
+      "tokensPerSecond": 7.9,
+      "totalSeconds": 24.37,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.6,
+      "wallSeconds": 24.4,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5,
+        "totalSeconds": 24.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.981,
+    "segundos": 24.734
+  },
+  {
+    "id": "N21",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "O faturamento médio da sua confeitaria é de R$ 18.500 por mês.  \n\nEsse valor é a média dos últimos seis meses, conforme registrado no documento \"sonia-numeros-doce-prado\".",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      },
+      {
+        "title": "sonia-numeros-doce-prado · linhas 2–8",
+        "slug": "cmw8aj79g00157dnjdg4e41mc",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1908,
+      "promptSeconds": 12.65,
+      "outputTokens": 54,
+      "outputSeconds": 8.56,
+      "tokensPerSecond": 6.3,
+      "totalSeconds": 21.23,
+      "thinkingChars": 0,
+      "firstTextSeconds": 12.7,
+      "wallSeconds": 21.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 13.1,
+        "totalSeconds": 21.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 13.072,
+    "segundos": 21.639
+  },
+  {
+    "id": "N22",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Não há informações no ambiente sobre a orientadora da Luíza ou sobre o horário de reunião entre eles.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1056,
+      "promptSeconds": 1.55,
+      "outputTokens": 26,
+      "outputSeconds": 3.25,
+      "tokensPerSecond": 8,
+      "totalSeconds": 4.98,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.7,
+      "wallSeconds": 5,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2.1,
+        "totalSeconds": 5.3
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.086,
+    "segundos": 5.343
+  },
+  {
+    "id": "N23",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "O faturamento médio mensal da padaria é de R$ 18.500, conforme informado no projeto \"Bolo de pote com sabor de pequi: lançamento sexta-feira\". \n\nEsse valor inclui o faturamento dos bolos de pote e outros produtos, mas não é especificado separadamente para o bolo de pote. O projeto menciona apenas o custo de produção (R$ 6,40) e o preço de venda (R$ 12,00), e a taxa de entrega (27%) sobre o valor do pedido. Não há dados no ambiente sobre o faturamento mensal exclusivo do bolo de pote.",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1605,
+      "promptSeconds": 8.56,
+      "outputTokens": 153,
+      "outputSeconds": 22.27,
+      "tokensPerSecond": 6.9,
+      "totalSeconds": 30.85,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.6,
+      "wallSeconds": 30.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 8.9,
+        "totalSeconds": 31.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 8.911,
+    "segundos": 31.186
+  },
+  {
+    "id": "N24",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Não há informação no ambiente sobre em qual hospital a Carla trabalha.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1335,
+      "promptSeconds": 4.61,
+      "outputTokens": 15,
+      "outputSeconds": 1.71,
+      "tokensPerSecond": 8.7,
+      "totalSeconds": 6.34,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.6,
+      "wallSeconds": 6.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5,
+        "totalSeconds": 6.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.985,
+    "segundos": 6.706
+  },
+  {
+    "id": "N25",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Não há informação no ambiente sobre quem preside a associação de produtores do João.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1051,
+      "promptSeconds": 1.67,
+      "outputTokens": 19,
+      "outputSeconds": 2.13,
+      "tokensPerSecond": 8.9,
+      "totalSeconds": 3.81,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.7,
+      "wallSeconds": 3.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2,
+        "totalSeconds": 4.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.064,
+    "segundos": 4.194
+  },
+  {
+    "id": "R1N01",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Não há informação no ambiente sobre o prazo de término da sua bolsa. Se você tiver mais detalhes, posso ajudar a entender melhor.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1047,
+      "promptSeconds": 1.46,
+      "outputTokens": 33,
+      "outputSeconds": 4.29,
+      "tokensPerSecond": 7.7,
+      "totalSeconds": 5.77,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.5,
+      "wallSeconds": 5.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 1.8,
+        "totalSeconds": 6.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.812,
+    "segundos": 6.109
+  },
+  {
+    "id": "R1N02",
+    "condicao": "com-rag",
+    "quem": "joao",
+    "texto": "Não há informação no ambiente sobre o número de famílias na associação nem sobre quem é a presidente.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1051,
+      "promptSeconds": 1.48,
+      "outputTokens": 23,
+      "outputSeconds": 2.92,
+      "tokensPerSecond": 7.9,
+      "totalSeconds": 4.41,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.5,
+      "wallSeconds": 4.4,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 1.8,
+        "totalSeconds": 4.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 1.838,
+    "segundos": 4.762
+  },
+  {
+    "id": "R1N03",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "O \"pão do menino\" era um pão que Abílio oferecia de graça para uma criança que levasse a conta de cabeça certinha — ou seja, que soubesse contar o valor exato do que estava sendo pago. Era uma forma de ensinar a trocar, não só moedas, mas o que era justo e verdadeiro no dia a dia.  \n\nEsse gesto, pequeno, tinha um significado maior: era uma maneira de mostrar que o trabalho da padaria não era só sobre vender pão, mas sobre construir relações, com tempo e cuidado. O pão do menino era, então, um símbolo de um jeito de viver — lento, humano, com valores que não eram medidos em dinheiro, mas em confiança e presença.  \n\nQuando a padaria fechou, Abílio disse que o bairro ficou com fome de outra coisa — não só de pão, mas de um ritmo de vida que ainda não havia sido substituído.",
+    "sources": [
+      {
+        "title": "A padaria do Abílio",
+        "slug": "a-padaria-do-abilio",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1406,
+      "promptSeconds": 5.95,
+      "outputTokens": 228,
+      "outputSeconds": 32.59,
+      "tokensPerSecond": 7,
+      "totalSeconds": 38.56,
+      "thinkingChars": 0,
+      "firstTextSeconds": 6,
+      "wallSeconds": 38.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 6.3,
+        "totalSeconds": 38.9
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 6.318,
+    "segundos": 38.915
+  },
+  {
+    "id": "R1N04",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Há quatro anos que o João espalha a palha do feijão em vez de queimar.",
+    "sources": [
+      {
+        "title": "A palha que não queima: um gesto que melhora a mandioca",
+        "slug": "a-palha-que-nao-queima-um-gesto-que-melhora-a-mandioca",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1373,
+      "promptSeconds": 5.34,
+      "outputTokens": 25,
+      "outputSeconds": 2.95,
+      "tokensPerSecond": 8.5,
+      "totalSeconds": 8.3,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.4,
+      "wallSeconds": 8.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.4
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.7,
+        "totalSeconds": 8.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.75,
+    "segundos": 8.71
+  },
+  {
+    "id": "R1N05",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O bolo de pote com sabor de pequi é lançado sexta-feira, 14.  \n\nA promoção é: quem comprar 3 unidades leva 4. A oferta é válida apenas na data do lançamento.  \n\nO preço final do bolo é de R$ 12,00, com custo de produção de R$ 6,40 por unidade.  \n\nO código de conferência é CF-80364-SP.",
+    "sources": [
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1650,
+      "promptSeconds": 8.68,
+      "outputTokens": 104,
+      "outputSeconds": 13.93,
+      "tokensPerSecond": 7.5,
+      "totalSeconds": 22.63,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.7,
+      "wallSeconds": 22.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 9,
+        "totalSeconds": 23
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 9.055,
+    "segundos": 22.988
+  },
+  {
+    "id": "R1N06",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "Começa com um ponto forte do trabalho — algo específico que você viu, que se destaca, que gerou impacto ou curiosidade. Por exemplo: \"Notei que a estrutura de apresentação do projeto sobre sustentabilidade é clara e bem organizada, com seções que mostram claramente os desafios e as soluções.\"  \n\nSe for crítico, mantenha o foco no texto, não na pessoa: \"A seção de resultados poderia incluir mais dados concretos para reforçar a validade da conclusão.\"  \n\nSempre respeite o limite de dados pessoais: não mencione detalhes privados sem autorização.  \n\nE, claro, se for um comentário público, o texto deve ser revisado pela pessoa que fez o trabalho antes de ser publicado — a Kally só ajuda a escrever, não publica.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1258,
+      "promptSeconds": 3.86,
+      "outputTokens": 192,
+      "outputSeconds": 27.11,
+      "tokensPerSecond": 7.1,
+      "totalSeconds": 30.99,
+      "thinkingChars": 0,
+      "firstTextSeconds": 3.9,
+      "wallSeconds": 31,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.2,
+        "totalSeconds": 31.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.269,
+    "segundos": 31.384
+  },
+  {
+    "id": "R1N07",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "Em cada Encontro de Trocas, são apresentadas duas pessoas com o projeto. Cada apresentação dura 10 minutos, totalizando 20 minutos de apresentação, e o restante do tempo é dedicado à conversa entre os participantes.\n\nA ordem das apresentações é sorteada no início de cada ciclo de encontros. Não há critério fixo de prioridade ou sequência definida por critérios de desempenho ou experiência, apenas uma sorteio para garantir equidade e abertura ao grupo.\n\nO que vem do ambiente [P1] é claro e direto: \"cada encontro tem duas pessoas apresentando o projeto por 10 minutos cada; o resto é conversa. A ordem das apresentações é sorteada no começo do ciclo.\"",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1265,
+      "promptSeconds": 3.72,
+      "outputTokens": 171,
+      "outputSeconds": 24.12,
+      "tokensPerSecond": 7.1,
+      "totalSeconds": 27.87,
+      "thinkingChars": 0,
+      "firstTextSeconds": 3.8,
+      "wallSeconds": 27.9,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.1,
+        "totalSeconds": 28.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.127,
+    "segundos": 28.256
+  },
+  {
+    "id": "R1N08",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "Não, outros membros do ambiente não conseguem ver os documentos que você envia à Kally. Esses documentos são consultados apenas nas conversas da própria pessoa e não são compartilhados ou visíveis por outras pessoas. Isso está explicitado no pensamento \"Guia do ambiente Treinamento Kally\".",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1257,
+      "promptSeconds": 3.88,
+      "outputTokens": 68,
+      "outputSeconds": 9.16,
+      "tokensPerSecond": 7.4,
+      "totalSeconds": 13.06,
+      "thinkingChars": 0,
+      "firstTextSeconds": 3.9,
+      "wallSeconds": 13.1,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.2,
+        "totalSeconds": 13.4
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.267,
+    "segundos": 13.43
+  },
+  {
+    "id": "R1N09",
+    "condicao": "com-rag",
+    "quem": "luiza",
+    "texto": "Rafael pretende usar uma regressão logística como baseline no classificador.",
+    "sources": [
+      {
+        "title": "ML do zero #1: precision, recall e por que accuracy engana",
+        "slug": "ml-do-zero-1-precision-recall-e-por-que-accuracy-engana",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1277,
+      "promptSeconds": 4.35,
+      "outputTokens": 18,
+      "outputSeconds": 2.39,
+      "tokensPerSecond": 7.5,
+      "totalSeconds": 6.75,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.4,
+      "wallSeconds": 6.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 4.7,
+        "totalSeconds": 7.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 4.741,
+    "segundos": 7.133
+  },
+  {
+    "id": "R1N10",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Porque o kefir de água é barato de produzir, não contém leite (o que inclui alunos com intolerância à lactose) e pode ser saborizado com frutas, o que torna a bebida mais atraente para crianças. Isso está claro no projeto \"Etapa 1: o que vou investigar no meu TCC\" de Luíza Campos.",
+    "sources": [
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1315,
+      "promptSeconds": 4.79,
+      "outputTokens": 86,
+      "outputSeconds": 12.03,
+      "tokensPerSecond": 7.2,
+      "totalSeconds": 16.83,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.8,
+      "wallSeconds": 16.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.1,
+        "totalSeconds": 17.2
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.172,
+    "segundos": 17.201
+  },
+  {
+    "id": "R1A01",
+    "condicao": "com-rag",
+    "quem": "carla",
+    "texto": "O valor da mensalidade do ambiente Treinamento Kally não está registrado no material fornecido. Não há informação sobre custos, mensalidades ou valores financeiros no ambiente.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1340,
+      "promptSeconds": 5,
+      "outputTokens": 40,
+      "outputSeconds": 5.07,
+      "tokensPerSecond": 7.9,
+      "totalSeconds": 10.09,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.1,
+      "wallSeconds": 10.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.4,
+        "totalSeconds": 10.5
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.469,
+    "segundos": 10.547
+  },
+  {
+    "id": "R1A02",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "O Encontro de Trocas é coordenado pela Coordenação do Treinamento.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1335,
+      "promptSeconds": 4.62,
+      "outputTokens": 19,
+      "outputSeconds": 2.55,
+      "tokensPerSecond": 7.4,
+      "totalSeconds": 7.19,
+      "thinkingChars": 0,
+      "firstTextSeconds": 4.6,
+      "wallSeconds": 7.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5,
+        "totalSeconds": 7.5
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.014,
+    "segundos": 7.572
+  },
+  {
+    "id": "R1A03",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "Não há informação no ambiente sobre o recall do primeiro modelo do Rafael na classe urgente.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1052,
+      "promptSeconds": 1.7,
+      "outputTokens": 19,
+      "outputSeconds": 2.47,
+      "tokensPerSecond": 7.7,
+      "totalSeconds": 4.19,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.7,
+      "wallSeconds": 4.2,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2.1,
+        "totalSeconds": 4.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.112,
+    "segundos": 4.587
+  },
+  {
+    "id": "R1A04",
+    "condicao": "com-rag",
+    "quem": "dudu",
+    "texto": "O guia não menciona explicitamente limite de 3 mil caracteres para o Diário. Não há informação no ambiente sobre esse valor. Apenas diz que o Diário é um espaço para escritas pessoais, com foco em reflexão e progresso. Se você quiser, posso ajudar a organizar sua redação semelhante ao que o corretor sugeriu — com menos repetições de \"portanto\" e mais desenvolvimento de ideias. Quer tentar?",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "minha redação tá travada",
+        "slug": "minha-redacao-ta-travada",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1374,
+      "promptSeconds": 5.38,
+      "outputTokens": 107,
+      "outputSeconds": 14.55,
+      "tokensPerSecond": 7.4,
+      "totalSeconds": 19.94,
+      "thinkingChars": 0,
+      "firstTextSeconds": 5.4,
+      "wallSeconds": 20,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.4
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 5.8,
+        "totalSeconds": 20.3
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 5.786,
+    "segundos": 20.344
+  },
+  {
+    "id": "R1A05",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não há informação no ambiente sobre a nota que o Igor tirou na qualificação do doutorado.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1051,
+      "promptSeconds": 1.67,
+      "outputTokens": 21,
+      "outputSeconds": 2.65,
+      "tokensPerSecond": 7.9,
+      "totalSeconds": 4.32,
+      "thinkingChars": 0,
+      "firstTextSeconds": 1.7,
+      "wallSeconds": 4.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2,
+        "totalSeconds": 4.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 2.052,
+    "segundos": 4.701
+  }
+]
