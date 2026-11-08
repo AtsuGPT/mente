@@ -47,9 +47,18 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
-  const casual = !wantsMemory && m.length < 160 && (/^(oi|olá|ola|e aí|eai|bom dia|boa tarde|boa noite|tudo bem|valeu|obrigad|haha|kkk|rs\b|tô |to |estou |hoje |que dia|nossa|eita)/.test(m) || !m.includes("?"));
+  // Casual só quando não há pergunta nem pedido. Antes, qualquer mensagem curta sem "?" era casual e a
+  // Kally nem consultava o ambiente: "qnd é a prova da carla" ficava sem memória (simulação, rodada 1:
+  // 9 de 40 perguntas da prova). Cumprimento seguido de pedido ("oi kally preciso de um plano") também
+  // não é papo.
+  const greeting = /^(oi|olá|ola|e aí|eai|bom dia|boa tarde|boa noite|tudo bem|valeu|obrigad|haha|kkk|rs\b|tô |to |estou |hoje |que dia|nossa|eita)/;
+  const asks = ASKS.test(m.replace(greeting, ""));
+  const casual = !wantsMemory && m.length < 160 && !asks && (greeting.test(m) || !m.includes("?"));
   return { mode: "chat", casual, wantsMemory };
 }
+
+/** Palavras de pergunta ou de pedido: com elas, a mensagem não é papo casual. */
+const ASKS = /\b(qu[ae]l|quais|qu?ando|qnd|quant[oa]s?|quem|onde|como|por ?que|pq|o que|oq|me (ajud|diz|fala|explic|mostr|lembr|conta)|explic|faz|fa[cç]a|elabor|escrev|cri[ae]|organiz|revis|resum|monte|liste|calcul|precis|quero|queria|pode|consegue|tem |existe|lembra)/;
 
 /**
  * Escrita da Kally em qualquer modo: sem emojis e sem entusiasmo artificial. O controle é por
