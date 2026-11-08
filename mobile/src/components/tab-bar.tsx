@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Platform, StyleSheet, View, type LayoutRectangle } from "react-native";
 import type { Tabs } from "expo-router/js-tabs";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, { interpolate, interpolateColor, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Touchable } from "@/components/ui/primitives";
 import { spring, timing } from "@/theme/motion";
-import { colors, elevation, fonts, gradients, radius } from "@/theme/tokens";
+import { colors, fonts, radius, tint } from "@/theme/tokens";
 
 /**
- * Barra de abas do ambiente, reconstruída como uma doca flutuante de vidro roxo.
+ * Barra de abas do ambiente: preta, de ponta a ponta, como a de um app nativo.
  *
- * Uma única pílula em gradiente desliza com mola (interrompível: tocar em outra aba no meio
- * do caminho só muda o destino) até a aba escolhida; o ícone ativo cresce e fica branco, os
- * outros recuam para o cinza, em transição cruzada. Toque com resposta tátil.
+ * Uma única pílula roxa translúcida desliza com mola (interrompível: tocar em outra aba no meio
+ * do caminho só muda o destino) até a aba escolhida; o ícone ativo ganha o lilás e os outros
+ * ficam em cinza, em transição cruzada. Toque com resposta tátil.
  *
- *  - bottom: celular (abaixo de 768 px), doca no rodapé, acima da área segura.
+ *  - bottom: celular (abaixo de 768 px), barra no rodapé, acima da área segura.
  *  - rail: tablet/janela média, coluna estreita.
  *  - side: notebook/monitor, coluna com rótulos ao lado; a pílula ocupa a linha.
  *
@@ -26,7 +25,9 @@ import { colors, elevation, fonts, gradients, radius } from "@/theme/tokens";
 export type TabBarVariant = "bottom" | "rail" | "side";
 type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 
-const PILL = { bottom: { width: 56, height: 36 }, rail: { width: 54, height: 36 } } as const;
+const PILL = { bottom: { width: 58, height: 32 }, rail: { width: 54, height: 36 } } as const;
+/** Distância do topo do item até a pílula (centrada no ícone). */
+const PILL_TOP: Record<TabBarVariant, number> = { bottom: 7, rail: 4, side: 0 };
 
 export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, variant, icons }: BottomTabBarProps & { variant: TabBarVariant; icons: Record<string, IconName> }) {
   const [layouts, setLayouts] = useState<(LayoutRectangle | undefined)[]>([]);
@@ -45,7 +46,7 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
     const item = layouts[index];
     if (!item) return;
     const pill = variant === "side" ? { width: item.width, height: item.height } : PILL[variant];
-    const target = { x: item.x + (item.width - pill.width) / 2, y: variant === "side" ? item.y : item.y + 4, w: pill.width, h: pill.height };
+    const target = { x: item.x + (item.width - pill.width) / 2, y: item.y + PILL_TOP[variant], w: pill.width, h: pill.height };
     // Mesmo destino (o toque já mirou e agora o estado confirma): não reinicia a mola.
     const key = `${variant}|${target.x}|${target.y}|${target.w}|${target.h}`;
     if (aimed.current === key) return;
@@ -114,43 +115,26 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
   });
 
   const pillRadius = variant === "side" ? radius.md : radius.pill;
-  const pill = (
-    // Sombra (brilho) por fora; degradê e reflexo recortados dentro, no mesmo raio da pílula.
-    // Sem o recorte, o reflexo (mais baixo) arredonda diferente e "vaza" nos cantos de cima.
-    <Animated.View pointerEvents="none" style={[styles.indicator, { borderRadius: pillRadius }, elevation.glow, indicator]}>
-      <View style={[StyleSheet.absoluteFill, { borderRadius: pillRadius, overflow: "hidden" }]}>
-        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={["rgba(255,255,255,0.25)", "rgba(255,255,255,0)"]} style={styles.sheen} />
-      </View>
-    </Animated.View>
-  );
+  // Indicador discreto: roxo translúcido com um fio mais claro, sem degradê nem brilho.
+  const pill = <Animated.View pointerEvents="none" style={[styles.indicator, { borderRadius: pillRadius }, indicator]} />;
 
   if (variant === "bottom") {
     return (
-      <View accessibilityRole="tablist" style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: insets.left + 14, paddingRight: insets.right + 14 }]}>
-        <View style={[styles.dockShadow, elevation.float]}>
-          <LinearGradient pointerEvents="none" colors={gradients.border} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, styles.dockBorder]} />
-          <LinearGradient pointerEvents="none" colors={["rgba(30,22,52,0.97)", "rgba(13,9,24,0.97)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.dockBody} />
-          <View style={styles.dock}>
-            {pill}
-            {items}
-          </View>
-        </View>
+      <View accessibilityRole="tablist" style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8), paddingLeft: insets.left + 4, paddingRight: insets.right + 4 }]}>
+        {pill}
+        {items}
       </View>
     );
   }
 
   return (
-    <LinearGradient
+    <View
       accessibilityRole="tablist"
-      colors={["#120B24", "#07050D"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
       style={[styles.vertical, variant === "side" ? styles.side : styles.rail, { paddingTop: insets.top + (variant === "side" ? 24 : 16), paddingLeft: insets.left + (variant === "side" ? 12 : 0) }]}
     >
       {pill}
       {items}
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -192,8 +176,8 @@ function TabItem({
   // Troca cruzada com escala curta (sem "pulo" do ícone).
   const activeIcon = useAnimatedStyle(() => ({ opacity: on.value, transform: [{ scale: interpolate(on.value, [0, 1], [0.92, 1]) }] }));
   const idleIcon = useAnimatedStyle(() => ({ opacity: 1 - on.value, transform: [{ scale: interpolate(on.value, [0, 1], [1, 0.92]) }] }));
-  const text = useAnimatedStyle(() => ({ color: interpolateColor(Math.max(on.value, hover.value * 0.45), [0, 1], [colors.faint, variant === "side" ? "#FFFFFF" : colors.violet200]) }));
-  const surface = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(hover.value * (1 - on.value), [0, 1], ["rgba(31,23,54,0)", "rgba(31,23,54,0.75)"]) }));
+  const text = useAnimatedStyle(() => ({ color: interpolateColor(Math.max(on.value, hover.value * 0.45), [0, 1], [colors.faint, variant === "side" ? colors.text : colors.violet200]) }));
+  const surface = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(hover.value * (1 - on.value), [0, 1], ["rgba(255,255,255,0)", "rgba(255,255,255,0.05)"]) }));
   const iconBox = variant === "bottom" ? styles.iconBottom : variant === "rail" ? styles.iconRail : styles.iconSide;
 
   return (
@@ -223,13 +207,13 @@ function TabItem({
     >
       <View style={iconBox}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, idleIcon]}>
-          <Icon name={icon} size={22} color={colors.muted} strokeWidth={1.6} />
+          <Icon name={icon} size={22} color={colors.faint} strokeWidth={1.5} />
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, activeIcon]}>
-          <Icon name={icon} size={22} color="#FFFFFF" strokeWidth={2} />
+          <Icon name={icon} size={22} color={colors.violet300} strokeWidth={1.8} />
         </Animated.View>
       </View>
-      <Animated.Text numberOfLines={1} style={[styles.label, variant === "side" ? styles.labelSide : null, text]}>
+      <Animated.Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.3} style={[styles.label, variant === "side" ? styles.labelSide : null, text]}>
         {label}
       </Animated.Text>
     </Touchable>
@@ -237,24 +221,20 @@ function TabItem({
 }
 
 const styles = StyleSheet.create({
-  dockArea: { paddingTop: 6, backgroundColor: "transparent" },
-  dockShadow: { borderRadius: 30, backgroundColor: "#0D0918" },
-  dockBorder: { borderRadius: 30 },
-  dockBody: { position: "absolute", left: 1, top: 1, right: 1, bottom: 1, borderRadius: 29 },
-  dock: { flexDirection: "row", margin: 1, paddingHorizontal: 6, paddingTop: 4, paddingBottom: 4 },
-  vertical: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.lineStrong, height: "100%" },
+  // Barra nativa: preta, de ponta a ponta, com um fio fino em cima.
+  bar: { flexDirection: "row", paddingTop: 0, backgroundColor: colors.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.lineStrong },
+  vertical: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.lineStrong, height: "100%", backgroundColor: colors.bg },
   rail: { width: 84 },
   side: { width: 236, paddingRight: 12, gap: 6 },
-  indicator: { position: "absolute", left: 0, top: 0, backgroundColor: colors.violet600 },
-  sheen: { position: "absolute", left: 0, right: 0, top: 0, height: "55%" },
+  indicator: { position: "absolute", left: 0, top: 0, backgroundColor: tint.selected, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder },
   center: { alignItems: "center", justifyContent: "center" },
   item: { alignItems: "center", justifyContent: "center" },
-  itemBottom: { flex: 1, minHeight: 60, gap: 1, justifyContent: "flex-start", borderRadius: radius.pill },
+  itemBottom: { flex: 1, minHeight: 58, paddingTop: 7, gap: 3, justifyContent: "flex-start", borderRadius: radius.md },
   itemRail: { minHeight: 70, gap: 4, justifyContent: "flex-start" },
   itemSide: { flexDirection: "row", justifyContent: "flex-start", minHeight: 48, paddingHorizontal: 14, gap: 12, borderRadius: radius.md },
-  iconBottom: { width: 56, height: 40 },
+  iconBottom: { width: 58, height: 32 },
   iconRail: { width: 54, height: 44 },
   iconSide: { width: 24, height: 24 },
-  label: { fontFamily: fonts.sansMedium, fontSize: 11, lineHeight: 14, letterSpacing: 0.2 },
+  label: { fontFamily: fonts.sansMedium, fontSize: 10.5, lineHeight: 13, letterSpacing: 0.1 },
   labelSide: { fontSize: 15, lineHeight: 20 },
 });

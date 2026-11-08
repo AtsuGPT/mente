@@ -9,11 +9,11 @@ import { formatDateShort, formatNumber } from "@/lib/format";
 import { AppText, Skeleton, Touchable } from "./ui/primitives";
 import { Surface } from "./ui/surface";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import { colors, fonts, gradients, radius, space } from "@/theme/tokens";
+import { colors, fonts, radius, space } from "@/theme/tokens";
 
 export function CategoryTag({ category, onPress }: { category: Category; onPress?: () => void }) {
   return (
-    <Touchable onPress={onPress} disabled={!onPress} hitSlop={6} pressScale={0.94} style={[styles.tag, { borderColor: `${category.color}55` }]}>
+    <Touchable onPress={onPress} disabled={!onPress} hitSlop={6} pressScale={0.94} style={[styles.tag, { borderColor: `${category.color}40` }]}>
       <View style={[styles.dot, { backgroundColor: category.color }]} />
       <AppText variant="label" color={readableAccent(category.color)} style={{ fontSize: 11 }}>{category.name}</AppText>
     </Touchable>
@@ -22,27 +22,29 @@ export function CategoryTag({ category, onPress }: { category: Category; onPress
 
 export function Avatar({ src, size = 36 }: { src?: string | null; size?: number }) {
   return (
-    <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: size, height: size, borderRadius: size / 2, padding: 1.5 }}>
+    <View style={[styles.avatarRing, { width: size, height: size, borderRadius: size / 2 }]}>
       <View style={[styles.avatar, { borderRadius: size / 2 }]}>
         {src ? (
-          <Image source={{ uri: src }} style={{ width: size - 3, height: size - 3 }} contentFit="cover" />
+          <Image source={{ uri: src }} style={{ width: size - 2, height: size - 2 }} contentFit="cover" />
         ) : (
           <AppText style={{ fontFamily: fonts.serif, fontSize: size * 0.45, color: colors.violet200 }}>K</AppText>
         )}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 /**
- * Cartão de pensamento: superfície em camadas com borda em gradiente; a cor da pasta aparece
- * como uma faixa luminosa à esquerda e num brilho no canto. Pressionar acende a borda.
+ * Cartão de pensamento: superfície quase preta com fio discreto. A cor da pasta aparece só no
+ * ponto da etiqueta; o destaque (featured) é ocasional: o primeiro do feed ganha uma luz roxa
+ * contida no alto e o título maior. Pressionar acende a borda.
  */
-export const PostCard = memo(function PostCard({ post, author, avatar }: { post: PostCardData; author: string; avatar?: string | null }) {
-  const accent = post.categories[0]?.color ?? colors.violet500;
+export const PostCard = memo(function PostCard({ post, author, avatar, featured = false }: { post: PostCardData; author: string; avatar?: string | null; featured?: boolean }) {
   const hover = useSharedValue(0);
   const press = useSharedValue(0);
   const lit = useAnimatedStyle(() => ({ opacity: Math.max(hover.value * 0.6, press.value) }));
+  // A cor da pasta (legível sobre o preto) marca o número: diferencia os pensamentos sem imagem.
+  const accent = readableAccent(post.categories[0]?.color ?? colors.violet400);
   return (
     <Touchable
       accessibilityRole="link"
@@ -50,25 +52,29 @@ export const PostCard = memo(function PostCard({ post, author, avatar }: { post:
       onPress={() => router.push({ pathname: "/post/[slug]", params: { slug: post.slug } })}
       hover={hover}
       press={press}
-      pressScale={0.98}
+      pressScale={0.985}
     >
-      <Surface elevated contentStyle={styles.card}>
-        <LinearGradient colors={[`${accent}38`, `${accent}00`]} locations={[0, 0.6]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-        <LinearGradient colors={[accent, `${accent}10`]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.edge} />
+      <Surface contentStyle={styles.card}>
+        {featured ? (
+          <LinearGradient colors={["rgba(132,97,240,0.1)", "rgba(132,97,240,0)"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.45, y: 0.7 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        ) : null}
+        {/* Cabeçalho tipográfico: o número do pensamento, na cor da pasta, e a data. */}
         <View style={styles.meta}>
-          <Avatar src={avatar} size={32} />
-          <View style={{ flex: 1 }}>
-            <AppText variant="small" style={{ fontFamily: fonts.sansSemibold }} numberOfLines={1}>{author}</AppText>
-            <AppText variant="small" color={colors.faint} numberOfLines={1}>{formatDateShort(post.publishedAt)}</AppText>
-          </View>
-          <View style={styles.number}>
-            <AppText variant="label" color={colors.violet200} style={{ fontSize: 11 }}>Nº {formatNumber(post.number)}</AppText>
-          </View>
+          <AppText style={[styles.numeral, { color: accent }]}>Nº {formatNumber(post.number)}</AppText>
+          <View style={styles.metaDot} />
+          <AppText variant="small" color={colors.faint} numberOfLines={1} style={styles.date}>{formatDateShort(post.publishedAt)}</AppText>
+          {featured ? <AppText variant="label" color={colors.violet300} style={styles.badge}>Mais recente</AppText> : null}
         </View>
 
-        <AppText variant="title" style={styles.title}>{post.title}</AppText>
+        <AppText variant="title" style={featured ? styles.titleFeatured : styles.title} numberOfLines={featured ? 4 : 3}>{post.title}</AppText>
         {post.excerpt ? (
-          <AppText variant="body" color={colors.muted} numberOfLines={3} style={styles.excerpt}>{post.excerpt}</AppText>
+          <AppText variant="body" color={colors.muted} numberOfLines={featured ? 4 : 2} style={featured ? styles.excerptFeatured : styles.excerpt}>{post.excerpt}</AppText>
+        ) : null}
+        {featured ? (
+          <View style={styles.byline}>
+            <Avatar src={avatar} size={22} />
+            <AppText variant="small" color={colors.muted} numberOfLines={1} style={{ flexShrink: 1 }}>{author}</AppText>
+          </View>
         ) : null}
 
         {post.categories.length ? (
@@ -89,26 +95,32 @@ export function PostCardSkeleton() {
   return (
     <Surface contentStyle={[styles.card, { gap: space.sm }]}>
       <View style={styles.meta} aria-hidden>
-        <Skeleton style={{ width: 32, height: 32, borderRadius: 16 }} />
-        <Skeleton style={{ width: 140, height: 12 }} />
+        <Skeleton style={{ width: 52, height: 12 }} />
+        <Skeleton style={{ width: 96, height: 12 }} />
       </View>
-      <Skeleton style={{ marginTop: space.sm, width: "72%", height: 24 }} />
-      <Skeleton style={{ width: "100%", height: 14 }} />
-      <Skeleton style={{ width: "88%", height: 14 }} />
+      <Skeleton style={{ marginTop: space.xs, width: "72%", height: 22 }} />
+      <Skeleton style={{ width: "100%", height: 13 }} />
+      <Skeleton style={{ width: "84%", height: 13 }} />
     </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { paddingVertical: space.lg + 2, paddingHorizontal: space.lg + 4 },
-  edge: { position: "absolute", left: 0, top: space.lg, bottom: space.lg, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
-  lit: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet400 },
-  meta: { flexDirection: "row", alignItems: "center", gap: space.md },
-  number: { paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: "rgba(98,54,212,0.22)", borderWidth: 1, borderColor: colors.violet800 },
-  title: { marginTop: space.md, fontSize: 24, lineHeight: 30 },
-  excerpt: { marginTop: space.sm, fontSize: 16, lineHeight: 25 },
+  card: { paddingVertical: space.lg, paddingHorizontal: space.lg + 2 },
+  lit: { borderRadius: radius.lg, borderWidth: 1, borderColor: "rgba(165,139,247,0.55)" },
+  meta: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  numeral: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 19, letterSpacing: 0.2 },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.lineStrong },
+  date: { flex: 1, flexShrink: 1 },
+  badge: { fontSize: 10, lineHeight: 13, letterSpacing: 1 },
+  title: { marginTop: space.sm, fontSize: 21, lineHeight: 27 },
+  titleFeatured: { marginTop: space.sm + 2, fontSize: 27, lineHeight: 33 },
+  excerpt: { marginTop: 6, fontSize: 15.5, lineHeight: 23 },
+  excerptFeatured: { marginTop: space.sm, fontSize: 16.5, lineHeight: 26 },
+  byline: { flexDirection: "row", alignItems: "center", gap: space.sm, marginTop: space.md },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
-  tag: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.sm + 2, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, backgroundColor: "rgba(21,16,38,0.6)" },
+  tag: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.sm + 2, paddingVertical: 4, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth * 2, backgroundColor: "rgba(255,255,255,0.03)" },
   dot: { width: 6, height: 6, borderRadius: 3 },
+  avatarRing: { padding: 1, backgroundColor: "rgba(165,139,247,0.35)" },
   avatar: { flex: 1, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950 },
 });

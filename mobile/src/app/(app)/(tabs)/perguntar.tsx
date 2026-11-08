@@ -11,6 +11,7 @@ import { api as accountApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { applySuggestions, extractDraft, handOffDraft } from "@/lib/draft-handoff";
+import { hasStructure } from "@/lib/structured";
 import { formatDateShort, formatHandle } from "@/lib/format";
 import { pickImage, uploadablePart } from "@/lib/upload";
 import { getItem, setItem } from "@/lib/secure-storage";
@@ -20,9 +21,10 @@ import { EnvironmentHeader, goToEnvironments, ROLE_LABEL } from "@/components/en
 import { VoiceButton } from "@/components/voice-button";
 import { AppText, Button, Chip, IconButton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { colors, elevation, gradients, radius, space, type } from "@/theme/tokens";
+import { colors, elevation, gradients, radius, space, tint, type } from "@/theme/tokens";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 import { KallyOrbital, useKallyActivity, type KallyOrbitalState } from "@/components/kally/orbital";
+import { ORBIT_SIZE, OrbitDock, useOrbitDock } from "@/components/kally/orbit-dock";
 import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "@/components/ui/surface";
 import { Sheet } from "@/components/ui/sheet";
@@ -160,6 +162,8 @@ function Kally() {
   const signedUser = useAuth().user;
   const isAdmin = signedUser?.legacyKind === "ADMIN";
   const devOn = dev.active && isAdmin;
+  // Modelo, modo e tempos de geração só para quem cuida da plataforma (admin ou dev).
+  const technical = isAdmin || role === "DEV";
   useEffect(() => {
     if (!signedUser) return setBaseEnabled(false);
     accountApi.kallyDocuments().then((r) => setBaseEnabled(r.enabled), () => setBaseEnabled(false));
@@ -486,7 +490,7 @@ function Kally() {
 
   const available = MODES.filter((m) => !m.needsPublish || permissions.publish);
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
-  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} />, [loading, messages.length]);
+  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} technical={technical} />, [loading, messages.length, technical]);
   const lastMessage = messages[messages.length - 1];
   useEffect(() => {
     chaseLive.value = false;
@@ -496,17 +500,17 @@ function Kally() {
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
   const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
+  // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
+  // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
+  const orbit = useOrbitDock({ keyboardInset, composerFocus, answering: loading, gutter });
   const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
     <KeyboardScreen insetMirror={keyboardInset}>
-      <View style={column}>
+      <View style={column} onLayout={orbit.onColumnLayout}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        {started ? (
-          <Animated.View entering={enter.fade} exiting={exit.fade}>
-            <KallyOrbital size={48} state={orbState} activity={activity} level={voiceLevel} interactive announce />
-          </Animated.View>
-        ) : null}
+        {/* Lugar da órbita no cabeçalho: ela mesma flutua por cima (ver OrbitDock). */}
+        {started ? <View onLayout={orbit.onSlotLayout} style={styles.orbitSlot} /> : null}
         <Animated.View layout={layoutTransition} style={{ flex: 1 }}>
           <Touchable onPress={goToEnvironments} pressScale={0.98} accessibilityRole="button" accessibilityLabel={`Trocar de ambiente (atual: ${environment.name})`} style={styles.envLink}>
             <AppText variant="label" color={colors.violet300} numberOfLines={1} style={{ flexShrink: 1 }}>{environment.name}</AppText>
@@ -582,6 +586,8 @@ function Kally() {
       ) : null}
       </View>
 
+      {/* Tudo o que fica embaixo da lista: a órbita para logo acima disso quando o teclado abre. */}
+      <View onLayout={orbit.onBottomLayout}>
       {transcribed ? (
         <Animated.View entering={enter.fade} exiting={exit.fade} layout={layoutTransition}>
           <AppText variant="small" color={colors.warning} style={styles.note}>Transcrição do áudio: revise e edite antes de enviar.</AppText>
@@ -666,13 +672,15 @@ function Kally() {
             <Icon name="clip" size={17} color={colors.violet300} />
           </Touchable>
           <Touchable onPress={() => setModeMenu(true)} style={[styles.tool, styles.toolShrink, mode !== "auto" && styles.toolOn]} accessibilityLabel={`Modo: ${current.label}. Tocar para trocar`} pressScale={0.95}>
-            <Icon name={current.icon} size={14} color={mode !== "auto" ? "#FFFFFF" : colors.muted} />
-            <AppText variant="small" numberOfLines={1} color={mode !== "auto" ? "#FFFFFF" : colors.muted} style={{ flexShrink: 1 }}>{current.label}</AppText>
-            <AppText variant="small" color={mode !== "auto" ? "#FFFFFF" : colors.muted}>▾</AppText>
+            <Icon name={current.icon} size={14} color={mode !== "auto" ? colors.violet200 : colors.muted} />
+            <AppText variant="small" numberOfLines={1} color={mode !== "auto" ? colors.violet200 : colors.muted} style={{ flexShrink: 1 }}>{current.label}</AppText>
+            <View style={{ transform: [{ rotate: "-90deg" }] }}>
+              <Icon name="back" size={11} color={mode !== "auto" ? colors.violet200 : colors.faint} strokeWidth={2} />
+            </View>
           </Touchable>
           <Touchable onPress={() => setWeb((v) => !v)} style={[styles.tool, web && styles.toolOn]} accessibilityRole="switch" accessibilityState={{ checked: web }} aria-checked={web} accessibilityLabel="Permitir pesquisa na internet" pressScale={0.95}>
-            <Icon name="globe" size={14} color={web ? "#FFFFFF" : colors.muted} />
-            <AppText variant="small" color={web ? "#FFFFFF" : colors.muted}>Web</AppText>
+            <Icon name="globe" size={14} color={web ? colors.violet200 : colors.muted} />
+            <AppText variant="small" color={web ? colors.violet200 : colors.muted}>Web</AppText>
           </Touchable>
           <View style={{ flex: 1 }} />
           <VoiceButton
@@ -691,7 +699,13 @@ function Kally() {
       </View>
       </>
       )}
+      </View>
 
+      {started ? (
+        <OrbitDock orbit={orbit}>
+          <KallyOrbital size={ORBIT_SIZE} state={orbState} activity={activity} level={voiceLevel} interactive announce />
+        </OrbitDock>
+      ) : null}
       </View>
 
       <Sheet visible={modeMenu} onClose={() => setModeMenu(false)}>
@@ -823,7 +837,7 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
 /** Mensagens criadas nesta sessão entram animadas uma única vez (rolar e voltar não repete). */
 const entered = new Set<string>();
 
-const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending: boolean }) {
+const Bubble = memo(function Bubble({ item, pending, technical }: { item: Message; pending: boolean; technical: boolean }) {
   const isUser = item.role === "user";
   const [animate] = useState(() => {
     if (!item.id.startsWith("local-") || entered.has(item.id)) return false;
@@ -846,12 +860,17 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
         <View style={styles.assistantHead}>
           <KallyMark failed={!!item.failed} />
           <AppText variant="label" color={item.failed ? colors.danger : colors.faint} numberOfLines={1} style={{ flexShrink: 1 }}>
-            {item.local ? "Minha Mente" : `Kally${item.dev ? " · dev" : ""}${item.model ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
+            {item.local ? "Minha Mente" : `Kally${item.dev && technical ? " · dev" : ""}${item.model && technical ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
           </AppText>
         </View>
       )}
       {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.bubbleImage} resizeMode="cover" /> : null}
-      {item.attachmentName && !item.imageUri ? <AppText variant="small" color={colors.violet300} style={{ marginBottom: space.xs }}>📎 {item.attachmentName}</AppText> : null}
+      {item.attachmentName && !item.imageUri ? (
+        <View style={styles.attachedName}>
+          <Icon name="clip" size={13} color={isUser ? colors.violet200 : colors.violet300} />
+          <AppText variant="small" color={isUser ? colors.violet200 : colors.violet300} numberOfLines={1} style={{ flexShrink: 1 }}>{item.attachmentName}</AppText>
+        </View>
+      ) : null}
       {!item.content ? (
         <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</Shimmer></View>
       ) : isUser ? (
@@ -864,7 +883,8 @@ const Bubble = memo(function Bubble({ item, pending }: { item: Message; pending:
         </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
-      {item.stats ? (
+      {!isUser && !pending && !item.failed && !item.local && !draft && item.content && hasStructure(item.content) ? <ToEditor content={item.content} /> : null}
+      {item.stats && technical ? (
         <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>
           {[
             item.stats.pipeline ? (item.stats.pipeline.interpreted ? `interpretou${item.stats.pipeline.competence ? ` (${item.stats.pipeline.competence})` : ""} ${item.stats.pipeline.interpreterSeconds}s` : "direto ao executor") : "",
@@ -1153,29 +1173,52 @@ function SendButton({ disabled, busy, onPress }: { disabled: boolean; busy: bool
   );
 }
 
-/** Moldura do compositor: vidro roxo; no foco, a borda acende e o halo aparece (sem salto). */
+/** Moldura do compositor: cinza quase preto com fio neutro; no foco, o fio acende em roxo e um halo contido aparece (sem salto). */
 function ComposerFrame({ focus, children }: { focus: SharedValue<number>; children: ReactNode }) {
   const lit = useAnimatedStyle(() => ({ opacity: focus.value }));
-  const halo = useAnimatedStyle(() => ({ shadowOpacity: 0.2 + focus.value * 0.45 }));
+  const halo = useAnimatedStyle(() => ({ shadowOpacity: focus.value * 0.22 }));
   return (
     <Animated.View style={[styles.composerShadow, halo]}>
       <LinearGradient colors={gradients.border} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, styles.composerRadius]} />
       <Animated.View style={[StyleSheet.absoluteFill, lit]}>
         <LinearGradient colors={gradients.borderActive} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={[StyleSheet.absoluteFill, styles.composerRadius]} />
       </Animated.View>
-      <LinearGradient colors={["rgba(32,23,58,0.98)", "rgba(16,11,30,0.98)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.composerBody}>
+      <LinearGradient colors={["rgba(22,21,27,0.98)", "rgba(14,13,18,0.98)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.composerBody}>
         {children}
       </LinearGradient>
     </Animated.View>
   );
 }
 
+/**
+ * Leva uma resposta com estrutura (tabelas, diagramas, código, títulos) para um pensamento novo
+ * no editor, com a formatação intacta: o Markdown vai como está. Só para quem pode escrever.
+ */
+function ToEditor({ content }: { content: string }) {
+  const { permissions } = useCurrentEnvironment();
+  if (!permissions.publish && !permissions.manageContent) return null;
+  return (
+    <Touchable
+      accessibilityLabel="Abrir esta resposta no editor como um pensamento novo"
+      onPress={() => {
+        handOffDraft({ title: "", content });
+        router.push({ pathname: "/editor/[id]", params: { id: "novo" } });
+      }}
+      pressScale={0.96}
+      style={styles.toEditor}
+    >
+      <Icon name="edit" size={13} color={colors.violet300} />
+      <AppText variant="small" color={colors.violet300}>Abrir no editor</AppText>
+    </Touchable>
+  );
+}
+
 /** Marca estática da Kally nas mensagens (a órbita animada fica no cabeçalho e no "pensando"). */
 function KallyMark({ failed }: { failed: boolean }) {
   return (
-    <LinearGradient colors={failed ? [colors.danger, colors.dangerSoft] : gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mark}>
-      <View style={styles.markPupil} />
-    </LinearGradient>
+    <View style={[styles.mark, failed && styles.markFailed]}>
+      <Icon name="kally" size={16} color={failed ? colors.danger : colors.violet300} strokeWidth={1.4} />
+    </View>
   );
 }
 
@@ -1250,31 +1293,34 @@ const styles = StyleSheet.create({
   modes: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: space.xxl },
   headerOrb: { marginRight: space.xs },
+  orbitSlot: { width: ORBIT_SIZE, height: ORBIT_SIZE },
   jump: { position: "absolute", bottom: space.md },
-  jumpButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.violet600, ...elevation.float },
+  jumpButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, ...elevation.float },
+  attachedName: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: space.xs },
+  toEditor: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: space.sm, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder, backgroundColor: tint.selected },
   saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg },
   check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet600, borderColor: colors.violet600 },
-  user: { alignSelf: "flex-end", maxWidth: "86%", paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: 22, borderBottomRightRadius: 6, ...elevation.card },
-  userFill: { borderRadius: 22, borderBottomRightRadius: 6 },
-  userLabel: { fontSize: 10, lineHeight: 14, marginBottom: 2, opacity: 0.85 },
+  user: { alignSelf: "flex-end", maxWidth: "86%", paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: 22, borderBottomRightRadius: 6 },
+  userFill: { borderRadius: 22, borderBottomRightRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.3)" },
+  userLabel: { fontSize: 10, lineHeight: 14, marginBottom: 2, opacity: 0.8 },
   assistant: { paddingRight: space.sm },
   assistantHead: { flexDirection: "row", alignItems: "center", gap: space.sm, marginBottom: space.sm },
   failed: { borderLeftWidth: 2, borderLeftColor: colors.danger, paddingLeft: space.md },
-  mark: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  markPupil: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#FFFFFF" },
-  card: { marginTop: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.surfaceRaised },
+  mark: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: tint.selected, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder },
+  markFailed: { backgroundColor: "rgba(242,119,122,0.12)", borderColor: "rgba(242,119,122,0.4)" },
+  card: { marginTop: space.md, padding: space.md, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, backgroundColor: colors.surfaceRaised },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
   suggestion: { flexDirection: "row", gap: space.sm, paddingVertical: space.xs },
   sources: { marginTop: space.sm, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, gap: space.xs },
   link: { flexDirection: "row", alignItems: "center", gap: space.xs },
   note: { paddingHorizontal: space.lg },
   attachment: { flexDirection: "row", alignItems: "center", gap: space.sm, marginHorizontal: space.md, marginTop: space.xs, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet700, backgroundColor: colors.glass },
-  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(21,16,38,0.6)" },
-  toolOn: { borderColor: colors.violet400, backgroundColor: colors.violet700 },
-  roundTool: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: "rgba(21,16,38,0.6)" },
+  tool: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 6, minHeight: 34, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, backgroundColor: "rgba(255,255,255,0.03)" },
+  toolOn: { borderColor: tint.selectedBorder, backgroundColor: tint.selected },
+  roundTool: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, backgroundColor: "rgba(255,255,255,0.03)" },
   composerWrap: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.md },
-  composerShadow: { borderRadius: 26, shadowColor: colors.violet500, shadowRadius: 22, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  composerShadow: { borderRadius: 26, shadowColor: colors.violet500, shadowRadius: 18, shadowOffset: { width: 0, height: 4 }, elevation: 0 },
   composerRadius: { borderRadius: 26 },
   composerBody: { margin: 1, borderRadius: 25, paddingTop: space.sm, paddingBottom: space.sm, paddingHorizontal: space.sm },
   composerInput: { ...type.ui, fontSize: 16, color: colors.text, maxHeight: 150, minHeight: 44, paddingHorizontal: space.sm, paddingTop: 10, paddingBottom: 8 },
@@ -1298,7 +1344,7 @@ const styles = StyleSheet.create({
   modeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
   modeRowDev: { borderWidth: 1, borderColor: colors.warning },
   devBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: colors.surfaceRaised, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  modeRowOn: { backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
+  modeRowOn: { backgroundColor: tint.selected, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder },
   row2: { flexDirection: "row", alignItems: "center", gap: space.sm, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
   thumb: { width: "31%", aspectRatio: 1, borderRadius: radius.sm, overflow: "hidden", backgroundColor: colors.glass },

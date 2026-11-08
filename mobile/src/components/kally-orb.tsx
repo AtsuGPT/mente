@@ -17,11 +17,11 @@ import { easing } from "@/theme/motion";
 import { colors } from "@/theme/tokens";
 
 /**
- * Órbita da Kally: um olho no centro e duas fitas elípticas abertas (afinando nas pontas,
+ * Órbita da Kally: só as fitas (centro vazio): duas fitas elípticas abertas (afinando nas pontas,
  * sombreadas de lavanda a violeta) girando em torno dele, em ângulos e velocidades diferentes.
  *
  *  - idle: giro contínuo e calmo, luz respirando em roxo escuro.
- *  - thinking (preparando a resposta): giro mais rápido, luz oscilando, pupila pulsando.
+ *  - thinking (preparando a resposta): giro mais rápido e luz oscilando.
  *  - speaking (texto chegando): tons até o lavanda; cada pedaço real do streaming dá um
  *    impulso curto de velocidade e brilho (useKallyActivity). Não há áudio no app, então
  *    nada simula sincronia com voz.
@@ -93,13 +93,6 @@ function ribbonPath(size: number) {
   return `M${outer.join("L")}L${inner.reverse().join("L")}Z`;
 }
 
-/** Olho amendoado (traço) centrado na origem. */
-function eyePath(size: number) {
-  const w = size * 0.25;
-  const h = size * 0.08;
-  return `M${-w / 2},0Q0,${-h * 2} ${w / 2},0Q0,${h * 2} ${-w / 2},0Z`;
-}
-
 const STATE_LABEL: Record<KallyOrbState, string> = { idle: "Kally pronta", thinking: "Kally preparando a resposta", speaking: "Kally respondendo" };
 
 export function KallyOrb({ size = 40, state = "idle", activity, announce = false }: { size?: number; state?: KallyOrbState; activity?: SharedValue<number>; announce?: boolean }) {
@@ -113,7 +106,7 @@ export function KallyOrb({ size = 40, state = "idle", activity, announce = false
   const energy = useSharedValue(TARGET[state].energy);
   const talk = useSharedValue(TARGET[state].talk);
 
-  const geometry = useMemo(() => ({ ribbon: ribbonPath(size), eye: eyePath(size) }), [size]);
+  const geometry = useMemo(() => ({ ribbon: ribbonPath(size) }), [size]);
 
   // Troca de estado em ~0,7 s: acelera e muda de cor sem corte.
   useEffect(() => {
@@ -156,17 +149,6 @@ export function KallyOrb({ size = 40, state = "idle", activity, announce = false
     };
   });
 
-  // Olho: traço e pupila mudam de tom com o estado; a pupila pulsa ao pensar.
-  const eye = useAnimatedProps(() => ({
-    stroke: interpolateColor(talk.value, [0, 1], [interpolateColor(energy.value, [0, 1], [colors.violet400, colors.violet300]), colors.violet200]),
-  }));
-  const pupil = useAnimatedProps(() => {
-    const beat = 0.5 + 0.5 * Math.sin(time.value * 4.6);
-    return {
-      r: size * (0.03 + energy.value * 0.008 * beat + pulse.value * 0.01),
-      fill: interpolateColor(talk.value, [0, 1], [interpolateColor(energy.value, [0, 1], [colors.violet400, colors.violet300]), colors.violet200]),
-    };
-  });
 
   const c = size / 2;
   return (
@@ -196,10 +178,6 @@ export function KallyOrb({ size = 40, state = "idle", activity, announce = false
         <Ribbon key={index} size={size} d={geometry.ribbon} ribbon={ribbon} index={index} angle={angle} time={time} energy={energy} talk={talk} pulse={pulse} />
       ))}
 
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <AnimatedPath d={geometry.eye} transform={`translate(${c} ${c})`} fill="none" strokeWidth={Math.max(1, size * 0.014)} strokeLinejoin="round" animatedProps={eye} />
-        <AnimatedCircle cx={c} cy={c} animatedProps={pupil} />
-      </Svg>
     </View>
   );
 }

@@ -149,9 +149,9 @@ const styles = StyleSheet.create({
   frame: { flex: 1 },
   frameSheet: { justifyContent: "flex-end", alignItems: "center" },
   frameDialog: { justifyContent: "center", alignItems: "center", padding: space.xl },
-  backdrop: { backgroundColor: "rgba(6,2,16,0.7)" },
+  backdrop: { backgroundColor: "rgba(0,0,0,0.72)" },
   surface: { backgroundColor: colors.surfaceRaised, borderColor: colors.lineStrong, padding: space.lg, paddingTop: space.sm, overflow: "hidden" },
   sheen: { position: "absolute", left: 0, right: 0, top: 0, height: 1 },
   handleArea: { alignSelf: "stretch", alignItems: "center", paddingVertical: space.sm, marginTop: -space.xs, marginBottom: space.xs },
-  grabber: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.violet700 },
+  grabber: { width: 40, height: 5, borderRadius: 3, backgroundColor: colors.lineStrong },
 });

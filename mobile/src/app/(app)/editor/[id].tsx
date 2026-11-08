@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { readingMinutes, stripMarkdown } from "@shared/text";
@@ -13,6 +13,9 @@ import { AppText, Button, Chip, SectionLabel, TextField, Touchable } from "@/com
 import { colors, fonts, radius, space } from "@/theme/tokens";
 import { useContainer, useLayout } from "@/theme/layout";
 import { takeDraft } from "@/lib/draft-handoff";
+import { blockAt, type StructuredBlock } from "@/lib/structured";
+import { DiagramEditorSheet, TableEditorSheet } from "@/components/editor/structure-sheets";
+import { Icon } from "@/components/ui/icon";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 type Intent = "save" | "publish" | "unpublish";
@@ -31,7 +34,6 @@ const tools: { label: string; hint: string; apply: (text: string, sel: Selection
   { label: "</>", hint: "Código", apply: (t, s) => wrap(t, s, "`", "`", "código") },
   { label: "—", hint: "Divisória", apply: (t, s) => insertBlock(t, s, "---") },
   { label: "Detalhes", hint: "Bloco recolhível", apply: (t, s) => insertBlock(t, s, ":::details[Título]\n\nConteúdo\n\n:::") },
-  { label: "Tabela", hint: "Tabela", apply: (t, s) => insertBlock(t, s, "| Coluna | Coluna |\n| --- | --- |\n| Valor | Valor |") },
 ];
 
 function wrap(text: string, sel: Selection, before: string, after: string, placeholder: string) {
@@ -88,6 +90,9 @@ export default function EditorScreen() {
   const [publishedLocal, setPublishedLocal] = useState("");
   const [selection, setSelection] = useState<Selection>({ start: 0, end: 0 });
   const [tab, setTab] = useState<"write" | "preview">("write");
+  // Tabela ou diagrama em edição: o bloco sob o cursor (editar no lugar) ou nenhum (inserir).
+  const [structure, setStructure] = useState<{ kind: "table" | "diagram"; block: StructuredBlock | null } | null>(null);
+  const underCursor = useMemo(() => blockAt(content, selection.start), [content, selection.start]);
 
   const [dirty, setDirty] = useState(!!handoff);
   const [saving, setSaving] = useState<Intent | "delete" | "image" | null>(null);
@@ -159,6 +164,21 @@ export default function EditorScreen() {
     setSelection({ start: result.cursor, end: result.cursor });
     touch();
     setTimeout(() => contentRef.current?.focus(), 0);
+  }
+
+  function openStructure(kind: "table" | "diagram") {
+    setStructure({ kind, block: underCursor?.kind === kind ? underCursor : null });
+  }
+
+  function saveStructure(markdown: string) {
+    const block = structure?.block;
+    const result = block
+      ? { text: content.slice(0, block.start) + markdown + content.slice(block.end), cursor: block.start + markdown.length }
+      : insertBlock(content, selection, markdown);
+    setContent(result.text);
+    setSelection({ start: result.cursor, end: result.cursor });
+    setStructure(null);
+    touch();
   }
 
   async function insertImage() {
@@ -307,6 +327,14 @@ export default function EditorScreen() {
                   <AppText variant="small" style={{ fontFamily: tool.label === "B" ? fonts.sansSemibold : tool.label === "I" ? fonts.serifItalic : fonts.sansMedium }}>{tool.label}</AppText>
                 </Touchable>
               ))}
+              <Touchable accessibilityLabel={underCursor?.kind === "table" ? "Editar a tabela" : "Inserir tabela"} onPress={() => openStructure("table")} style={[styles.tool, styles.toolRow, underCursor?.kind === "table" && styles.toolAccent]}>
+                <Icon name="table" size={15} color={colors.violet300} />
+                <AppText variant="small" style={{ fontFamily: fonts.sansMedium }}>{underCursor?.kind === "table" ? "Editar tabela" : "Tabela"}</AppText>
+              </Touchable>
+              <Touchable accessibilityLabel={underCursor?.kind === "diagram" ? "Editar o diagrama" : "Inserir diagrama"} onPress={() => openStructure("diagram")} style={[styles.tool, styles.toolRow, underCursor?.kind === "diagram" && styles.toolAccent]}>
+                <Icon name="flow" size={15} color={colors.violet300} />
+                <AppText variant="small" style={{ fontFamily: fonts.sansMedium }}>{underCursor?.kind === "diagram" ? "Editar diagrama" : "Diagrama"}</AppText>
+              </Touchable>
               <Touchable accessibilityLabel="Imagem" onPress={() => void insertImage()} disabled={saving === "image"} style={[styles.tool, styles.toolAccent]}>
                 <AppText variant="small" color={colors.violet200} style={{ fontFamily: fonts.sansMedium }}>{saving === "image" ? "Enviando…" : "Imagem"}</AppText>
               </Touchable>
@@ -414,6 +442,18 @@ export default function EditorScreen() {
           {!isNew ? <Button label="Excluir pensamento" icon="trash" variant="danger" disabled={!!saving} loading={saving === "delete"} onPress={confirmDelete} style={{ marginTop: space.lg }} /> : null}
         </View>
       </ScrollView>
+      <TableEditorSheet
+        visible={structure?.kind === "table"}
+        initial={structure?.block?.kind === "table" ? structure.block.table : null}
+        onClose={() => setStructure(null)}
+        onSave={saveStructure}
+      />
+      <DiagramEditorSheet
+        visible={structure?.kind === "diagram"}
+        initial={structure?.block?.kind === "diagram" ? structure.block.source : null}
+        onClose={() => setStructure(null)}
+        onSave={saveStructure}
+      />
     </KeyboardScreen>
   );
 }
@@ -424,10 +464,11 @@ const styles = StyleSheet.create({
   titleInput: { fontFamily: fonts.serif, fontSize: 26, lineHeight: 32, minHeight: 56 },
   tabs: { flexDirection: "row", alignSelf: "flex-start", gap: 4, padding: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
   tab: { paddingVertical: space.sm, paddingHorizontal: space.lg, borderRadius: radius.pill, borderWidth: 1, borderColor: "transparent" },
-  tabActive: { backgroundColor: colors.violet700, borderColor: colors.violet400 },
+  tabActive: { backgroundColor: "rgba(132,97,240,0.16)", borderColor: "rgba(165,139,247,0.38)" },
   toolbar: { gap: space.xs },
   tool: { minWidth: 44, height: 44, paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, alignItems: "center", justifyContent: "center" },
-  toolAccent: { borderColor: colors.violet500, backgroundColor: colors.violet800 },
+  toolRow: { flexDirection: "row", gap: 6 },
+  toolAccent: { borderColor: "rgba(165,139,247,0.38)", backgroundColor: "rgba(132,97,240,0.16)" },
   contentInput: {
     fontFamily: fonts.serif,
     fontSize: 17,

@@ -59,7 +59,7 @@ export default function FeedScreen() {
             <EnvironmentHeader title="Pensamentos" subtitle={environment.description || undefined} />
 
             <View style={styles.headingRow}>
-              <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Feed"}</AppText>
+              <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Recentes"}</AppText>
               {!feed.loading ? <AppText variant="label" color={colors.faint}>{feed.total} {feed.total === 1 ? "pensamento" : "pensamentos"}</AppText> : null}
             </View>
 
@@ -84,7 +84,8 @@ export default function FeedScreen() {
           entered.current.add(item.id);
           return (
           <Animated.View entering={first && index < 8 ? enter.stagger(index) : undefined}>
-            <PostCard post={item} author={author} avatar={session.image} />
+            {/* Destaque ocasional: só o mais recente, e só no feed completo. */}
+            <PostCard post={item} author={author} avatar={session.image} featured={index === 0 && !selected} />
           </Animated.View>
           );
         }}
@@ -133,12 +134,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.violet600,
     borderWidth: 1,
-    borderColor: colors.violet500,
+    borderColor: "rgba(199,183,250,0.35)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: colors.violet500,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
 });

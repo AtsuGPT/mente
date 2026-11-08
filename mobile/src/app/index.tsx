@@ -221,8 +221,8 @@ function Section({ title, empty, children }: { title: string; empty?: string; ch
 function EnvironmentTile({ env, index, last, busy, onPress }: { env: EnvironmentCard; index: number; last: boolean; busy: boolean; onPress: () => void }) {
   return (
     <Animated.View entering={appear.stagger(index)}>
-      <Touchable accessibilityRole="button" accessibilityLabel={`Abrir ${env.name}`} onPress={onPress} disabled={busy} haptic style={[styles.tile, { borderColor: withAlpha(env.color, 0.28) }]}>
-        <LinearGradient pointerEvents="none" colors={[withAlpha(env.color, 0.26), withAlpha(env.color, 0.02)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.5 }} style={styles.tileWash} />
+      <Touchable accessibilityRole="button" accessibilityLabel={`Abrir ${env.name}`} onPress={onPress} disabled={busy} haptic style={[styles.tile, { borderColor: withAlpha(env.color, 0.22) }]}>
+        <LinearGradient pointerEvents="none" colors={[withAlpha(env.color, 0.12), withAlpha(env.color, 0)]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 0.5 }} style={styles.tileWash} />
         <EnvironmentGlyph color={env.color} icon={env.icon} image={env.image} size={54} />
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
@@ -359,7 +359,7 @@ function AddEnvironmentSheet({
 const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   account: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.card },
-  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet700, borderWidth: 1, borderColor: colors.violet400 },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: "rgba(165,139,247,0.35)" },
   accountAction: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.md },
   tile: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, paddingVertical: space.lg + 2, borderRadius: radius.xl, borderWidth: 1, backgroundColor: colors.glass, ...elevation.card },
   tileWash: { ...StyleSheet.absoluteFill, borderRadius: radius.xl - 1 },

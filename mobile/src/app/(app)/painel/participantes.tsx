@@ -215,7 +215,7 @@ function InvitesSection({ invites, assignable, onChange }: { invites: Invite[]; 
 const styles = StyleSheet.create({
   card: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass, gap: space.sm },
   memberRow: { flexDirection: "row", alignItems: "center", gap: space.md },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet900, borderWidth: 1, borderColor: colors.violet700 },
+  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: "rgba(165,139,247,0.35)" },
   rolePill: { paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: colors.violet950, borderWidth: 1, borderColor: colors.violet800 },
   flagRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   options: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },

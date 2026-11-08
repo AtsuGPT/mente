@@ -31,7 +31,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, elevation, fonts, gradients, radius, space, type } from "@/theme/tokens";
+import { colors, elevation, fonts, gradients, radius, space, tint, type } from "@/theme/tokens";
 import { Surface } from "./surface";
 import { duration, easing, enter, spring, timing } from "@/theme/motion";
 import { Icon, type IconName } from "./icon";
@@ -137,10 +137,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 /** Cores de repouso, mouse por cima e pressionado. Transparentes como rgba para interpolar sem cinza. */
 const buttonPalette: Record<ButtonVariant, { bg: string; hover: string; pressed: string; fg: string; border: string }> = {
   // O primário pinta um gradiente por baixo; aqui só a camada de escurecer ao tocar.
-  primary: { bg: "rgba(5,3,9,0)", hover: "rgba(255,255,255,0.06)", pressed: "rgba(5,3,9,0.28)", fg: "#FFFFFF", border: "rgba(199,183,250,0.45)" },
-  secondary: { bg: "rgba(31,23,54,0.72)", hover: "rgba(43,32,74,0.82)", pressed: "rgba(53,41,87,0.9)", fg: colors.text, border: colors.lineStrong },
-  ghost: { bg: "rgba(19,11,38,0)", hover: "rgba(19,11,38,0.7)", pressed: colors.violet950, fg: colors.violet300, border: "rgba(0,0,0,0)" },
-  danger: { bg: colors.dangerSoft, hover: "#431A1F", pressed: "#4D1D23", fg: colors.danger, border: "#5A2228" },
+  primary: { bg: "rgba(0,0,0,0)", hover: "rgba(255,255,255,0.06)", pressed: "rgba(0,0,0,0.28)", fg: "#FFFFFF", border: "rgba(199,183,250,0.32)" },
+  secondary: { bg: "rgba(24,22,30,0.9)", hover: "rgba(32,30,40,0.95)", pressed: "rgba(40,37,50,1)", fg: colors.text, border: colors.lineStrong },
+  ghost: { bg: "rgba(24,22,30,0)", hover: "rgba(24,22,30,0.8)", pressed: "rgba(132,97,240,0.14)", fg: colors.violet300, border: "rgba(0,0,0,0)" },
+  danger: { bg: colors.dangerSoft, hover: "#36141A", pressed: "#42171D", fg: colors.danger, border: "#4A1C22" },
 };
 
 export function Button({
@@ -192,7 +192,7 @@ export function Button({
       {variant === "primary" ? (
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip]}>
           <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <LinearGradient colors={["rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]} style={styles.sheen} />
+          <LinearGradient colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]} style={styles.sheen} />
         </View>
       ) : null}
       <Animated.View style={[styles.buttonContent, content]}>
@@ -214,8 +214,8 @@ export function IconButton({ name, onPress, label, color = colors.text, active }
   const hover = useSharedValue(0);
   const on = useToggle(!!active);
   const surface = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(Math.max(on.value, hover.value * 0.5, press.value * 0.7), [0, 1], ["rgba(21,16,38,0.55)", colors.violet900]),
-    borderColor: interpolateColor(on.value, [0, 1], ["rgba(165,139,247,0.14)", colors.violet600]),
+    backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(Math.max(hover.value * 0.6, press.value), [0, 1], ["rgba(20,19,25,0.86)", "rgba(36,33,44,0.95)"]), tint.selected]),
+    borderColor: interpolateColor(on.value, [0, 1], ["rgba(255,255,255,0.08)", tint.selectedBorder]),
   }));
   return (
     <Touchable
@@ -242,8 +242,8 @@ export const TextField = forwardRef<TextInputInstance, TextInputProps & { label?
     const invalid = useToggle(!!error);
     const field = useAnimatedStyle(() => ({
       borderColor: interpolateColor(invalid.value, [0, 1], [interpolateColor(focus.value, [0, 1], [colors.lineStrong, colors.violet500]), colors.danger]),
-      backgroundColor: interpolateColor(focus.value, [0, 1], ["rgba(21,16,38,0.7)", "rgba(30,18,64,0.85)"]),
-      shadowOpacity: focus.value * 0.5,
+      backgroundColor: interpolateColor(focus.value, [0, 1], ["rgba(14,13,18,0.9)", "rgba(18,16,24,0.95)"]),
+      shadowOpacity: focus.value * 0.3,
     }));
     const labelColor = useAnimatedStyle(() => ({ color: interpolateColor(focus.value, [0, 1], [colors.muted, colors.violet300]) }));
     return (
@@ -284,10 +284,10 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
   const on = useToggle(!!selected);
   const hover = useSharedValue(0);
   const surface = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], ["rgba(21,16,38,0.6)", "rgba(31,23,54,0.8)"]), colors.violet700]),
-    borderColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.line, colors.lineStrong]), colors.violet400]),
+    backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], ["rgba(14,13,18,0.9)", "rgba(28,26,34,0.95)"]), tint.selected]),
+    borderColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.line, colors.lineStrong]), tint.selectedBorder]),
   }));
-  const text = useAnimatedStyle(() => ({ color: interpolateColor(on.value, [0, 1], [colors.muted, "#FFFFFF"]) }));
+  const text = useAnimatedStyle(() => ({ color: interpolateColor(on.value, [0, 1], [colors.muted, colors.violet200]) }));
   return (
     <Touchable
       accessibilityRole="button"
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
   clip: { borderRadius: radius.pill, overflow: "hidden" },
   sheen: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
-  shade: { backgroundColor: "#050309" },
+  shade: { backgroundColor: "#000000" },
   iconButton: {
     width: 44,
     height: 44,

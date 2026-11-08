@@ -20,7 +20,7 @@ import { useAmbientActive } from "@/lib/use-ambient";
 import { enter, exit } from "@/theme/motion";
 
 const kindInfo: Record<LaidOutNode["kind"], { label: string; icon: IconName }> = {
-  ambiente: { label: "Ambiente", icon: "brain" },
+  ambiente: { label: "Ambiente", icon: "sparkle" },
   pasta: { label: "Pasta", icon: "folder" },
   pensamento: { label: "Pensamento", icon: "doc" },
   imagem: { label: "Imagem", icon: "image" },
@@ -226,7 +226,7 @@ function Legend({ shape, label }: { shape: "folder" | "post" | "draft" | "privat
 }
 
 const styles = StyleSheet.create({
-  top: { gap: space.md, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.lineStrong, backgroundColor: "rgba(13,7,25,0.92)", zIndex: 2 },
+  top: { gap: space.md, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, backgroundColor: colors.bg, zIndex: 2 },
   titleRow: { paddingHorizontal: space.lg },
   controls: { position: "absolute", right: space.md, top: space.md, gap: space.xs, padding: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.float },
   legend: { position: "absolute", left: space.md, bottom: space.md, flexDirection: "column", gap: 6, padding: space.sm, paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.line },
@@ -240,13 +240,13 @@ const styles = StyleSheet.create({
     padding: space.lg,
     paddingTop: space.sm,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.violet800,
-    backgroundColor: "rgba(21,16,38,0.96)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.lineStrong,
+    backgroundColor: "rgba(14,13,18,0.97)",
     ...elevation.float,
   },
   // Em telas largas o painel vira um cartão no canto, sem cobrir o mapa de ponta a ponta.
   panelWide: { left: space.lg, right: undefined, bottom: space.lg, width: 420 },
   panelHeader: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  viewer: { flex: 1, backgroundColor: "rgba(5,4,9,0.96)", alignItems: "center", justifyContent: "center" },
+  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.96)", alignItems: "center", justifyContent: "center" },
 });

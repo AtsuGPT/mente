@@ -1,4 +1,4 @@
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Path, Rect } from "react-native-svg";
 import { colors } from "@/theme/tokens";
 
 /** Ícones de linha fina, no mesmo traço dos ícones do site (stroke 1.6). */
@@ -37,7 +37,12 @@ export type IconName =
   | "mic"
   | "clock"
   | "globe"
-  | "clip";
+  | "clip"
+  | "kally"
+  | "table"
+  | "flow"
+  | "copy"
+  | "expand";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
@@ -146,6 +151,36 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
       {name === "clock" && <Path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2" {...p} />}
       {name === "globe" && <Path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z" {...p} />}
       {name === "clip" && <Path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" {...p} />}
+      {name === "kally" && (
+        // O símbolo orbital da Kally em traço fino: três órbitas nas inclinações da órbita
+        // animada e o núcleo de luz (legível a partir de 16 px).
+        <>
+          <Ellipse cx={12} cy={12} rx={10.2} ry={3.5} transform="rotate(18 12 12)" {...p} />
+          <Ellipse cx={12} cy={12} rx={8.6} ry={3.1} transform="rotate(116 12 12)" {...p} strokeOpacity={0.75} />
+          <Ellipse cx={12} cy={12} rx={6.8} ry={2.6} transform="rotate(-36 12 12)" {...p} strokeOpacity={0.55} />
+        </>
+      )}
+      {name === "table" && (
+        <>
+          <Rect x={3.5} y={4.5} width={17} height={15} rx={2} {...p} />
+          <Path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10M15 9.5v10" {...p} />
+        </>
+      )}
+      {name === "flow" && (
+        <>
+          <Rect x={8} y={3} width={8} height={5} rx={1.5} {...p} />
+          <Rect x={3} y={16} width={7} height={5} rx={1.5} {...p} />
+          <Rect x={14} y={16} width={7} height={5} rx={1.5} {...p} />
+          <Path d="M12 8v4M6.5 16v-2.5h11V16M12 12v1.5" {...p} />
+        </>
+      )}
+      {name === "copy" && (
+        <>
+          <Rect x={8.5} y={8.5} width={11} height={11} rx={2} {...p} />
+          <Path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" {...p} />
+        </>
+      )}
+      {name === "expand" && <Path d="M14.5 4.5h5v5M9.5 19.5h-5v-5M19.5 4.5l-6 6M4.5 19.5l6-6" {...p} />}
     </Svg>
   );
 }

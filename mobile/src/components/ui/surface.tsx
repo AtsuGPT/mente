@@ -1,10 +1,8 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated from "react-native-reanimated";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
-import { AmbientGlow } from "@/components/ambient-glow";
-import { useAppActive } from "@/lib/use-ambient";
 import { enter } from "@/theme/motion";
 import { colors, elevation, gradients, radius as radii } from "@/theme/tokens";
 
@@ -53,7 +51,6 @@ export function Surface({
   );
 }
 
-/** Fundo das telas: gradiente vertical, aurora roxa que respira devagar e vinheta embaixo. */
 /** Luz circular difusa (degradê radial em SVG): centro na cor, borda transparente, sem aresta. */
 export function RadialGlow({ size, color, opacity = 0.6, style }: { size: number; color: string; opacity?: number; style?: StyleProp<ViewStyle> }) {
   const id = `rg${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -73,52 +70,31 @@ export function RadialGlow({ size, color, opacity = 0.6, style }: { size: number
   );
 }
 
-export function ScreenBackdrop({ active = true, intensity = 1 }: { active?: boolean; intensity?: number }) {
-  return (
-    <View pointerEvents="none" aria-hidden style={StyleSheet.absoluteFill}>
-      <LinearGradient colors={gradients.screen} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
-      <AmbientGlow intensity={intensity} active={active} />
-      <LinearGradient colors={["rgba(5,3,9,0)", "rgba(5,3,9,0.72)"]} style={styles.vignette} />
-    </View>
-  );
+/**
+ * Fundo das telas: preto. Sem aurora nem luz permanente; o brilho fica para o que ele
+ * significa (a Kally, a seleção). Continua sendo um componente para as telas que o desenham.
+ */
+export function ScreenBackdrop() {
+  return <View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, styles.backdrop]} />;
 }
 
 type NavigationLike = { isFocused: () => boolean; addListener: (event: "focus" | "blur", callback: () => void) => () => void };
 
 /**
- * Moldura de cada tela das pilhas (screenLayout): fundo opaco do novo visual por baixo do
- * conteúdo, para que nenhuma tela fique com o fundo antigo. A aurora só anima com a tela em
- * foco e o app em primeiro plano. Na web, a página ainda entra com um esmaecimento curto.
+ * Moldura de cada tela das pilhas (screenLayout): fundo preto opaco por baixo do conteúdo,
+ * para que as transições nativas não mostrem a tela de baixo. Na web, a página ainda entra com
+ * um esmaecimento curto.
  */
-export function ScreenFrame({ navigation, children }: { navigation: NavigationLike; children: ReactNode }) {
-  // Uma tela que acaba de montar quase sempre está em foco; o valor real é lido no efeito,
-  // porque isFocused() durante a renderização pode vir desatualizado (e o React Navigation avisa).
-  const [focused, setFocused] = useState(true);
-  const appActive = useAppActive();
-  useEffect(() => {
-    setFocused(navigation.isFocused());
-    const offFocus = navigation.addListener("focus", () => setFocused(true));
-    const offBlur = navigation.addListener("blur", () => setFocused(false));
-    return () => {
-      offFocus();
-      offBlur();
-    };
-  }, [navigation]);
-  const body = (
-    <View style={styles.frame}>
-      <ScreenBackdrop active={focused && appActive} />
-      {children}
-    </View>
-  );
-  if (Platform.OS !== "web") return body;
+export function ScreenFrame({ children }: { navigation: NavigationLike; children: ReactNode }) {
+  if (Platform.OS !== "web") return <View style={styles.frame}>{children}</View>;
   return (
     <Animated.View entering={enter.fade} style={styles.frame}>
-      {body}
+      {children}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  frame: { flex: 1, backgroundColor: gradients.screen[1] },
-  vignette: { position: "absolute", left: 0, right: 0, bottom: 0, height: "38%" },
+  frame: { flex: 1, backgroundColor: colors.bg },
+  backdrop: { backgroundColor: colors.bg },
 });

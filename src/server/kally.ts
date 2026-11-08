@@ -57,17 +57,42 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
  * documentos continuam quando a reprodução literal for necessária.
  */
 export const WRITING_RULE =
-  "Escrita: não use emojis nem emoticons; o tom vem das palavras, não de símbolos, de pontos de exclamação repetidos ou de formatação extra. Comece pelo que importa, sem elogiar a mensagem ou a pergunta e sem empolgação forçada. Exceção: ao reproduzir, citar ou traduzir um texto da pessoa, uma citação ou um documento que tenha emojis, mantenha cada um deles, no mesmo lugar.";
+  "Escrita: por padrão, não use emojis nem emoticons; o tom vem das palavras, não de símbolos, de pontos de exclamação repetidos ou de formatação extra. Comece pelo que importa, sem elogiar a mensagem ou a pergunta e sem empolgação forçada, e sem perder profundidade quando o assunto pede. Exceções: quando a pessoa pedir emojis, use-os onde ela pediu; ao reproduzir, citar ou traduzir um texto da pessoa, uma citação ou um documento que tenha emojis, mantenha cada um deles, no mesmo lugar.";
+
+/**
+ * Conteúdo estruturado que o app desenha de verdade (não só texto): tabelas GFM, diagramas
+ * Mermaid em bloco ```mermaid e blocos de código. Fica fora do papo casual (lá só atrapalharia).
+ * Mermaid: rótulos entre aspas evitam os erros de sintaxe mais comuns dos modelos pequenos.
+ */
+export const FORMAT_RULE =
+  "Formatação rica, quando ajudar de verdade: para comparar itens em vários critérios, use uma tabela Markdown com linha de cabeçalho; para código, um bloco ``` com o nome da linguagem; para um fluxo, processo ou decisão que a pessoa pediu em diagrama, fluxograma ou mapa, um bloco ```mermaid com flowchart TD, um nó por linha no formato A[\"Rótulo curto\"] e setas A --> B (rótulo de seta: A -->|\"sim\"| B), sem HTML. Explique em texto o que a tabela ou o diagrama mostra.";
+/** Pedido explícito de estrutura: liga a regra de formatação mesmo numa mensagem curta, sem "?" (que a detecção trata como casual). */
+const WANTS_STRUCTURE = /\b(tabelas?|compar\w*|diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental|c[oó]digo|script)\b/i;
+/** Lembrete final de formato (o qwen3 segue melhor o que vem por último), só quando pedido. */
+export function structureReminder(message: string | null | undefined) {
+  if (!message || !WANTS_STRUCTURE.test(message)) return "";
+  return /\b(diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental)\b/i.test(message)
+    ? " Formato: entregue o diagrama num bloco ```mermaid (flowchart TD, rótulos curtos) e explique em seguida."
+    : /\b(tabelas?|compar\w*)\b/i.test(message)
+      ? " Formato: organize a comparação numa tabela Markdown (cabeçalho, uma linha por item, uma coluna por critério) e comente em seguida."
+      : " Formato: código em bloco ``` com o nome da linguagem.";
+}
+
 /**
  * Lembrete do fim do prompt. Medido com o qwen3 4B: uma frase que proíbe e abre exceção ao mesmo
  * tempo falha nos dois lados (emoji no fim de uma comemoração, emoji perdido numa tradução).
- * Por isso a variante é escolhida pelo pedido: se o texto da pessoa (mensagem, anexo, texto para
- * revisar ou documento) tem emojis, o lembrete manda conservá-los; senão, proíbe sem exceção.
- * Só a entrada é examinada: a resposta nunca é filtrada.
+ * Por isso a variante é escolhida pelo pedido: se a pessoa pediu emojis, eles são liberados onde
+ * ela pediu; se o texto dela (mensagem, anexo, texto para revisar ou documento) tem emojis, o
+ * lembrete manda conservá-los; senão, proíbe sem exceção. Só a entrada é examinada: a resposta
+ * nunca é filtrada.
  */
 const HAS_EMOJI = /\p{Extended_Pictographic}/u;
-export function writingReminder(...texts: (string | null | undefined)[]) {
-  return texts.some((text) => !!text && HAS_EMOJI.test(text))
+const ASKS_EMOJI = /\b(emojis?|emoticons?|emotic[oô]nes?|carinhas?|figurinhas?)\b/i;
+export function writingReminder(message: string | null | undefined, ...texts: (string | null | undefined)[]) {
+  if (message && ASKS_EMOJI.test(message) && !/\b(sem|nada de|tire|tira|remova|remove|não (use|coloque|ponha))\b[^.?!]{0,24}\bemoji/i.test(message)) {
+    return "Lembrete de escrita: a pessoa pediu emojis; use-os onde ela pediu, com bom senso e sem exagero. Não elogie a pergunta e não force empolgação.";
+  }
+  return [message, ...texts].some((text) => !!text && HAS_EMOJI.test(text))
     ? "Lembrete de escrita: o texto da pessoa tem emojis; ao reproduzir, citar ou traduzir esse texto, mantenha cada emoji no mesmo lugar, mas não acrescente nenhum outro. Não elogie a pergunta e não force empolgação."
     : "Lembrete de escrita: não use emojis em nenhuma parte da resposta, nem no começo nem no fim. Não elogie a pergunta, não force empolgação e vá direto ao que importa, com naturalidade.";
 }
@@ -200,11 +225,16 @@ export function buildPrompt(input: {
         // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
         ...(input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)),
       ]
-    : [...identity(input.environmentName, input.toneExamples ?? true), ...modeInstructions(input.mode, found, input.categories)];
+    : [
+        ...identity(input.environmentName, input.toneExamples ?? true),
+        // Tabelas, diagramas e código: fora do papo casual, ou quando a mensagem pede estrutura.
+        ...(input.toneExamples === false || (input.mode !== "chat" && input.mode !== "auto") || WANTS_STRUCTURE.test(input.message) ? [FORMAT_RULE] : []),
+        ...modeInstructions(input.mode, found, input.categories),
+      ];
   if (input.guide) system.push(input.guide);
   if (documents.length) system.push(DOCUMENT_RULE);
   const history = input.history.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
-  const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) }];
+  const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) + structureReminder(input.message) }];
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo
   // pequeno chega a repeti-lo). Vão só títulos, como referências internas para sugerir.
@@ -276,7 +306,7 @@ export function buildCompetencePrompt(input: {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, WRITING_RULE, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
@@ -317,7 +347,7 @@ export function buildCompetencePrompt(input: {
     { role: "system", content: system.join("\n") },
     ...history,
     { role: "user", content: material ? `${input.message}\n\n---\n${material}` : input.message },
-    { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}` },
+    { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}${structureReminder(input.message)}` },
   ];
 }
 

@@ -1,24 +1,25 @@
 /**
- * Sistema visual do Minha Mente (app), versão 2: preto profundo tingido de roxo, superfícies
- * em camadas (cada nível um pouco mais claro e mais roxo), gradientes discretos e o violeta
- * como cor de identidade e de interação.
+ * Sistema visual do Minha Mente (app e site), versão 3: preto como base absoluta, cinzas muito
+ * escuros (com um sopro de violeta) para dar profundidade, e o roxo só onde ele significa algo:
+ * interação, seleção, estado e a identidade da Kally. Nada de fundos iluminados nem grandes
+ * superfícies roxas; gradientes só como luz sutil.
  *
- * Contrastes sobre bg (#050309): text 18.0:1, muted 8.1:1, faint 5.0:1, violet300 11.2:1,
- * violet400 7.4:1. violet500 só para linhas, brilhos e preenchimentos. Texto branco sobre o
- * gradiente primário (pior ponto #5B2FD6): 7.2:1.
+ * Contrastes sobre bg (#000): text 19.4:1, muted 8.7:1, faint 5.3:1, violet300 12.0:1,
+ * violet400 7.9:1. violet500 só para linhas, brilhos e preenchimentos. Texto branco sobre o
+ * roxo primário (pior ponto #5F33D2): 7.0:1.
  */
 
 export const colors = {
-  bg: "#050309",
-  /** Topo das telas: o fundo começa um pouco mais roxo e escurece para baixo. */
-  bgTop: "#0D0719",
-  surface: "#0D0918",
-  surfaceRaised: "#151026",
-  surfacePressed: "#1F1736",
-  glass: "rgba(21,16,38,0.82)",
+  bg: "#000000",
+  /** Topo das telas e cabeçalhos: o mesmo preto (o fundo não é mais tingido). */
+  bgTop: "#000000",
+  surface: "#0B0A0E",
+  surfaceRaised: "#131217",
+  surfacePressed: "#1C1A22",
+  glass: "rgba(14,13,18,0.88)",
 
-  line: "#211936",
-  lineStrong: "#352957",
+  line: "#1C1A22",
+  lineStrong: "#2A2732",
 
   violet950: "#130B26",
   violet900: "#1E1240",
@@ -29,7 +30,7 @@ export const colors = {
   violet400: "#A58BF7",
   violet300: "#C7B7FA",
   violet200: "#E4DBFD",
-  /** Acento quente das auroras e da Kally (nunca para texto). */
+  /** Acento quente da Kally (nunca para texto). */
   orchid: "#B65CF2",
 
   text: "#F2EFFA",
@@ -37,7 +38,7 @@ export const colors = {
   faint: "#867FA1",
 
   danger: "#F2777A",
-  dangerSoft: "#3A1418",
+  dangerSoft: "#2A1013",
   success: "#8FDDB0",
   warning: "#E8C07D",
 } as const;
@@ -50,21 +51,31 @@ export const accent = {
   ring: colors.violet400,
 } as const;
 
+/** Roxo translúcido para seleção e estados ativos (sem pintar superfícies inteiras). */
+export const tint = {
+  /** Fundo de item selecionado (aba, chip, linha). */
+  selected: "rgba(132,97,240,0.16)",
+  /** Borda de item selecionado. */
+  selectedBorder: "rgba(165,139,247,0.38)",
+  /** Toque/hover em superfícies neutras. */
+  pressed: "rgba(255,255,255,0.05)",
+} as const;
+
 /** Gradientes (início → fim). Sempre discretos: profundidade, não decoração. */
 export const gradients = {
-  /** Fundo das telas, de cima para baixo. */
-  screen: [colors.bgTop, colors.bg] as const,
-  /** Botão primário, pílula da aba ativa, envio. */
-  primary: ["#8A5CF6", "#5B2FD6"] as const,
-  primaryPressed: ["#7445E6", "#4A25B6"] as const,
-  /** Corpo das superfícies: mais claro no alto (luz de cima). */
-  surface: ["#171129", "#0C0816"] as const,
-  surfaceRaised: ["#1F1736", "#120D22"] as const,
-  /** Borda das superfícies: brilho no canto superior que some para baixo. */
-  border: ["rgba(165,139,247,0.34)", "rgba(165,139,247,0.05)"] as const,
-  borderActive: ["rgba(199,183,250,0.75)", "rgba(132,97,240,0.25)"] as const,
-  /** Bolha das mensagens da pessoa. */
-  bubble: ["#5E35D2", "#3D2196"] as const,
+  /** Fundo das telas: preto puro (mantido como par para quem desenha o fundo). */
+  screen: [colors.bg, colors.bg] as const,
+  /** Botão primário e envio: roxo quase chapado, com luz leve no alto. */
+  primary: ["#7246E4", "#5A30CB"] as const,
+  primaryPressed: ["#6A40DC", "#4E28B8"] as const,
+  /** Corpo das superfícies: cinza quase preto, um pouco mais claro no alto. */
+  surface: ["#0F0E13", "#0A090D"] as const,
+  surfaceRaised: ["#17151C", "#111015"] as const,
+  /** Borda das superfícies: fio claro e neutro que se apaga para baixo. */
+  border: ["rgba(255,255,255,0.10)", "rgba(255,255,255,0.04)"] as const,
+  borderActive: ["rgba(165,139,247,0.62)", "rgba(132,97,240,0.2)"] as const,
+  /** Mensagens da pessoa: cinza escuro levemente violeta (o roxo fica no fio da borda). */
+  bubble: ["#1A1724", "#15121E"] as const,
 } as const;
 
 export const fonts = {
@@ -77,26 +88,29 @@ export const fonts = {
 } as const;
 
 export const type = {
-  hero: { fontFamily: fonts.serifMedium, fontSize: 36, lineHeight: 40, letterSpacing: -0.9 },
+  hero: { fontFamily: fonts.serifMedium, fontSize: 34, lineHeight: 39, letterSpacing: -0.8 },
   display: { fontFamily: fonts.serif, fontSize: 40, lineHeight: 44, letterSpacing: -0.8 },
-  title: { fontFamily: fonts.serifMedium, fontSize: 27, lineHeight: 33, letterSpacing: -0.5 },
+  title: { fontFamily: fonts.serifMedium, fontSize: 26, lineHeight: 32, letterSpacing: -0.4 },
   heading: { fontFamily: fonts.sansSemibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.1 },
-  body: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 28 },
+  body: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27 },
   ui: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
   uiMedium: { fontFamily: fonts.sansMedium, fontSize: 15, lineHeight: 21 },
   small: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
-  label: { fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16, letterSpacing: 1.4, textTransform: "uppercase" as const },
+  label: { fontFamily: fonts.sansMedium, fontSize: 11.5, lineHeight: 15, letterSpacing: 1.2, textTransform: "uppercase" as const },
 } as const;
 
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
 
-export const radius = { sm: 8, md: 12, lg: 18, xl: 26, pill: 999 } as const;
+export const radius = { sm: 8, md: 12, lg: 18, xl: 24, pill: 999 } as const;
 
-/** Sombras (iOS/web) e elevação (Android) das camadas. */
+/**
+ * Elevação. Sobre preto, sombra não aparece: a profundidade vem da superfície mais clara e do
+ * fio da borda. Ficam só uma sombra preta para o que flutua e um brilho roxo contido.
+ */
 export const elevation = {
-  card: { shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
-  float: { shadowColor: "#2A1060", shadowOpacity: 0.55, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 12 },
-  glow: { shadowColor: colors.violet500, shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  card: { shadowColor: "#000", shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 0 }, elevation: 0 },
+  float: { shadowColor: "#000", shadowOpacity: 0.7, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
+  glow: { shadowColor: colors.violet500, shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
 } as const;
 
 export const motion = { fast: 140, base: 220, slow: 420 } as const;

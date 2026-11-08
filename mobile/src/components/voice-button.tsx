@@ -59,7 +59,7 @@ export function VoiceButton({
     return () => clearInterval(id);
   }, [recording, recorder, onLevel, voice]);
   const look = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(on.value, [0, 1], ["rgba(21,16,38,0.7)", colors.danger]),
+    backgroundColor: interpolateColor(on.value, [0, 1], ["rgba(20,19,25,0.86)", colors.danger]),
     borderColor: interpolateColor(on.value, [0, 1], [colors.lineStrong, colors.danger]),
     transform: [{ scale: 1 + voice.value * 0.12 }],
   }));

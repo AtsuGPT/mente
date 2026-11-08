@@ -20,8 +20,8 @@ import { colors } from "@/theme/tokens";
 import type { KallyOrbitalState } from "./activity";
 
 /**
- * KallyOrbital: a identidade da Kally. Um núcleo em forma de olho, com brilho difuso, e três
- * anéis elípticos em inclinações diferentes orbitando em volta dele.
+ * KallyOrbital: a identidade da Kally. Só anéis: três elipses em inclinações diferentes girando
+ * em volta de um centro vazio, com partículas de luz correndo sobre elas nos tamanhos grandes.
  *
  * Movimento: cada anel gira no próprio plano com velocidade angular constante (interno uma
  * volta a cada 2,5 s, intermediário 3,5 s em sentido contrário, externo 5 s), multiplicada pelo
@@ -30,7 +30,7 @@ import type { KallyOrbitalState } from "./activity";
  * uma volta não tem emenda. As fases da luz também são integradas (mudar a frequência não
  * pula a fase).
  *
- * Profundidade: a metade de trás de cada anel é desenhada antes do núcleo e mais apagada; a da
+ * Profundidade: a metade de trás de cada anel é desenhada primeiro, mais fina e apagada; a da
  * frente, depois e mais nítida. Cometas de luz percorrem os anéis (traço tracejado com fase
  * animada) e o gradiente de cada anel gira com ele.
  *
@@ -59,7 +59,7 @@ type Props = {
 /** Parâmetros por estado. speed multiplica as velocidades base; energy acende e pulsa;
  * hue vai do violeta profundo (0) ao lavanda (1); glow é o halo; dim desbota (erro). */
 const TARGET: Record<KallyOrbitalState, { speed: number; energy: number; hue: number; glow: number; dim: number }> = {
-  idle: { speed: 1, energy: 0.25, hue: 0.32, glow: 0.55, dim: 0 },
+  idle: { speed: 0.85, energy: 0.22, hue: 0.32, glow: 0.45, dim: 0 },
   listening: { speed: 1.15, energy: 0.55, hue: 0.55, glow: 0.75, dim: 0 },
   thinking: { speed: 1.75, energy: 0.85, hue: 0.45, glow: 0.9, dim: 0 },
   responding: { speed: 1.35, energy: 1, hue: 0.8, glow: 1, dim: 0 },
@@ -118,7 +118,6 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
   const c1 = useSharedValue(0);
   const c2 = useSharedValue(0);
   const glowPhase = useSharedValue(0);
-  const corePhase = useSharedValue(0);
   // Atividade e voz suavizadas (posição e velocidade de um filtro criticamente amortecido).
   const act = useSharedValue(0);
   const actV = useSharedValue(0);
@@ -148,8 +147,7 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
     c2.value += dt * RINGS[2].cometSpeed * s;
     // Luz: ciclo de ~3,6 s em repouso até ~2,1 s com energia máxima.
     glowPhase.value += dt * ((Math.PI * 2) / (3.6 - energy.value * 1.5));
-    corePhase.value += dt * ((Math.PI * 2) / (2.6 - energy.value * 1.4));
-  }, [time, energy, pulse, amp, speed, a0, a1, a2, c0, c1, c2, glowPhase, corePhase, act, actV, voice, voiceV]);
+  }, [time, energy, pulse, amp, speed, a0, a1, a2, c0, c1, c2, glowPhase, act, actV, voice, voiceV]);
   const frame = useFrameCallback(onFrame, false);
   useEffect(() => {
     frame.setActive(active);
@@ -181,28 +179,18 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
       return { full, back, front, perimeter, width: Math.max(0.9, size * ring.width), tilt: (ring.tilt * Math.PI) / 180 };
     });
   }, [size, c]);
-  const eye = useMemo(() => {
-    const w = size * 0.24;
-    const hh = size * 0.075;
-    return Skia.PathBuilder.Make().moveTo(c - w / 2, c).quadTo(c, c - hh * 2, c + w / 2, c).quadTo(c, c + hh * 2, c - w / 2, c).close().detach();
-  }, [size, c]);
-
   const angles = [a0, a1, a2];
   const comets = [c0, c1, c2];
+  // Partículas só onde há espaço para vê-las (nos tamanhos pequenos o símbolo fica limpo).
+  const particles = size >= 72;
 
-  // Halo e núcleo.
-  const haloOpacity = useDerivedValue(() => Math.min(1, intensity * (glow.value * (0.82 + 0.18 * Math.sin(glowPhase.value)) + hold.value * 0.3 + act.value * 0.16 + voice.value * 0.26)));
+  // Halo em anel: a luz fica na faixa por onde os anéis passam e o centro continua vazio (só os
+  // anéis, sem esfera). Cresce com a atividade; em repouso é quase só o traço.
+  const haloOpacity = useDerivedValue(() => Math.min(1, intensity * (glow.value * (0.88 + 0.12 * Math.sin(glowPhase.value)) * 0.62 + hold.value * 0.24 + act.value * 0.14 + voice.value * 0.22)));
   const haloColors = useDerivedValue(() => {
-    const tone = interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], ["rgba(98,54,212,0.55)", "rgba(165,139,247,0.5)"]), "rgba(74,43,155,0.3)"]);
-    return [tone, "rgba(98,54,212,0.16)", "rgba(19,11,38,0)"];
+    const tone = interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], ["rgba(98,54,212,0.5)", "rgba(165,139,247,0.42)"]), "rgba(74,43,155,0.24)"]);
+    return ["rgba(0,0,0,0)", tone, "rgba(98,54,212,0.08)", "rgba(0,0,0,0)"];
   });
-  const pupilR = useDerivedValue(() => size * (0.05 + energy.value * 0.008 * (0.5 + 0.5 * Math.sin(corePhase.value)) + voice.value * 0.018 + act.value * 0.006 + hold.value * 0.006));
-  const pupilColors = useDerivedValue(() => [
-    "#FFFFFF",
-    interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], [colors.violet300, colors.violet200]), colors.faint]),
-    interpolateColor(dim.value, [0, 1], [colors.violet500, colors.violet800]),
-  ]);
-  const eyeColor = useDerivedValue(() => interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], [colors.violet300, colors.violet200]), colors.faint]));
 
   return (
     <Animated.View
@@ -214,28 +202,32 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
       aria-hidden={!announce}
     >
       <Canvas style={{ width: size, height: size }} pointerEvents="none">
-        <Circle cx={c} cy={c} r={c} opacity={haloOpacity}>
-          <RadialGradient c={vec(c, c)} r={c} colors={haloColors} positions={[0, 0.5, 1]} />
+        <Circle cx={c} cy={c} r={c * 0.82} opacity={haloOpacity}>
+          <RadialGradient c={vec(c, c)} r={c * 0.82} colors={haloColors} positions={[0, 0.42, 0.75, 1]} />
         </Circle>
 
-        {/* Metades de trás: passam por trás do núcleo, mais apagadas */}
+        {/* Metades de trás: mais finas e apagadas (perspectiva) */}
         {geometry.map((ring, i) => (
-          <RingHalf key={`b${i}`} path={ring.back} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} back />
+          <RingHalf key={`b${i}`} path={ring.back} width={ring.width * 0.8} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} back />
         ))}
+        {particles
+          ? PARTICLES.map((p, k) => (
+              <Particle key={`pb${k}`} size={size} c={c} ring={RINGS[p.ring]} tilt={geometry[p.ring].tilt} angle={angles[p.ring]} travel={comets[p.ring]} offset={p.offset} speed={p.speed} energy={energy} dim={dim} back />
+            ))
+          : null}
 
-        {/* Núcleo: olho e pupila luminosa */}
-        <Path path={eye} style="stroke" strokeWidth={Math.max(1, size * 0.016)} strokeJoin="round" color={eyeColor} />
-        <Circle cx={c} cy={c} r={pupilR}>
-          <RadialGradient c={vec(c - size * 0.012, c - size * 0.012)} r={size * 0.075} colors={pupilColors} positions={[0, 0.45, 1]} />
-        </Circle>
-
-        {/* Metades da frente e cometas de luz */}
+        {/* Metades da frente, cometas e partículas: por cima das de trás */}
         {geometry.map((ring, i) => (
           <Group key={`f${i}`}>
             <RingHalf path={ring.front} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} />
             <Comet path={ring.full} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} travel={comets[i]} perimeter={ring.perimeter} fraction={RINGS[i].comet} energy={energy} pulse={act} dim={dim} />
           </Group>
         ))}
+        {particles
+          ? PARTICLES.map((p, k) => (
+              <Particle key={`pf${k}`} size={size} c={c} ring={RINGS[p.ring]} tilt={geometry[p.ring].tilt} angle={angles[p.ring]} travel={comets[p.ring]} offset={p.offset} speed={p.speed} energy={energy} dim={dim} />
+            ))
+          : null}
       </Canvas>
       {interactive ? (
         <Pressable
@@ -296,7 +288,8 @@ function RingHalf({
     const orchid = interpolateColor(dim.value, [0, 1], [colors.orchid, colors.violet800]);
     return [interpolateColor(dim.value, [0, 1], [light, colors.faint]), orchid, deep, interpolateColor(dim.value, [0, 1], [light, colors.faint])];
   });
-  const opacity = useDerivedValue(() => (back ? 0.26 + energy.value * 0.12 : 0.78 + energy.value * 0.22) * (1 - dim.value * 0.35));
+  // Atrás bem apagado, na frente nítido: a profundidade vem do contraste, não do brilho.
+  const opacity = useDerivedValue(() => (back ? 0.2 + energy.value * 0.12 : 0.74 + energy.value * 0.26) * (1 - dim.value * 0.35));
   return (
     <Group origin={vec(c, c)} transform={transform} opacity={opacity}>
       <Path path={path} style="stroke" strokeWidth={width} strokeCap="round">
@@ -334,15 +327,76 @@ function Comet({
 }) {
   const transform = useDerivedValue(() => [{ rotate: tilt + (angle.value * Math.PI) / 180 }]);
   const dashPhase = useDerivedValue(() => -travel.value * perimeter);
-  const opacity = useDerivedValue(() => interpolate(energy.value, [0, 1], [0.18, 0.8]) * (1 - dim.value) + pulse.value * 0.18);
+  // Em repouso o cometa é quase só um reflexo; gerando, ele acende.
+  const opacity = useDerivedValue(() => interpolate(energy.value, [0, 1], [0.12, 0.78]) * (1 - dim.value) + pulse.value * 0.16);
   const intervals = useMemo(() => [perimeter * fraction, perimeter * (1 - fraction)], [perimeter, fraction]);
   return (
     <Group origin={vec(c, c)} transform={transform} opacity={opacity}>
-      <Path path={path} style="stroke" strokeWidth={width * 1.6} strokeCap="round" color="#FFFFFF">
+      <Path path={path} style="stroke" strokeWidth={width * 1.5} strokeCap="round" color={colors.violet200}>
         <DashPathEffect intervals={intervals} phase={dashPhase} />
       </Path>
     </Group>
   );
+}
+
+/** Partículas: pontos de luz que correm sobre os anéis, em ritmos próprios (dois por anel). */
+const PARTICLES = [
+  { ring: 0, offset: 0.1, speed: 0.55 },
+  { ring: 0, offset: 0.62, speed: 0.55 },
+  { ring: 1, offset: 0.3, speed: 0.42 },
+  { ring: 1, offset: 0.85, speed: 0.42 },
+  { ring: 2, offset: 0.45, speed: 0.33 },
+  { ring: 2, offset: 0.05, speed: 0.33 },
+] as const;
+
+/**
+ * Partícula numa elipse inclinada. Cada uma é desenhada duas vezes (camada de trás e da
+ * frente) e só aparece na metade certa, com transição suave nas pontas do anel: assim ela passa
+ * por trás e volta pela frente sem salto.
+ */
+function Particle({
+  size,
+  c,
+  ring,
+  tilt,
+  angle,
+  travel,
+  offset,
+  speed,
+  energy,
+  dim,
+  back = false,
+}: {
+  size: number;
+  c: number;
+  ring: (typeof RINGS)[number];
+  tilt: number;
+  angle: SharedValue<number>;
+  travel: SharedValue<number>;
+  offset: number;
+  speed: number;
+  energy: SharedValue<number>;
+  dim: SharedValue<number>;
+  back?: boolean;
+}) {
+  const rx = size * ring.rx;
+  const ry = size * ring.ry;
+  const point = useDerivedValue(() => {
+    const t = (travel.value * speed + offset) * Math.PI * 2;
+    const lx = Math.cos(t) * rx;
+    const ly = Math.sin(t) * ry;
+    const rot = tilt + (angle.value * Math.PI) / 180;
+    return { x: c + lx * Math.cos(rot) - ly * Math.sin(rot), y: c + lx * Math.sin(rot) + ly * Math.cos(rot), front: Math.sin(t) };
+  });
+  const cx = useDerivedValue(() => point.value.x);
+  const cy = useDerivedValue(() => point.value.y);
+  const opacity = useDerivedValue(() => {
+    // 0 atrás, 1 na frente, com rampa curta perto das pontas.
+    const f = Math.min(1, Math.max(0, (point.value.front + 0.15) / 0.3));
+    const visible = back ? 1 - f : f;
+    return visible * (back ? 0.32 : 0.85) * (0.45 + energy.value * 0.55) * (1 - dim.value);
+  });
+  return <Circle cx={cx} cy={cy} r={Math.max(0.8, size * (back ? 0.007 : 0.009))} color={colors.violet200} opacity={opacity} />;
 }
 
 /** Mantém o mesmo nome de import nos dois lados (celular e web). */

@@ -11,6 +11,9 @@ import { colors, fonts, radius, space, type } from "@/theme/tokens";
 import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
 import { enter, exit, layoutTransition, spring } from "@/theme/motion";
 import { splitDetails, type Segment } from "./details";
+import { Diagram } from "./diagram";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
 
 /**
  * Renderiza o Markdown dos pensamentos com componentes nativos.
@@ -193,12 +196,24 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
         </View>
       );
     }
-    case "code":
+    case "code": {
+      const code = token as Tokens.Code;
+      // Diagramas: o bloco ```mermaid é desenhado (só depois de fechado, no streaming).
+      if (isMermaid(code)) return <Diagram source={code.text} complete={fenceClosed(code.raw)} />;
+      const lang = (code.lang ?? "").split(/\s/)[0];
       return (
-        <ScrollView horizontal style={styles.codeBlock} contentContainerStyle={{ padding: space.md }}>
-          <AppText style={styles.codeText}>{(token as Tokens.Code).text}</AppText>
-        </ScrollView>
+        <View style={styles.codeBlock}>
+          {lang ? (
+            <View style={styles.codeHead}>
+              <AppText variant="label" color={colors.faint} style={styles.codeLang}>{lang}</AppText>
+            </View>
+          ) : null}
+          <ScrollView horizontal contentContainerStyle={{ padding: space.md }}>
+            <AppText selectable style={styles.codeText}>{code.text}</AppText>
+          </ScrollView>
+        </View>
       );
+    }
     case "hr":
       return <View style={styles.hr} />;
     case "table":
@@ -235,23 +250,82 @@ function ListItemBody({ item, depth }: { item: Tokens.ListItem; depth: number })
   );
 }
 
+/**
+ * Tabela: cada coluna recebe a largura do próprio conteúdo (entre um mínimo e um máximo, com
+ * quebra de linha dentro da célula); se a soma cabe na tela, as colunas se esticam até a borda,
+ * senão a tabela rola de lado e ganha a tela cheia. Cabeçalho destacado, linhas alternadas e o
+ * alinhamento definido no Markdown (:--, :-:, --:).
+ */
 function Table({ token }: { token: Tokens.Table }) {
-  const columns = token.header.length;
-  const width = Math.max(120, Math.min(220, 640 / Math.max(1, columns)));
-  const cell = (c: Tokens.TableCell, header: boolean, key: string) => (
-    <View key={key} style={[styles.cell, { width }, header && styles.headerCell]}>
-      <AppText variant={header ? "uiMedium" : "ui"} style={{ textAlign: c.align ?? "left" }}>{inline(c.tokens, key)}</AppText>
-    </View>
-  );
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
-      <View>
-        <View style={styles.row}>{token.header.map((c, i) => cell(c, true, `h${i}`))}</View>
-        {token.rows.map((row, r) => (
-          <View key={r} style={styles.row}>{row.map((c, i) => cell(c, false, `r${r}c${i}`))}</View>
+  const [available, setAvailable] = useState(0);
+  const [full, setFull] = useState(false);
+  const insets = useSafeAreaInsets();
+  useDialogKeyboard(full, () => setFull(false));
+  const natural = useMemo(() => {
+    const columns = token.header.length;
+    return Array.from({ length: columns }, (_, i) => {
+      const longest = Math.max(plainCell(token.header[i]?.text ?? "").length * 1.1, ...token.rows.map((row) => plainCell(row[i]?.text ?? "").length));
+      return Math.round(Math.min(240, Math.max(88, longest * 7.4 + 28)));
+    });
+  }, [token]);
+  const total = natural.reduce((a, b) => a + b, 0);
+  const wide = available > 0 && total > available + 1;
+  const scaled = !wide && available > 0 ? natural.map((w) => (w / total) * available) : natural;
+
+  const grid = (widths: number[]) => (
+    <View>
+      <View style={[styles.row, styles.headerRow]}>
+        {token.header.map((c, i) => (
+          <View key={`h${i}`} style={[styles.cell, { width: widths[i] }, i === widths.length - 1 && styles.lastCell]}>
+            <AppText variant="small" style={[styles.headerText, { textAlign: c.align ?? "left" }]}>{inline(c.tokens, `h${i}`)}</AppText>
+          </View>
         ))}
       </View>
-    </ScrollView>
+      {token.rows.map((row, r) => (
+        <View key={r} style={[styles.row, r % 2 === 1 && styles.altRow, r === token.rows.length - 1 && styles.lastRow]}>
+          {row.map((c, i) => (
+            <View key={`r${r}c${i}`} style={[styles.cell, { width: widths[i] }, i === widths.length - 1 && styles.lastCell]}>
+              <AppText variant="small" style={[styles.cellText, { textAlign: c.align ?? "left" }]}>{inline(c.tokens, `r${r}c${i}`)}</AppText>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={styles.tableWrap} onLayout={(event) => setAvailable(Math.floor(event.nativeEvent.layout.width) - 2)}>
+      <View style={styles.table}>
+        <ScrollView horizontal scrollEnabled={wide} showsHorizontalScrollIndicator={wide}>
+          {grid(scaled)}
+        </ScrollView>
+      </View>
+      {wide ? (
+        <View style={styles.tableFoot}>
+          <AppText variant="small" color={colors.faint} style={{ flex: 1 }}>{token.rows.length} {token.rows.length === 1 ? "linha" : "linhas"} · {token.header.length} colunas · arraste para o lado</AppText>
+          <Touchable accessibilityLabel="Abrir a tabela em tela cheia" onPress={() => setFull(true)} hitSlop={8} pressScale={0.92} style={styles.tableExpand}>
+            <Icon name="expand" size={14} color={colors.violet300} />
+            <AppText variant="small" color={colors.violet300}>Tela cheia</AppText>
+          </Touchable>
+        </View>
+      ) : null}
+      <Modal visible={full} animationType="fade" onRequestClose={() => setFull(false)} supportedOrientations={["portrait", "landscape"]} statusBarTranslucent>
+        <View style={[styles.fullTable, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={styles.fullHead}>
+            <Icon name="table" size={16} color={colors.violet300} />
+            <AppText variant="uiMedium" style={{ flex: 1 }}>Tabela</AppText>
+            <Touchable accessibilityLabel="Fechar tela cheia" onPress={() => setFull(false)} hitSlop={8} pressScale={0.9} style={styles.tableClose}>
+              <Icon name="close" size={18} color={colors.text} />
+            </Touchable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: space.lg }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator>
+              <View style={styles.table}>{grid(natural)}</View>
+            </ScrollView>
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -312,7 +386,9 @@ const styles = StyleSheet.create({
   h3: { fontFamily: fonts.sansSemibold, fontSize: 17, lineHeight: 23, marginTop: space.lg, marginBottom: space.sm, color: colors.text },
   link: { color: colors.violet300, textDecorationLine: "underline", textDecorationColor: colors.violet700 },
   codespan: { fontFamily: mono, fontSize: 14, color: colors.violet200, backgroundColor: colors.violet950 },
-  codeBlock: { backgroundColor: "rgba(10,6,20,0.9)", borderRadius: radius.lg, borderWidth: 1, borderColor: colors.lineStrong, marginBottom: space.lg },
+  codeBlock: { backgroundColor: "#07060A", borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, marginBottom: space.lg, overflow: "hidden" },
+  codeHead: { paddingHorizontal: space.md, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, backgroundColor: colors.surface },
+  codeLang: { fontSize: 10.5, lineHeight: 14, letterSpacing: 1 },
   codeText: { fontFamily: mono, fontSize: 13, lineHeight: 20, color: colors.violet200 },
   quote: { borderLeftWidth: 2, borderLeftColor: colors.violet600, paddingLeft: space.lg, marginBottom: space.lg, opacity: 0.92 },
   list: { marginBottom: space.lg, gap: space.xs },
@@ -320,12 +396,23 @@ const styles = StyleSheet.create({
   bullet: { minWidth: 18 },
   listText: { color: colors.text },
   hr: { height: 1, backgroundColor: colors.lineStrong, marginVertical: space.xl, width: 48, alignSelf: "center" },
-  table: { marginBottom: space.lg, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md },
+  tableWrap: { marginBottom: space.lg },
+  table: { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.surface },
   row: { flexDirection: "row" },
-  cell: { padding: space.sm, borderRightWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-  headerCell: { backgroundColor: colors.surfaceRaised },
+  headerRow: { backgroundColor: colors.surfaceRaised },
+  altRow: { backgroundColor: "rgba(255,255,255,0.025)" },
+  lastRow: {},
+  cell: { paddingHorizontal: space.md, paddingVertical: space.sm + 2, borderRightWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  lastCell: { borderRightWidth: 0 },
+  headerText: { fontFamily: fonts.sansSemibold, color: colors.violet200, lineHeight: 18 },
+  cellText: { color: colors.text, lineHeight: 19 },
+  tableFoot: { flexDirection: "row", alignItems: "center", gap: space.sm, marginTop: space.xs, paddingHorizontal: space.xs },
+  tableExpand: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
+  fullTable: { flex: 1, backgroundColor: colors.bg },
+  fullHead: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  tableClose: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   imageFrame: { marginBottom: space.lg, borderRadius: radius.md, overflow: "hidden", alignItems: "center", backgroundColor: colors.glass },
-  viewer: { flex: 1, backgroundColor: "rgba(5,4,9,0.96)", alignItems: "center", justifyContent: "center" },
+  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.96)", alignItems: "center", justifyContent: "center" },
   viewerClose: { position: "absolute", top: 60, right: 20 },
   details: { borderWidth: 1, borderColor: colors.violet800, borderRadius: radius.lg, marginBottom: space.lg, backgroundColor: colors.glass },
   summary: { flexDirection: "row", alignItems: "center", padding: space.md, gap: space.sm },
