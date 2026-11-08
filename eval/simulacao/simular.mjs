@@ -291,10 +291,12 @@ async function rodada(n) {
   const dir = roundDir(n);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, "acoes.json");
-  const done = readJson(file, []);
-  const ids = new Set(done.map((d) => d.id));
+  // Ação com erro é tentada de novo na próxima execução (o registro com erro é substituído).
+  let done = readJson(file, []);
+  const ids = new Set(done.filter((d) => !d.erro).map((d) => d.id));
   for (const a of plan.acoes) {
     if (ids.has(a.id)) continue;
+    done = done.filter((d) => d.id !== a.id);
     const actor = a.id;
     let rec;
     try {
@@ -318,7 +320,7 @@ async function prova(n) {
   const dir = roundDir(n);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, "prova.json");
-  const answers = readJson(file, []);
+  let answers = readJson(file, []).filter((x) => !x.erro);
   const done = new Set(answers.map((x) => `${x.id}|${x.condicao}`));
   const qs = activeQuestions(n);
   const counts = ["nucleo", "nova", "armadilha"].map((c) => qs.filter((q) => q.categoria === c).length);
