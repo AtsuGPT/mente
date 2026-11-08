@@ -61,3 +61,6 @@ __pycache__/
 # Prova da Kally (eval/prova): as respostas completas ficam só na máquina (podem citar posts do ambiente)
 /eval/prova/resultados/*/respostas.json
 /eval/prova/resultados/*/documentos.json
+
+# Simulação da Kally: contas, senhas e tokens das personas (só na máquina)
+/eval/simulacao/.estado.json

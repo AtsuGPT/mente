@@ -4,6 +4,8 @@
 //   node eval/prova/prova.mjs gerar --api http://localhost:3000/api/mobile --usuario admin --senha ... --saida eval/prova/resultados/rodada-0
 //        [--ambiente prova] [--config qwen] [--sem-controle]
 //   node eval/prova/prova.mjs corrigir --saida eval/prova/resultados/rodada-0 [--confirmar] [--modelo claude-opus-5-5]
+//   node eval/prova/prova.mjs exportar --saida eval/prova/resultados/rodada-0      (correção na sessão, sem API)
+//   node eval/prova/prova.mjs importar --saida eval/prova/resultados/rodada-0 --arquivo notas-sessao.json
 //   node eval/prova/prova.mjs relatorio --saida eval/prova/resultados/rodada-0
 //   node eval/prova/prova.mjs comparar eval/prova/resultados/rodada-0 eval/prova/resultados/rodada-1 ...
 //
@@ -189,6 +191,7 @@ function checks(q, r) {
   };
 }
 
+// Mesmas regras de eval/simulacao/rubrica.md (que vale também para a correção feita numa sessão).
 const JUDGE_SYSTEM = `Você corrige respostas de uma assistente de estudos (a Kally) dentro de um ambiente de estudos em português. A assistente consulta uma base de documentos do ambiente. Você recebe a pergunta da pessoa, o gabarito escrito antes da prova, o documento de referência (quando há) e a resposta. Dê notas inteiras de 0 a 5, com rigor e consistência.
 
 Critérios:
@@ -303,6 +306,45 @@ async function corrigir(out) {
   }
   relatorio(out);
   return true;
+}
+
+// ---------- correção na sessão (sem API) ----------
+// exportar: folha cega para um juiz de fora do script (o Claude numa sessão, ou uma pessoa): códigos sorteados,
+// sem a condição. A chave (código → pergunta|condição) fica em chave.json e só o importar lê.
+function exportar(out) {
+  const respostas = readJson(path.join(out, "respostas.json"), null);
+  if (!respostas) throw new Error(`Não há respostas.json em ${out}. Rode gerar antes.`);
+  const notas = readJson(path.join(out, "notas.json"), {});
+  const pending = respostas.filter((r) => !notas[`${r.id}|${r.condicao}`]).sort(() => Math.random() - 0.5);
+  const chave = {};
+  const itens = pending.map((r, i) => {
+    const q = perguntas.find((x) => x.id === r.id);
+    const codigo = `C${String(i + 1).padStart(3, "0")}`;
+    chave[codigo] = `${r.id}|${r.condicao}`;
+    return { codigo, pergunta: q.pergunta, gabarito: q.resposta, documento: q.documento, resposta: r.texto || "(sem resposta)" };
+  });
+  writeJson(path.join(out, "para-corrigir.json"), { rubrica: "eval/simulacao/rubrica.md", documentos: "eval/embeddings/corpus e eval/kally/documentos", itens });
+  writeJson(path.join(out, "chave.json"), chave);
+  console.log(`${itens.length} respostas em ${path.relative(root, path.join(out, "para-corrigir.json"))}. As notas voltam com: importar --arquivo <notas>.json`);
+}
+
+// importar: { "<código>": { aderencia, utilidade, estrutura, precisao, nota, inventou, justificativa } }
+function importar(out) {
+  const file = opt("arquivo");
+  if (!file) throw new Error("Use: importar --saida <pasta> --arquivo <notas do juiz>.json");
+  const chave = readJson(path.join(out, "chave.json"), null);
+  if (!chave) throw new Error(`Não há chave.json em ${out}. Rode exportar antes.`);
+  const notas = readJson(path.join(out, "notas.json"), {});
+  let count = 0;
+  for (const [codigo, n] of Object.entries(readJson(file, {}))) {
+    const key = chave[codigo];
+    if (!key) continue;
+    notas[key] = { aderencia: clamp(n.aderencia), utilidade: clamp(n.utilidade), estrutura: clamp(n.estrutura), precisao: clamp(n.precisao), nota: clamp(n.nota), inventou: !!n.inventou, justificativa: String(n.justificativa ?? ""), juiz: "sessao" };
+    count++;
+  }
+  writeJson(path.join(out, "notas.json"), notas);
+  console.log(`${count} notas importadas.`);
+  relatorio(out);
 }
 
 // ---------- relatório ----------
@@ -443,13 +485,15 @@ try {
   if (command === "comparar") comparar(rest.filter((x) => !x.startsWith("--")));
   else {
     const out = opt("saida");
-    if (!out || !["gerar", "corrigir", "relatorio"].includes(command)) {
-      console.log("Comandos: gerar | corrigir | relatorio | comparar (veja o cabeçalho de eval/prova/prova.mjs)");
+    if (!out || !["gerar", "corrigir", "exportar", "importar", "relatorio"].includes(command)) {
+      console.log("Comandos: gerar | corrigir | exportar | importar | relatorio | comparar (veja o cabeçalho de eval/prova/prova.mjs)");
       process.exit(command ? 1 : 0);
     }
     fs.mkdirSync(out, { recursive: true });
     if (command === "gerar") await gerar(out);
     else if (command === "corrigir") await corrigir(out);
+    else if (command === "exportar") exportar(out);
+    else if (command === "importar") importar(out);
     else relatorio(out);
   }
 } catch (cause) {
