@@ -297,7 +297,9 @@ export async function POST(request: Request, context: EnvContext) {
           // saíram cortados no meio (simulação, rodada 1). O modelo para sozinho quando termina; só respostas longas
           // usam o teto.
           const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : 1_400;
-          const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.45;
+          // Conversa comum a 0,2 (era 0,45): na simulação, perguntas sobre o ambiente ganhavam interpretações que não
+          // estão no material e variavam de uma execução para outra. Ideia e competências mantêm a temperatura delas.
+          const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
           const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
           for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
