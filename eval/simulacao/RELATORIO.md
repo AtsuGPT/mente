@@ -139,7 +139,21 @@ Relatório: [resultados/calibracao/relatorio.md](resultados/calibracao/relatorio
 
 - **Consistência:** em respostas com o mesmo texto corrigidas em folhas diferentes (só correções independentes; as notas reaproveitadas entre folhas ficam de fora), a nota foi a mesma nos 37 pares. São quase sempre respostas simples, então isso mostra coerência, não validade.
 - **Concordância com a checagem objetiva:** em 94% das 186 respostas a perguntas com resposta na base, a nota de precisão do juiz bate com "os fatos do gabarito estão na resposta".
-- **Correção humana:** falta. As 20 respostas sorteadas, estratificadas pelas faixas de nota, estão na página "Calibração do juiz", para corrigir às cegas. A concordância com o juiz (exata, ±1 e kappa ponderado) sai de `calibrar-juiz.mjs comparar`.
+- **Correção humana (feita):** você corrigiu às cegas as 20 respostas sorteadas. Resultado:
+  - mesma nota em 50%, diferença de até 1 ponto em 75%;
+  - kappa ponderado de 0,63 (concordância moderada a boa);
+  - o juiz era 0,4 ponto mais severo que você.
+- **O que as 10 divergências mostraram:**
+  - "curto demais" aparece em 7 dos seus comentários, inclusive em respostas certas (H01: juiz 5, você 4);
+  - resposta na voz da pessoa ("trabalho no hospital…") recebeu 1 de você e 3 do juiz (H11);
+  - "[P1]" e "material fornecido" incomodam (H05, H09);
+  - o juiz foi mais duro que você com respostas certas que traziam um detalhe a mais ou um conselho sensato coerente com o guia (H06, H08, H16: juiz 1 ou 2, você 4).
+- **Rubrica v2:** os ajustes viraram regras escritas na [rubrica](rubrica.md):
+  - voz trocada vale no máximo 1;
+  - nota 5 exige orientação (resposta certa mas seca vale 4);
+  - rótulo interno exposto limita a nota a 4;
+  - conselho coerente com o guia vale 3 ou 4.
+- **Efeito da rubrica v2 na escala:** com a v2, a mesma v5 cai de 4,40 para 3,60. A Kally não piorou: a régua ficou mais exigente, sobretudo no 5. Por isso as versões corrigidas com a v1 e com a v2 não se comparam diretamente: a tabela da seção 5 separa as duas réguas.
 
 ## 7. Limites
 

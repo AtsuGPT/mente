@@ -59,24 +59,39 @@ ${bars({ title: "Prova da rodada (40 perguntas)", series: ["com RAG", "sem RAG"]
 ${bars({ title: "Onde está o erro (com RAG)", series: ["perguntas"], max: Math.max(1, ...Object.values(last.diagnostico)), fmt: (x) => String(x), rows: Object.entries(last.diagnostico).filter(([, v]) => v).map(([k, v]) => ({ label: k.replace(/_/g, " "), values: [v] })) })}
 </section>`;
 }
-// Evolução por versão: uma série por versão, com cor fixa (a mesma versão tem a mesma cor em todo o painel).
-const versions = [];
-const byVersion = {};
-for (const x of ab) for (const [v, r] of Object.entries(x.resumo)) if (!byVersion[v]) { byVersion[v] = r; versions.push(v); }
-if (versions.length) {
-  const R = (k) => versions.map((v) => byVersion[v][k]);
-  body += `<section><h2>Evolução da Kally por versão (teste A/B local)</h2>
-<p class="note">Mesma instância local, mesmo modelo executor da produção, mesmo conteúdo da rodada 1 e mesmas 40 perguntas com RAG; o juiz corrigiu às cegas. "antes" é o código que roda em produção.</p>
-<div class="tiles">${versions.map((v) => `<div class="tile"><b>${f2(byVersion[v].nota)}</b><span>nota média · ${esc(v)}</span></div>`).join("")}</div>
-${bars({ title: "Qualidade e recuperação", series: versions, rows: [
-    { label: "Respostas 5/5", values: R("nota5") },
-    { label: "Respostas 4 ou 5", values: R("nota45") },
-    { label: "Fatos completos", values: R("fatos") },
-    { label: "Fonte certa recuperada", values: R("fonte") },
-    { label: "Armadilhas: disse que não encontrou", values: R("armadilhas") },
-    { label: "Erro factual (precisão ≤ 2)", values: R("erroFactual") },
-    { label: "Inventou", values: R("inventou") },
-  ] })}
+// Evolução por versão, separada pela régua: uma folha corrigida com a rubrica v2 não se compara com a v1 (a v2
+// exige orientação para o 5). Dentro de cada régua, a primeira medida de cada versão; repetições ("r") ficam fora
+// da linha (servem para medir o ruído).
+const rubricas = readJson(path.join(sim, "rubricas.json"), {});
+const rubricaDe = (nome) => (rubricas.v2 ?? []).includes(nome) ? "v2" : "v1";
+const rotulo = (v) => (v === "antes" ? "produção" : v === "depois" ? "v1" : v.replace(/^depois(\d+)$/, "v$1"));
+function lineChart({ title, labels, values, max }) {
+  const w = 640, h = 220, left = 40, right = 24, top = 20, bottom = 36;
+  const pw = w - left - right, ph = h - top - bottom;
+  const inset = 28; // os pontos das pontas não encostam nos números do eixo
+  const x = (i) => left + inset + (labels.length === 1 ? (pw - 2 * inset) / 2 : (i * (pw - 2 * inset)) / (labels.length - 1));
+  const y = (v) => top + ph - (v / max) * ph;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(title)}" class="chart">`;
+  for (let t = 0; t <= max; t++) svg += `<line x1="${left}" x2="${w - right}" y1="${y(t)}" y2="${y(t)}" class="grid"/><text x="${left - 8}" y="${y(t) + 4}" class="val" text-anchor="end">${t}</text>`;
+  svg += `<polyline points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}" class="line"/>`;
+  values.forEach((v, i) => {
+    svg += `<g class="pt"><circle cx="${x(i)}" cy="${y(v)}" r="14" class="hit"><title>${esc(labels[i])}: ${f2(v)}</title></circle><circle cx="${x(i)}" cy="${y(v)}" r="4.5" class="dot"/></g>`;
+    svg += `<text x="${x(i)}" y="${h - 12}" class="lbl" text-anchor="middle">${esc(labels[i])}</text>`;
+    if (i === 0 || i === values.length - 1 || v === Math.max(...values)) svg += `<text x="${x(i)}" y="${y(v) - 12}" class="val" text-anchor="middle">${f2(v)}</text>`;
+  });
+  return `<figure><figcaption>${esc(title)}</figcaption>${svg + "</svg>"}</figure>`;
+}
+const METRICAS = [["nota", "Nota média (0–5)", f2], ["nota5", "Respostas 5/5", pc], ["nota45", "Respostas 4 ou 5", pc], ["fatos", "Fatos completos", pc], ["fonte", "Fonte certa recuperada", pc], ["armadilhas", "Armadilhas: disse que não encontrou", pc], ["erroFactual", "Erro factual (precisão ≤ 2)", pc], ["inventou", "Inventou", pc]];
+for (const regua of ["v1", "v2"]) {
+  const versions = [];
+  const byVersion = {};
+  for (const x of ab.filter((x) => rubricaDe(x.nome) === regua)) for (const [v, r] of Object.entries(x.resumo)) if (!byVersion[v] && !/r$/.test(v)) { byVersion[v] = r; versions.push(v); }
+  if (!versions.length) continue;
+  const labels = versions.map(rotulo);
+  body += `<section><h2>Evolução da Kally por versão, rubrica ${regua} (teste A/B local)</h2>
+<p class="note">Mesma instância local, mesmo modelo executor da produção, mesmo conteúdo da rodada 1 e mesmas 40 perguntas com RAG; juiz cego. "produção" é o código que roda hoje no app. ${regua === "v2" ? "Rubrica v2 (depois da calibração humana): 5 exige orientação, voz trocada vale no máximo 1, rótulo interno limita a 4. A mesma resposta tende a valer menos que na v1." : "Diferenças abaixo de ~0,1 na nota e ~5 pontos percentuais são ruído (v3 rodada duas vezes)."}</p>
+${lineChart({ title: `Nota média por versão (rubrica ${regua})`, labels, values: versions.map((v) => byVersion[v].nota), max: 5 })}
+<div class="scroll"><table><thead><tr><th>Métrica</th>${labels.map((l) => `<th>${esc(l)}</th>`).join("")}</tr></thead><tbody>${METRICAS.map(([k, nome, fmt]) => `<tr><td>${esc(nome)}</td>${versions.map((v) => `<td>${fmt(byVersion[v][k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
 </section>`;
 }
 const e = emb.at(-1);
@@ -104,6 +119,8 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}.note{color
 figure{margin:12px 0}figcaption{font-weight:600;font-size:14px}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:4px 0}
 .key i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .chart{width:100%;height:auto}.lbl{fill:var(--ink);font-size:12px}.val{fill:var(--ink2);font-size:12px}.track{fill:var(--track)}
+.grid{stroke:var(--track);stroke-width:1}.line{fill:none;stroke:var(--s1);stroke-width:2;stroke-linejoin:round}.dot{fill:var(--s1);stroke:var(--surface);stroke-width:2}.hit{fill:transparent}.pt:hover .dot{r:6}
+.scroll{overflow-x:auto}table{border-collapse:collapse;font-size:13px;width:100%}th,td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--track);white-space:nowrap}th:first-child,td:first-child{text-align:left;white-space:normal}
 .s1{fill:var(--s1);background:var(--s1)}.s2{fill:var(--s2);background:var(--s2)}.s3{fill:var(--s3);background:var(--s3)}.s4{fill:var(--s4);background:var(--s4)}
 </style></head><body><main><h1>Avaliação da Kally</h1><p class="note">Gerado em ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC a partir dos resultados versionados em eval/.</p>${body}</main></body></html>`;
 fs.writeFileSync(path.join(here, "painel.html"), html);

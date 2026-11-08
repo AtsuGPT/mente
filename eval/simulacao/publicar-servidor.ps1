@@ -47,3 +47,4 @@ npm run build
 Write-Host ""
 Write-Host "Pronto. Pare o servidor que está rodando (npm run start) e inicie de novo para a versão nova valer."
 Write-Host "Os documentos já enviados mantêm os trechos antigos (1.100 caracteres) até serem reenviados; os novos usam 600."
+Write-Host "A memória de posts se refaz sozinha (trechos de 450): na primeira pergunta de cada ambiente, em segundo plano e um post por vez."
