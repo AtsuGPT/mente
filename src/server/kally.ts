@@ -42,7 +42,9 @@ export const needsOutsideHelp = (posts: Retrieved[]) => !posts.some((p) => p.kin
 export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto">; casual: boolean; wantsMemory: boolean } {
   const m = message.toLowerCase();
   const wantsMemory = /\b(meus?|minhas?|nossos?) (posts?|textos?|pensamentos?|ideias|rascunhos?|projetos?)\b|o que (eu )?(escrevi|publiquei|pensei)|\bno ambiente\b|\bnos (posts|pensamentos|textos)\b|\banalis|\brelacion|\bconect|\bresum/.test(m);
-  if (/\b(revis[ae]|revisar|revisão|corrij[ae]|corrigir|melhor[ae] (meu|este|esse) texto)\b/.test(m)) return { mode: "revisar", casual: false, wantsMemory: true };
+  // "revisão" sozinha é substantivo ("a revisão de literatura dele") e não pedido: a pergunta sobre os
+  // artigos da revisão do Igor caía em Revisar sem texto e a Kally não buscava nada (simulação, rodada 1).
+  if (/\b(revis[ae] |revisar|corrij[ae]|corrigir|melhor[ae] (meu|este|esse) texto)|(faz|fa[cç]a|fazer) uma revisão/.test(m)) return { mode: "revisar", casual: false, wantsMemory: true };
   if (/(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
