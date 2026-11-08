@@ -157,7 +157,10 @@ export async function interpret(
 
 // Pedidos curtos (sem interpretador) que já dizem a competência. Ficam de fora "o que você acha"
 // e "faz sentido?": em papo comum elas virariam uma análise formal.
-const ANALYSIS_RULE = /\banalis[ae]r?\b|\bcritique\b|\bcriticamente\b|\bavali(e|ar)\b|\bse sustenta\b|\besse argumento\b|\bplano de estudos?\b|\bcronograma de estudos?\b|\bme orient[ae]\b|\bpor onde come[çc]o\b|\bcomo (eu )?(organizo|estudo)\b/;
+// Plano de estudo, cronograma, "me oriente", "por onde começo" e "como organizo" pedem orientação, não
+// crítica de argumento: na simulação (rodada 1) o plano de estudos da Carla e a caderneta do João viraram
+// "premissas falsas" e "falhas identificadas". Esses pedidos seguem a conversa comum, com a memória.
+const ANALYSIS_RULE = /\banalis[ae]r?\b|\bcritique\b|\bcriticamente\b|\bavali(e|ar)\b|\bse sustenta\b|\besse argumento\b/;
 const STUDY_RULE = /\b(me )?expli(ca|que|car)\b|\b(material|texto|resumo|apostila|post) (de estudo|did[aá]tico|explicando)|\bcomo funciona\b|\bdiferen[çc]a entre\b/;
 const STUDY_POST_RULE = /\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
 
