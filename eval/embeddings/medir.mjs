@@ -346,6 +346,21 @@ for (const set of SETS) for (const [name, ix, cfg] of [["atual", current, curren
   o(`| ${set} | ${name} | ${pc(m.recall1)} | ${pc(m.recall4)} | ${f2(m.mrr)} | ${pc(m.entregue)} | ${pc(m.entregue1)} | ${f2(m.ruido)} | ${pc(m.semRespostaTrazAlgo)} | ${pc(m.pertoTrazAlgo)} |`);
 }
 o();
+o("#### Um parâmetro por vez (o resto como está hoje)");
+o();
+o("| Mudança | Conjunto | Recall@1 | Recall@4 | Entregue | Entregue em 1º | Trechos errados entregues | Sem resposta: traz algo |");
+o("|---|---|---|---|---|---|---|---|");
+const single = [["nenhuma (atual)", current, currentCfg]];
+for (const ix of indexes) if (ix !== current && (ix.overlap === 0 || ix.size === CURRENT.docChunk)) single.push([ix.overlap ? `overlap ${ix.overlap}` : `trecho ${ix.size}`, ix, currentCfg]);
+for (const cutoff of [0.35, 0.4, 0.5]) single.push([`corte ${cutoff}`, current, { ...currentCfg, cutoff }]);
+for (const lexWeight of [0, 0.1, 0.2]) single.push([`palavras ${lexWeight}`, current, { ...currentCfg, lexWeight }]);
+for (const limit of [3, 6]) single.push([`limite ${limit}`, current, { ...currentCfg, limit }]);
+single.push(["máx. 2 por documento", current, { ...currentCfg, perDoc: 2 }]);
+for (const [name, ix, cfg] of single) for (const set of SETS) {
+  const m = metrics(bySet(ix.rows, set), cfg);
+  o(`| ${name} | ${set} | ${pc(m.recall1)} | ${pc(m.recall4)} | ${pc(m.entregue)} | ${pc(m.entregue1)} | ${f2(m.ruido)} | ${pc(m.semRespostaTrazAlgo)} |`);
+}
+o();
 o("Se a melhora some na avaliação, ela era ajuste às perguntas da calibração: não leve para produção. Com poucas perguntas por conjunto, diferenças de uma ou duas perguntas são ruído.");
 o();
 

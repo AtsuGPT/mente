@@ -1,0 +1,36 @@
+[
+  {
+    "data": "2026-11-08",
+    "commit": "8e677fb",
+    "modelo": "qwen3-embedding:0.6b",
+    "atual": {
+      "n": 18,
+      "recall1": 0.6111111111111112,
+      "recall4": 1,
+      "mrr": 0.8055555555555556,
+      "entregue": 0.8888888888888888,
+      "entregue1": 0.5555555555555556,
+      "ruido": 0.8888888888888888,
+      "semRespostaTrazAlgo": 0.6,
+      "pertoTrazAlgo": 1,
+      "cortado": []
+    },
+    "parametros": {
+      "query": "Instruct: Given a search query in Portuguese, retrieve relevant passages that answer the query\nQuery: ",
+      "document": "",
+      "floor": 0.3,
+      "min": 0.4,
+      "span": 0.3,
+      "weight": 0.7,
+      "conversationMin": 0.55,
+      "medido": true,
+      "docChunk": 1100,
+      "postChunk": 900,
+      "cutoff": 0.45,
+      "lexWeight": 0.04,
+      "limit": 4,
+      "perDoc": 3,
+      "overlap": 0
+    }
+  }
+]
