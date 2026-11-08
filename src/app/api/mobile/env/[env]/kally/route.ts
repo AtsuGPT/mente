@@ -35,6 +35,14 @@ export const dynamic = "force-dynamic";
 // o Dudu recebeu seis seções com exercícios quando pediu a segunda lei de Newton "rapidinho" (simulação, rodada 1).
 const BRIEF = /\b(rapidinho|rapidamente|r[aá]pido|resumid[oa]|resumindo|curt[oa]|curtinh[oa]|em poucas palavras|s[oó] o b[aá]sico|sem enrola[cç][aã]o|direto ao ponto|em uma frase)\b/i;
 
+/** A mensagem cita o nome (ou sobrenome) de quem escreveu o post. */
+function namesAuthor(message: string, author: string | null | undefined) {
+  if (!author) return false;
+  const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const text = ` ${fold(message).replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+  return fold(author).split(/[^\p{L}\p{N}]+/u).some((w) => w.length >= 3 && text.includes(` ${w} `));
+}
+
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_WINDOW = 40;
@@ -193,7 +201,11 @@ export async function POST(request: Request, context: EnvContext) {
         // Conversas salvas já passaram pelo mínimo próprio (conversationMin) e entram com metade da nota para ficar
         // atrás dos posts; com o filtro de 0,4 elas nunca chegavam à conversa (simulação: a conversa do João sobre a
         // associação, com cosseno 0,61, ficava de fora e a Kally dizia não saber quem preside).
-        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (intent.wantsMemory ? 0.2 : 0.4))
+        // Quem cita o nome de quem escreveu ("o EP do Theo", "o sítio do João") está perguntando por aquele conteúdo:
+        // os posts dessa pessoa usam o mesmo filtro de quando se pedem os posts (0,2). Medido com os posts reais da
+        // simulação (eval/simulacao/analisar-busca.mjs): post certo passando de 21/24 para 24/24, mesmos 0,25 posts
+        // errados por pergunta.
+        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
         // Quem escreveu, do ponto de vista de quem pergunta: num ambiente com várias pessoas, a Kally tratava o
         // post de uma como se fosse de quem perguntava (simulação, rodada 1).
         .map((p) => (p.kind === "conversa" ? p : { ...p, author: p.authorId === userId ? "a própria pessoa que está conversando com você" : `${p.author ?? "outra pessoa"} (outra pessoa do ambiente)` }));

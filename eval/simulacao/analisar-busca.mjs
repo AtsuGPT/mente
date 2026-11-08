@@ -170,7 +170,8 @@ async function rank(withAuthor, questions, authorWeight = 1) {
       let lex = 0;
       for (const w of words) lex += (title.includes(w) ? 5 : 0) + (cat.includes(w) ? 3 : 0) + (text.includes(w) ? 1 : 0) + (withAuthor && author.split(/\s+/).includes(w) ? authorWeight : 0);
       const meaning = best >= 0.4 ? Math.min((best - 0.3) / 0.3, 1) : 0;
-      return { key: p.key, best, score: meaning * 0.7 + Math.min(lex / 8, 1) * 0.3 };
+      const named = author.split(/\s+/).some((w) => w.length >= 3 && new RegExp(`\\b${w}\\b`).test(norm(q.pergunta)));
+      return { key: p.key, best, named, score: meaning * 0.7 + Math.min(lex / 8, 1) * 0.3 };
     }).sort((a, b) => b.score - a.score);
     const target = q.fonte.acao ?? Object.entries(state.posts).find(([, v]) => v.titulo === state.fontes[q.fonte.fato]?.titulo)?.[0];
     const pos = scored.findIndex((s) => s.key === target);
@@ -202,9 +203,10 @@ o("|---|---|---|---|---|---|");
 for (const [name, wa, aw] of variants) {
   const rs = await rank(wa, postQuestions, aw);
   const ts = await rank(wa, traps.map((q) => ({ ...q, fonte: { acao: "__nenhum__" } })), aw);
-  for (const f of [0.4, 0.3]) {
-    const noise = rs.reduce((acc, r) => acc + r.scored.filter((x) => x.key !== r.target && x.score >= f).length, 0) / rs.length;
-    o(`| ${name} | ${f} | ${share(rs, (r) => r.pos === 0)}/${rs.length} | ${share(rs, (r) => r.hit?.score >= f)}/${rs.length} | ${noise.toFixed(2)} | ${share(ts, (r) => r.scored.some((x) => x.score >= f))}/${ts.length} |`);
+  for (const f of [0.4, 0.3, "0,4 (0,2 se o autor é citado)"]) {
+    const thr = (x) => (typeof f === "number" ? f : x.named ? 0.2 : 0.4);
+    const noise = rs.reduce((acc, r) => acc + r.scored.filter((x) => x.key !== r.target && x.score >= thr(x)).length, 0) / rs.length;
+    o(`| ${name} | ${f} | ${share(rs, (r) => r.pos === 0)}/${rs.length} | ${share(rs, (r) => r.hit && r.hit.score >= thr(r.hit))}/${rs.length} | ${noise.toFixed(2)} | ${share(ts, (r) => r.scored.some((x) => x.score >= thr(x)))}/${ts.length} |`);
   }
 }
 o();
