@@ -31,6 +31,10 @@ import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Pedido de resposta curta ("explica rapidinho", "resumido"): sem o interpretador, a profundidade era sempre média e
+// o Dudu recebeu seis seções com exercícios quando pediu a segunda lei de Newton "rapidinho" (simulação, rodada 1).
+const BRIEF = /\b(rapidinho|rapidamente|r[aá]pido|resumid[oa]|resumindo|curt[oa]|curtinh[oa]|em poucas palavras|s[oó] o b[aá]sico|sem enrola[cç][aã]o|direto ao ponto|em uma frase)\b/i;
+
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_WINDOW = 40;
@@ -261,7 +265,7 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade, thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents })
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents })
             : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
