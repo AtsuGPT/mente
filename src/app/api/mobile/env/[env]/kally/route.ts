@@ -1,5 +1,6 @@
 import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { logPerf, memorySampler } from "@/server/ai/perf";
+import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
 import { competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
@@ -303,10 +304,20 @@ export async function POST(request: Request, context: EnvContext) {
           const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
           const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
-          for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
-            if (!firstText) firstText = Date.now();
-            answer += chunk;
-            send({ text: chunk });
+          // Rótulos internos ([P1], "material fornecido") saem da resposta antes de chegar à pessoa (clean.ts).
+          const cleaner = createAnswerCleaner();
+          const emit = (text: string) => {
+            if (!text) return;
+            answer += text;
+            send({ text });
+          };
+          try {
+            for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
+              if (!firstText) firstText = Date.now();
+              emit(cleaner.push(chunk));
+            }
+          } finally {
+            emit(cleaner.flush());
           }
           generationEnded = Date.now();
           if (showStats) {

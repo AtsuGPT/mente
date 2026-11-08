@@ -114,8 +114,12 @@ const stripMd = (t) => t.replace(/[#*_`>]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$
 let COLLAPSE = true;
 const serverStrip = (t) => t.replace(/^\s{0,3}#{1,6}\s+/gm, "").replace(/^\s*[-*+]\s+/gm, "").replace(/^\s*\d+\.\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const lineStrip = (t) => t.split(/\n+/).map(serverStrip).filter(Boolean).join("\n");
-const docText = (p, withAuthor) => [p.titulo, p.pasta, ...(withAuthor ? [`Autor: ${p.autor}`] : []), COLLAPSE ? serverStrip(p.texto) : lineStrip(p.texto)].join("\n");
-function chunks(text, size = 900) {
+// O servidor não põe o autor no texto indexado: ele só conta nas palavras (kally-memory.ts). AUTHOR_TEXT = false
+// reproduz isso; as variantes antigas (true) ficam como registro do que foi medido antes.
+let AUTHOR_TEXT = true;
+const docText = (p, withAuthor) => [p.titulo, p.pasta, ...(withAuthor && AUTHOR_TEXT ? [`Autor: ${p.autor}`] : []), COLLAPSE ? serverStrip(p.texto) : lineStrip(p.texto)].join("\n");
+let CHUNK_SIZE = 900;
+function chunks(text, size = CHUNK_SIZE) {
   const parts = [];
   let cur = "";
   for (const par of text.split(/\n+/)) {
@@ -198,22 +202,32 @@ const share = (rs, f) => rs.filter(f).length;
 o();
 // Variantes com ruído: posts errados que passam no filtro e posts que passam em perguntas sem post-fonte.
 const traps = prova.filter((q) => q.categoria !== "nucleo" ? q.rodada === n : q.inicio <= n).filter((q) => !postQuestions.includes(q));
-const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5], ["autor 5 pontos + pasta 1 ponto", true, 5, 1], ["autor 5 + pasta 1 + parágrafos preservados", true, 5, 1, false]];
+const variants = [["hoje", false, 1], ["autor no texto (1 ponto)", true, 1], ["autor com peso de título (5 pontos)", true, 5], ["autor 5 pontos + pasta 1 ponto", true, 5, 1], ["autor 5 + pasta 1 + parágrafos preservados", true, 5, 1, false], ["servidor atual (autor só nas palavras, trechos de 900)", true, 5, 1, false, 900, false], ["servidor atual + trechos de 600", true, 5, 1, false, 600, false], ["servidor atual + trechos de 450", true, 5, 1, false, 450, false], ["servidor atual + trechos de 300", true, 5, 1, false, 300, false]];
 o();
 o("### Variantes (uma mudança por vez) × filtro da conversa");
 o();
 o("| Variante | Filtro | Post certo em 1º | Post certo passa | Posts errados que passam (média) | Perguntas sem post-fonte que trazem algum post |");
 o("|---|---|---|---|---|---|");
-for (const [name, wa, aw, cw = 3, collapse = true] of variants) {
+const detail = [];
+for (const [name, wa, aw, cw = 3, collapse = true, size = 900, authorText = true] of variants) {
   COLLAPSE = collapse;
+  CHUNK_SIZE = size;
+  AUTHOR_TEXT = authorText;
   const rs = await rank(wa, postQuestions, aw, cw);
   const ts = await rank(wa, traps.map((q) => ({ ...q, fonte: { acao: "__nenhum__" } })), aw, cw);
   for (const f of [0.4, 0.3, "0,4 (0,2 se o autor é citado)"]) {
     const thr = (x) => (typeof f === "number" ? f : x.named ? 0.2 : 0.4);
     const noise = rs.reduce((acc, r) => acc + r.scored.filter((x) => x.key !== r.target && x.score >= thr(x)).length, 0) / rs.length;
+    if (name.startsWith("servidor")) detail.push([name, f, rs.filter((r) => !(r.hit && r.hit.score >= thr(r.hit))).map((r) => `${r.q.id} (${r.pos + 1}º, ${r.hit ? r.hit.score.toFixed(2) : "—"})`).join(", ") || "nenhuma"]);
     o(`| ${name} | ${f} | ${share(rs, (r) => r.pos === 0)}/${rs.length} | ${share(rs, (r) => r.hit && r.hit.score >= thr(r.hit))}/${rs.length} | ${noise.toFixed(2)} | ${share(ts, (r) => r.scored.some((x) => x.score >= thr(x)))}/${ts.length} |`);
   }
 }
+CHUNK_SIZE = 900;
+AUTHOR_TEXT = true;
+o();
+o("Perguntas cujo post certo não passa no filtro, por variante:");
+o();
+for (const [name, f, list] of detail) o(`- ${name}, filtro ${f}: ${list}`);
 o();
 o(`- Post certo em 1º: hoje **${share(now, (r) => r.pos === 0)}/${now.length}**, com o autor **${share(withA, (r) => r.pos === 0)}/${withA.length}**`);
 o(`- Post certo passa no filtro do chat (≥ 0,4): hoje **${share(now, (r) => r.hit?.score >= 0.4)}/${now.length}**, com o autor **${share(withA, (r) => r.hit?.score >= 0.4)}/${withA.length}**`);

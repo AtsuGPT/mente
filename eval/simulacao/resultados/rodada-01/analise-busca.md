@@ -78,6 +78,33 @@
 | autor 5 + pasta 1 + parágrafos preservados | 0.4 | 22/24 | 21/24 | 0.17 | 9/16 |
 | autor 5 + pasta 1 + parágrafos preservados | 0.3 | 22/24 | 23/24 | 0.46 | 10/16 |
 | autor 5 + pasta 1 + parágrafos preservados | 0,4 (0,2 se o autor é citado) | 22/24 | 24/24 | 0.17 | 10/16 |
+| servidor atual (autor só nas palavras, trechos de 900) | 0.4 | 21/24 | 19/24 | 0.17 | 9/16 |
+| servidor atual (autor só nas palavras, trechos de 900) | 0.3 | 21/24 | 22/24 | 0.50 | 10/16 |
+| servidor atual (autor só nas palavras, trechos de 900) | 0,4 (0,2 se o autor é citado) | 21/24 | 23/24 | 0.17 | 10/16 |
+| servidor atual + trechos de 600 | 0.4 | 22/24 | 21/24 | 0.29 | 9/16 |
+| servidor atual + trechos de 600 | 0.3 | 22/24 | 23/24 | 0.71 | 10/16 |
+| servidor atual + trechos de 600 | 0,4 (0,2 se o autor é citado) | 22/24 | 24/24 | 0.29 | 10/16 |
+| servidor atual + trechos de 450 | 0.4 | 23/24 | 22/24 | 0.25 | 9/16 |
+| servidor atual + trechos de 450 | 0.3 | 23/24 | 23/24 | 0.67 | 10/16 |
+| servidor atual + trechos de 450 | 0,4 (0,2 se o autor é citado) | 23/24 | 24/24 | 0.25 | 10/16 |
+| servidor atual + trechos de 300 | 0.4 | 23/24 | 22/24 | 0.29 | 9/16 |
+| servidor atual + trechos de 300 | 0.3 | 23/24 | 23/24 | 0.79 | 10/16 |
+| servidor atual + trechos de 300 | 0,4 (0,2 se o autor é citado) | 23/24 | 24/24 | 0.29 | 10/16 |
+
+Perguntas cujo post certo não passa no filtro, por variante:
+
+- servidor atual (autor só nas palavras, trechos de 900), filtro 0.4: N03 (2º, 0.36), N10 (3º, 0.30), N11 (1º, 0.22), N13 (1º, 0.22), N15 (2º, 0.30)
+- servidor atual (autor só nas palavras, trechos de 900), filtro 0.3: N11 (1º, 0.22), N13 (1º, 0.22)
+- servidor atual (autor só nas palavras, trechos de 900), filtro 0,4 (0,2 se o autor é citado): N03 (2º, 0.36)
+- servidor atual + trechos de 600, filtro 0.4: N10 (3º, 0.30), N13 (1º, 0.22), N15 (2º, 0.30)
+- servidor atual + trechos de 600, filtro 0.3: N13 (1º, 0.22)
+- servidor atual + trechos de 600, filtro 0,4 (0,2 se o autor é citado): nenhuma
+- servidor atual + trechos de 450, filtro 0.4: N13 (1º, 0.22), N15 (2º, 0.30)
+- servidor atual + trechos de 450, filtro 0.3: N13 (1º, 0.22)
+- servidor atual + trechos de 450, filtro 0,4 (0,2 se o autor é citado): nenhuma
+- servidor atual + trechos de 300, filtro 0.4: N13 (1º, 0.22), N15 (2º, 0.30)
+- servidor atual + trechos de 300, filtro 0.3: N13 (1º, 0.22)
+- servidor atual + trechos de 300, filtro 0,4 (0,2 se o autor é citado): nenhuma
 
 - Post certo em 1º: hoje **21/24**, com o autor **21/24**
 - Post certo passa no filtro do chat (≥ 0,4): hoje **18/24**, com o autor **19/24**

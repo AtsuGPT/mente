@@ -37,7 +37,15 @@ export type Retrieved = {
 };
 
 const MAX_CANDIDATES = 400;
+// Trechos dos posts com 450 caracteres (eram 900): no trecho de 900, uma regra curta do guia ("Diário: até 1.500
+// caracteres") se diluía entre as outras e o guia ficava em 0,36, abaixo do filtro de 0,4 da conversa. Medido com o
+// qwen3-embedding real e os posts da simulação (eval/simulacao/analisar-busca.mjs, réplica fiel da rota): post certo
+// em 1º 21/24 → 23/24 e passando no filtro 23/24 → 24/24, com 0,08 post errado a mais por pergunta (0,17 → 0,25).
+// 600 e 300 ficaram atrás (22/24 em 1º com mais ruído; 300 empata em 1º com ruído maior). Para o modelo, o trecho
+// vencedor vai junto com o vizinho (EXCERPT), então o contexto continua com cerca de 900 caracteres. As conversas
+// salvas seguem com 900 (não medidas). Trocar o tamanho muda o hash e reindexa sozinho.
 const CHUNK = 900;
+const POST_CHUNK = 450;
 // A escala das notas depende do modelo de embeddings (embedProfile em server/ai.ts): abaixo do
 // mínimo, o significado não conta (conversa solta não puxa posts).
 
@@ -53,8 +61,8 @@ const STOP_WORDS = new Set([
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("pt-BR");
 const terms = (text: string) => [...new Set(normalize(text).match(/[\p{L}\p{N}]{3,}/gu) ?? [])].filter((t) => !STOP_WORDS.has(t)).slice(0, 12);
 // O modelo entra no hash: trocar de modelo reindexa tudo, e vetores de modelos diferentes nunca se misturam.
-const hashOf = (text: string) => createHash("sha1").update(`${embedProfile().model}
-${text}`).digest("hex");
+const hashOf = (text: string, size: number) => createHash("sha1").update(`${embedProfile().model}
+${size === CHUNK ? "" : `trechos de ${size}\n`}${text}`).digest("hex");
 
 /** Texto indexável do pensamento: título, pastas, corpo e as descrições das imagens. */
 function documentText(post: { title: string; content: string; categories: { name: string }[] }) {
@@ -66,22 +74,23 @@ function documentText(post: { title: string; content: string; categories: { name
   return [post.title, post.categories.map((c) => c.name).join(", "), stripMarkdownLines(post.content), ...images].filter(Boolean).join("\n");
 }
 
-function chunks(text: string): string[] {
+function chunks(text: string, size = CHUNK): string[] {
   const parts: string[] = [];
   let current = "";
   for (const paragraph of text.split(/\n+/)) {
-    if ((current + "\n" + paragraph).length > CHUNK && current) {
+    if ((current + "\n" + paragraph).length > size && current) {
       parts.push(current.trim());
       current = "";
     }
     current += `\n${paragraph}`;
-    while (current.length > CHUNK * 1.5) {
-      parts.push(current.slice(0, CHUNK).trim());
-      current = current.slice(CHUNK);
+    while (current.length > size * 1.5) {
+      parts.push(current.slice(0, size).trim());
+      current = current.slice(size);
     }
   }
   if (current.trim()) parts.push(current.trim());
-  return parts.slice(0, 12);
+  // Mesma extensão de texto coberta para qualquer tamanho de trecho (12 trechos de 900).
+  return parts.slice(0, Math.ceil((12 * CHUNK) / size));
 }
 
 function cosine(a: number[], b: number[]) {
@@ -117,12 +126,13 @@ async function syncIndex(environmentId: string, docs: Doc[], kind: "post" | "con
   const stale = existing.filter((e) => !live.has(e.refId)).map((e) => e.refId);
   if (stale.length) await db.kallyChunk.deleteMany({ where: { environmentId, kind, refId: { in: stale } } });
 
-  const pending = docs.filter((doc) => known.get(doc.refId) !== hashOf(doc.text));
+  const size = kind === "post" ? POST_CHUNK : CHUNK;
+  const pending = docs.filter((doc) => known.get(doc.refId) !== hashOf(doc.text, size));
   if (!pending.length) return;
   const run = async () => {
     for (const doc of pending) {
-      const hash = hashOf(doc.text);
-      const parts = chunks(doc.text);
+      const hash = hashOf(doc.text, size);
+      const parts = chunks(doc.text, size);
       const vectors = await embedDocuments(parts);
       await db.$transaction([
         db.kallyChunk.deleteMany({ where: { kind, refId: doc.refId } }),
@@ -164,6 +174,21 @@ export async function recall(
 
   // Significado: índice + vetor da pergunta. Sem o modelo, segue só com palavras.
   let semantic = new Map<string, { score: number; text: string }>();
+  // Trecho vencedor + o vizinho (o seguinte; o anterior se ele for o último), para o modelo ler o mesmo tanto de antes.
+  const withNeighbor = (rows: { refId: string; chunk: number; text: string }[], best: Map<string, { score: number; chunk: number }>) => {
+    const byPost = new Map<string, Map<number, string>>();
+    for (const row of rows) {
+      if (!byPost.has(row.refId)) byPost.set(row.refId, new Map());
+      byPost.get(row.refId)!.set(row.chunk, row.text);
+    }
+    const out = new Map<string, { score: number; text: string }>();
+    for (const [refId, { score, chunk }] of best) {
+      const parts = byPost.get(refId)!;
+      const pair = parts.has(chunk + 1) ? [chunk, chunk + 1] : parts.has(chunk - 1) ? [chunk - 1, chunk] : [chunk];
+      out.set(refId, { score, text: pair.map((i) => parts.get(i)).join("\n") });
+    }
+    return out;
+  };
   let queryVector: number[] | null = null;
   try {
     // O índice guarda publicados e rascunhos do ambiente; a busca usa só os que esta pessoa vê.
@@ -174,13 +199,14 @@ export async function recall(
     });
     await syncIndex(scope.environmentId, allPublished.map((p) => ({ refId: p.id, kind: "post" as const, userId: null, text: documentText(p) })), "post");
     [queryVector] = await embedQueries([query]);
-    const rows = await db.kallyChunk.findMany({ where: { environmentId: scope.environmentId, kind: "post", refId: { in: posts.map((p) => p.id) } }, select: { refId: true, text: true, vector: true } });
-    semantic = new Map();
+    const rows = await db.kallyChunk.findMany({ where: { environmentId: scope.environmentId, kind: "post", refId: { in: posts.map((p) => p.id) } }, select: { refId: true, chunk: true, text: true, vector: true } });
+    const best = new Map<string, { score: number; chunk: number }>();
     for (const row of rows) {
       const score = cosine(queryVector, JSON.parse(row.vector) as number[]);
-      const best = semantic.get(row.refId);
-      if (!best || score > best.score) semantic.set(row.refId, { score, text: row.text });
+      const current = best.get(row.refId);
+      if (!current || score > current.score) best.set(row.refId, { score, chunk: row.chunk });
     }
+    semantic = withNeighbor(rows, best);
   } catch (cause) {
     console.error("Kally memory: busca por significado indisponível:", cause instanceof Error ? cause.message : cause);
   }
