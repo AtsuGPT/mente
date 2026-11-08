@@ -82,27 +82,44 @@ Cada correção é um commit separado, com a evidência na mensagem.
 | `be2ebcd` | Posts de quem é citado pelo nome usam o filtro de 0,2 | Post certo no filtro: 21/24 → 24/24, mesmo ruído |
 | `9de86a8` | Limite de cadastro configurável (`REGISTER_MAX_PER_WINDOW`); login inalterado | Para a simulação com 100 personas |
 
-## 5. Antes × depois (teste A/B local, mesmas 40 perguntas com RAG)
+## 5. Evolução medida (teste A/B local, mesmas 40 perguntas com RAG)
 
 Condições iguais para todas as versões:
-- mesmo modelo e mesmo conteúdo (replicado da rodada 1 de produção);
+- mesmo modelo executor da produção e mesmo conteúdo, replicado da rodada 1;
 - índice aquecido antes da prova;
-- juiz cego, com as versões misturadas numa folha única.
+- juiz cego, com cada par de versões misturado numa folha única.
 
-| Métrica | Produção (antes) | Correções até `214a3f5` (depois) |
-|---|---|---|
-| Nota média | 2,50 | **3,60** |
-| Respostas 5/5 | 30% | **55%** |
-| Respostas 4 ou 5 | 40% | **60%** |
-| Fatos completos | 29% | **77%** |
-| Fonte certa recuperada | 42% | **77%** |
-| Erro factual | 53% | **25%** |
-| Inventou | 10% | 5% |
-| Armadilhas: disse que não encontrou | 75% | 75% |
+As versões:
+- **produção:** o código que roda hoje no app;
+- **v1** (`214a3f5`): regras de intenção, autoria, privacidade, teto de tokens, trechos de 600;
+- **v2** (`be2ebcd`): conversas salvas, corte de 0,40, autor citado, "você" nos documentos;
+- **v3** (`cdbd005`): a falta de informação não vira afirmação.
 
-**A versão "antes" na instância local reproduz a produção:** 29% de fatos completos (produção: 32%) e 42% de fonte certa (igual). Isso valida a instância local como base de comparação.
+| Métrica | Produção | v1 | v2 | v3 |
+|---|---|---|---|---|
+| Nota média (0–5) | 2,50 | 3,60 | 4,17 | **4,22** |
+| Respostas 5/5 | 30% | 55% | 68% | **70%** |
+| Respostas 4 ou 5 | 40% | 60% | 80% | 78% |
+| Fatos completos | 29% | 77% | 97% | 94% |
+| Fonte certa recuperada | 42% | 77% | 97% | 97% |
+| Armadilhas: disse que não encontrou | 75% | 75% | 50% | 75% |
+| Erro factual (precisão ≤ 2) | 53% | 25% | 13% | **10%** |
+| Inventou | 10% | 5% | 8% | 5% |
 
-Relatório pergunta a pergunta: [ab-rodada-01-antes-x-depois/relatorio.md](resultados/ab-rodada-01-antes-x-depois/relatorio.md).
+**A instância local reproduz a produção:** a versão produção teve 29% de fatos completos (produção real: 32%) e 42% de fonte certa (igual).
+
+**A v2 piorou as armadilhas.** Com a busca trazendo mais conteúdo, a Kally passou a afirmar a partir da ausência ("o ambiente é gratuito"). A v3 corrigiu isso sem perder o resto.
+
+Com 5 armadilhas por prova, cada uma vale 20 pontos percentuais. Diferenças de 2 a 3 pontos entre v2 e v3 são ruído.
+
+**O que ainda falha na v3 (6 de 40 respostas abaixo de 4):**
+- **Post contaminado (2):** o post da Sônia publicado na rodada 1 com os dados privados dela continua sendo citado. Precisa ser editado.
+- **Limite do Diário (2):** a busca prefere um post *da* pasta Diário (a pasta conta 3 pontos na busca por palavras) ao guia que fala *sobre* o Diário.
+- **Coordenação inventada (1):** a Kally deduz que a "Coordenação do Treinamento" coordena o encontro por ser a autora do guia.
+- **Interpretação a mais (1):** na explicação do "pão do menino", acrescenta leituras que não estão na crônica.
+- **Voz:** uma resposta sobre o documento da própria Carla ainda mistura a primeira pessoa.
+
+Relatórios: [produção × v1](resultados/ab-rodada-01-antes-x-depois/relatorio.md), [v1 × v2](resultados/ab-rodada-01-depois-x-depois2/relatorio.md) e [v2 × v3](resultados/ab-rodada-01-depois2-x-depois3/relatorio.md). Os nomes das pastas usam antes, depois, depois2 e depois3. Painel: [eval/painel.html](../painel.html).
 
 ## 6. Limites
 
@@ -112,3 +129,16 @@ Relatório pergunta a pergunta: [ab-rodada-01-antes-x-depois/relatorio.md](resul
 - **Juiz único:** o juiz é um modelo, e falta revisar à mão uma amostra de ~20 notas.
 - **Dado contaminado:** o post da Sônia publicado na rodada 1 continua com os dados dela. As correções evitam novos posts assim, mas esse precisa ser editado.
 - **O modelo de 4B ainda erra conteúdo** (detalhes inventados em crônicas, erros jurídicos). Prompt e regras ajudam pouco nisso.
+
+## 7. Próximos passos
+
+1. **Publicar a branch no servidor** e editar o post "Bolo de pote com sabor de pequi" (pela conta da Sônia ou da coordenação).
+2. **Rodada 2 em produção** ([rodadas/rodada-02.json](rodadas/rodada-02.json), já pronta):
+   - entram as 10 personas novas;
+   - 4 pedidos que falharam na rodada 1 são repetidos com o mesmo texto;
+   - a prova tem o mesmo núcleo, mais 10 novas e 5 armadilhas.
+
+   Antes, defina `REGISTER_MAX_PER_WINDOW` no servidor durante a criação das contas e rode `preparar` e depois `rodada 2`.
+3. **Rodadas 3 a 5:** o número de personas sobe até 100 (40, 70 e 100), sempre com o mesmo núcleo da prova.
+4. **Revisar à mão** ~20 notas do juiz para calibrá-lo.
+

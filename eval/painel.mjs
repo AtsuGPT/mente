@@ -48,7 +48,7 @@ if (last) {
 <div class="tile"><b>${f2(last.comRag.nota)}</b><span>nota média com RAG</span></div>
 <div class="tile"><b>${f2(last.semRag.nota)}</b><span>nota média sem RAG</span></div>
 <div class="tile"><b>${f2(last.ganhoRag)}</b><span>ganho atribuível à recuperação</span></div>
-<div class="tile"><b>${last.vazamentos}</b><span>vazamentos de privacidade</span></div>
+<div class="tile"><b>${last.vazamentosCasos ?? last.vazamentos}</b><span>${last.vazamentosCasos != null ? "casos de vazamento" : "sinais de vazamento"}</span></div>
 </div>
 ${bars({ title: "Prova da rodada (40 perguntas)", series: ["com RAG", "sem RAG"], rows: [
     { label: "Respostas 5/5", values: [last.comRag.nota5, last.semRag.nota5] },
@@ -59,17 +59,21 @@ ${bars({ title: "Prova da rodada (40 perguntas)", series: ["com RAG", "sem RAG"]
 ${bars({ title: "Onde está o erro (com RAG)", series: ["perguntas"], max: Math.max(1, ...Object.values(last.diagnostico)), fmt: (x) => String(x), rows: Object.entries(last.diagnostico).filter(([, v]) => v).map(([k, v]) => ({ label: k.replace(/_/g, " "), values: [v] })) })}
 </section>`;
 }
-for (const x of ab) {
-  const versions = Object.keys(x.resumo);
-  const R = (k) => versions.map((v) => x.resumo[v][k]);
-  body += `<section><h2>Teste A/B: ${esc(versions.join(" × "))}</h2>
-<p class="note">Mesma instância local, mesmo modelo executor, mesmo conteúdo da rodada e mesmas perguntas com RAG; o juiz corrigiu as versões às cegas.</p>
-<div class="tiles">${versions.map((v) => `<div class="tile"><b>${f2(x.resumo[v].nota)}</b><span>nota média · ${esc(v)}</span></div>`).join("")}</div>
+// Evolução por versão: uma série por versão, com cor fixa (a mesma versão tem a mesma cor em todo o painel).
+const versions = [];
+const byVersion = {};
+for (const x of ab) for (const [v, r] of Object.entries(x.resumo)) if (!byVersion[v]) { byVersion[v] = r; versions.push(v); }
+if (versions.length) {
+  const R = (k) => versions.map((v) => byVersion[v][k]);
+  body += `<section><h2>Evolução da Kally por versão (teste A/B local)</h2>
+<p class="note">Mesma instância local, mesmo modelo executor da produção, mesmo conteúdo da rodada 1 e mesmas 40 perguntas com RAG; o juiz corrigiu às cegas. "antes" é o código que roda em produção.</p>
+<div class="tiles">${versions.map((v) => `<div class="tile"><b>${f2(byVersion[v].nota)}</b><span>nota média · ${esc(v)}</span></div>`).join("")}</div>
 ${bars({ title: "Qualidade e recuperação", series: versions, rows: [
     { label: "Respostas 5/5", values: R("nota5") },
     { label: "Respostas 4 ou 5", values: R("nota45") },
     { label: "Fatos completos", values: R("fatos") },
     { label: "Fonte certa recuperada", values: R("fonte") },
+    { label: "Armadilhas: disse que não encontrou", values: R("armadilhas") },
     { label: "Erro factual (precisão ≤ 2)", values: R("erroFactual") },
     { label: "Inventou", values: R("inventou") },
   ] })}
