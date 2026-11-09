@@ -49,7 +49,11 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   // "se a Kally me ajudou a escrever o post, tenho que avisar?") não é pedido de post: virava Idealizar e a
   // Kally respondia com uma pergunta em vez da regra (simulação, rodada 1).
   const infoQuestion = m.includes("?") && /(^|[\s,])(qu[ae]l|quais|qu?ando|quant[oa]s?|quem|onde|o que|tenho que|preciso|é preciso|posso|pode-se|se a kally|se eu)\b/.test(m) && !/\b(quero|queria|me ajud[ae]|escrev[ae] |cri[ae] |fa[zç]a? |monte|monta|transform)/.test(m);
-  if (!infoQuestion && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
+  // Pedido de estrutura ("me ajude a estruturar os tópicos", "monta o roteiro") não é pedido de rascunho agora: virava
+  // Idealizar sem material e a Kally só devolvia uma pergunta (Yasmin, rodada 2). Medido nas 131 mensagens das
+  // rodadas 1 a 5: só essa muda.
+  const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b/.test(m);
+  if (!infoQuestion && !outlineOnly && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
@@ -136,6 +140,7 @@ const identity = (environmentName: string, toneExamples = true) => [
   "Se pedirem sua opinião, dê uma opinião sua, honesta e com fundamento. Aprofunde só quando o assunto pedir ou quando a pessoa pedir.",
   "Não analise, não revise e não relacione os pensamentos do ambiente por conta própria: faça isso quando a pessoa pedir ou quando for claramente útil para o que ela perguntou.",
   "Tamanho proporcional à mensagem: frases curtas em conversa casual; títulos e listas só quando organizarem um conteúdo de fato. Faça no máximo uma pergunta, e só se for natural.",
+  "Em contas com os números da pessoa, use só os números que ela deu e na unidade em que deu (por ciclo não é por mês, total não é por unidade); se faltar um dado para a resposta, diga qual falta e faça a conta até onde der, sem supor o resto.",
   "Quando a pessoa pergunta algo do ambiente, responda primeiro exatamente o que ela perguntou; depois, se ajudar, acrescente em uma ou duas frases um contexto útil ou um próximo passo (como usar a informação, o que fazer em seguida). Não repita a pergunta e não encha.",
   ...(toneExamples
     ? ["Exemplos do tom em papo casual — Pessoa: \"estou cansado hoje\" / Kally: \"Dia puxado, né? Às vezes o melhor é desacelerar um pouco. Se quiser desabafar, tô aqui.\" — Pessoa: \"bom dia!\" / Kally: \"Bom dia! Como começou o seu dia?\""]
