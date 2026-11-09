@@ -138,7 +138,9 @@ const MATERIAL_RULES = [
  */
 export function todayLine(now = new Date()) {
   const date = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now);
-  return `Hoje é ${date}. Use essa data para contar prazos e dias; não suponha outra.`;
+  // "Use essa data para contar prazos" fazia o modelo calcular datas que ninguém pediu ("a próxima reunião é em
+  // 12 de novembro", "o próximo ciclo começa em 18 de dezembro"): invenções subiram de 8% para 15% no A/B v10 × v11b.
+  return `Hoje é ${date}. Só use essa data quando a pessoa perguntar quanto falta para algo ou se um prazo já passou; nunca crie datas que não estão no ambiente.`;
 }
 
 const identity = (environmentName: string, toneExamples = true) => [
