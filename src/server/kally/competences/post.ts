@@ -37,7 +37,7 @@ export const post: CompetenceSpec = {
     "Se a matéria ainda não basta para um texto, responda só com a frase de entendimento e a pergunta.",
   ].filter(Boolean),
   tamanho: {
-    breve: "rascunho de cerca de 150 a 250 palavras",
+    breve: "rascunho curto, de 60 a 180 palavras, só com o que a pessoa contou: com pouca matéria, poucas frases; nada de motivação, plano, público ou metáfora que ela não trouxe",
     media: "rascunho de cerca de 200 a 400 palavras, proporcional ao que ela contou",
     aprofundada: "rascunho de cerca de 400 a 700 palavras, sem inventar matéria para encher",
   },

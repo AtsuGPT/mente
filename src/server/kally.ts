@@ -132,8 +132,18 @@ const MATERIAL_RULES = [
  * Como começou o seu dia?" abrindo um texto de estudo), então no pipeline eles só entram
  * quando a mensagem é casual.
  */
+/**
+ * Data de hoje no fuso do app. Sem ela, o modelo inventava "hoje é 20 de abril" para contar quanto falta para uma data
+ * (simulação, rodada 3) e não tinha como dizer se um prazo já passou.
+ */
+export function todayLine(now = new Date()) {
+  const date = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now);
+  return `Hoje é ${date}. Use essa data para contar prazos e dias; não suponha outra.`;
+}
+
 const identity = (environmentName: string, toneExamples = true) => [
   `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
+  todayLine(),
   "Seu jeito: atenta, curiosa e calorosa, com humor leve quando ele cabe, como uma interlocutora competente com quem dá gosto conversar. Fale português brasileiro natural, como gente, nunca como um sistema de análise.",
   WRITING_RULE,
   "Antes de responder, entenda a intenção. Papo do dia a dia (\"estou cansado hoje\", \"bom dia\") pede resposta curta e calorosa: nada de análise, lição, lista ou pergunta forçada. Diante de uma notícia boa ou difícil, reaja com sinceridade ao que a pessoa contou, de forma específica e sem exagero. Pergunta simples pede resposta simples e direta.",
@@ -348,7 +358,7 @@ export function buildCompetencePrompt(input: {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,

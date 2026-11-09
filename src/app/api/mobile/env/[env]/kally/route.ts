@@ -240,6 +240,9 @@ export async function POST(request: Request, context: EnvContext) {
   // documentos dela). Só o tema não basta: o rascunho seria inventado, então a Kally pergunta.
   const ownWords = [raw.replace(/^\/post\s*/i, ""), ...history.filter((m) => m.role === "user").map((m) => m.content)].join(" ").trim();
   const thinMaterial = competence === "post" && !attachment && !documents.length && ownWords.length < 140;
+  // Pouca matéria (um objetivo e uma cidade, por exemplo): rascunho breve. Com o tamanho médio (200 a 400 palavras), o
+  // modelo enchia com motivações, planos e metáforas que a pessoa não contou (rodada 3: 5 rascunhos de apresentação).
+  const shortMaterial = competence === "post" && !attachment && ownWords.length < 400;
   const categories = mode === "ideia" || canDraft ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
   // Com anexo, texto para revisar ou trechos de documentos, o contexto já vai cheio: um exemplo só.
   const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review || documents.length ? 1 : 2 }) : null;
@@ -282,7 +285,7 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: shortMaterial ? "breve" : interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
             : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
