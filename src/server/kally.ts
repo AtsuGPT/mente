@@ -199,7 +199,7 @@ function modeInstructions(mode: KallyMode, found: boolean, categories: string[])
 
 /** Regra das bases de documentos: só entra no prompt quando há trechos delas. */
 export const DOCUMENT_RULE =
-  "Material [I…] vem da base institucional (documentos de referência) e [D…] dos documentos da própria pessoa. Ao usar, diga de onde veio e cite o título e a parte (ex.: \"Título\", p. 3). Não atribua a eles o que não está no trecho.";
+  "Material [I…] vem da base institucional (documentos de referência) e [D…] dos documentos da própria pessoa. Ao usar, diga de onde veio e cite o título e a parte (ex.: \"Título\", p. 3). Não atribua a eles o que não está no trecho. Os documentos [D…] falam da vida de quem conversa com você: quando a pergunta é sobre outra pessoa, eles não respondem por ela, e nada do que está neles (orientadora, hotel, banco, colegas) passa a ser dessa outra pessoa.";
 
 /**
  * Quem está conversando. Na simulação, com o documento da própria pessoa a Kally respondia como se fosse ela
