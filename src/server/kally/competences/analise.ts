@@ -34,7 +34,7 @@ export const analise: CompetenceSpec = {
   },
   lembrete: "Antes de responder: reconstrua a posição antes de avaliá-la; nomeie cada falha e mostre onde está; reconheça o que procede; nada de dados, estudos, livros ou links que não estejam no material; responda só ao que foi pedido, sem plano ou exercício no fim se não pediram; termine o texto.",
   temperatura: 0.3,
-  maxTokens: 1_500,
+  maxTokens: 2_048,
   exemplos: [
     {
       id: "analise-ia-faculdade",

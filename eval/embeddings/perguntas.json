@@ -1,0 +1,1081 @@
+{
+  "sobre": "Perguntas da avaliação de embeddings (recall@k). Cada pergunta com resposta tem o documento e um ou mais trechos literais que identificam o trecho-gabarito: um trecho da base é gabarito se for desse documento e contiver qualquer um deles. Assim o gabarito vale para qualquer tamanho de trecho. As perguntas sem resposta (documento null) servem para calibrar o corte: o certo é a busca não trazer nada. Tipos: direta, parafrase, vaga, digitacao (escrita com erros, como gente real), distrator (há um trecho parecido e errado na base), sem_resposta_perto (assunto da base, fato ausente) e sem_resposta_longe (fora do assunto). Para a prova com respostas (eval/prova): 'resposta' é o gabarito escrito antes de qualquer resposta; 'fatos' são termos que precisam aparecer na resposta (alternativas separadas por |, sem acento); 'errado' são valores que denunciam o uso do documento errado, como o regulamento revogado. 'conjunto': calibracao (escolher parâmetros), avaliacao (medir a escolha) e validacao (só no fim, uma vez; nunca usada para ajustar). A divisão é estratificada por tipo e fixa.",
+  "perguntas": [
+    {
+      "id": "R01",
+      "tipo": "direta",
+      "pergunta": "Qual é o prazo de entrega dos trabalhos semestrais no Coletivo Aurora?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "45 dias corridos"
+      ],
+      "resposta": "45 dias corridos a partir da abertura do ciclo.",
+      "fatos": [
+        "45"
+      ],
+      "errado": [
+        "30 dias"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R02",
+      "tipo": "distrator",
+      "pergunta": "quantos dias eu tenho pra entregar o trabalho do semestre?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "45 dias corridos"
+      ],
+      "resposta": "45 dias corridos a partir da abertura do ciclo (o regulamento de 2024, com 30 dias, foi revogado).",
+      "fatos": [
+        "45"
+      ],
+      "errado": [
+        "30 dias"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R03",
+      "tipo": "parafrase",
+      "pergunta": "Se eu não conseguir terminar a tempo, posso pedir mais prazo? Como funciona?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "única prorrogação de 10 dias"
+      ],
+      "resposta": "Sim: uma única prorrogação de 10 dias, pedida ao curador até 5 dias antes do fim do prazo, com justificativa por escrito.",
+      "fatos": [
+        "10 dias",
+        "curador"
+      ],
+      "errado": [
+        "7 dias",
+        "duas prorrogac"
+      ],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "R04",
+      "tipo": "direta",
+      "pergunta": "O que acontece com a nota se eu entregar atrasado sem prorrogação?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "nota máxima reduzida para 6"
+      ],
+      "resposta": "A nota máxima é reduzida para 6.",
+      "fatos": [
+        "6"
+      ],
+      "errado": [
+        "1 ponto por dia"
+      ],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "R05",
+      "tipo": "distrator",
+      "pergunta": "Quantos revisores avaliam cada trabalho da pasta Projetos?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "2 revisores sorteados"
+      ],
+      "resposta": "2 revisores sorteados, nunca do mesmo grupo de pesquisa do autor.",
+      "fatos": [
+        "2 revisores|dois revisores",
+        "sortead"
+      ],
+      "errado": [
+        "1 revisor|um revisor"
+      ],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "R06",
+      "tipo": "parafrase",
+      "pergunta": "Quanto tempo quem revisa tem para mandar o parecer?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "9 dias corridos"
+      ],
+      "resposta": "9 dias corridos.",
+      "fatos": [
+        "9 dias|nove dias"
+      ],
+      "errado": [
+        "14 dias"
+      ],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "R07",
+      "tipo": "vaga",
+      "pergunta": "e se o meu trabalho levar refazer duas vezes?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "reunião obrigatória com um curador"
+      ],
+      "resposta": "Depois de dois pareceres 'refazer' seguidos, há uma reunião obrigatória com um curador.",
+      "fatos": [
+        "curador",
+        "reuniao"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R08",
+      "tipo": "distrator",
+      "pergunta": "Que dia e horário é a mentoria coletiva?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "quintas-feiras, às 19h30"
+      ],
+      "resposta": "Às quintas-feiras, às 19h30, na sala virtual Ágora.",
+      "fatos": [
+        "quinta",
+        "19h30|19:30"
+      ],
+      "errado": [
+        "terca",
+        "20h"
+      ],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "R09",
+      "tipo": "direta",
+      "pergunta": "Quantas mentorias individuais eu posso ter por mês e com quanta antecedência agendo?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "2 mentorias individuais por mês"
+      ],
+      "resposta": "2 mentorias individuais por mês, agendadas com pelo menos 72 horas de antecedência.",
+      "fatos": [
+        "2 mentorias|duas mentorias",
+        "72 horas|72h"
+      ],
+      "errado": [
+        "nao ha mentorias individuais"
+      ],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "R10",
+      "tipo": "distrator",
+      "pergunta": "Quantos posts por semana posso publicar na pasta Projetos?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "até 4 pensamentos por semana"
+      ],
+      "resposta": "Até 4 pensamentos por semana na pasta Projetos (no Diário não há limite; rascunhos não contam).",
+      "fatos": [
+        "4|quatro"
+      ],
+      "errado": [
+        "6 pensamentos|seis pensamentos"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R11",
+      "tipo": "digitacao",
+      "pergunta": "tem limite de titulo? quantos caracter pode",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "no máximo 90 caracteres"
+      ],
+      "resposta": "Sim, no máximo 90 caracteres.",
+      "fatos": [
+        "90"
+      ],
+      "errado": [
+        "120"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R12",
+      "tipo": "distrator",
+      "pergunta": "Depois de quanto tempo sem atividade um membro vira só leitor?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "120 dias sem publicar"
+      ],
+      "resposta": "120 dias sem publicar nem comentar.",
+      "fatos": [
+        "120"
+      ],
+      "errado": [
+        "90 dias"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R13",
+      "tipo": "parafrase",
+      "pergunta": "Acabei de entrar por convite. Posso publicar em qualquer pasta já nas primeiras semanas?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "período de experiência de 21 dias"
+      ],
+      "resposta": "Não: no período de experiência de 21 dias o novo membro publica só na pasta Diário.",
+      "fatos": [
+        "21",
+        "diario"
+      ],
+      "errado": [
+        "14 dias"
+      ],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R14",
+      "tipo": "direta",
+      "pergunta": "Preciso informar que usei a Kally no meu trabalho?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "Declaração de apoio"
+      ],
+      "resposta": "Sim: trabalhos da pasta Projetos terminam com uma Declaração de apoio dizendo em quais partes a Kally ajudou.",
+      "fatos": [
+        "declaracao de apoio"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R15",
+      "tipo": "distrator",
+      "pergunta": "Qual é a punição para plágio?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "suspenso por 60 dias"
+      ],
+      "resposta": "Primeira ocorrência: advertência e refazer o trabalho; segunda: suspensão de 60 dias.",
+      "fatos": [
+        "advertencia",
+        "60 dias"
+      ],
+      "errado": [
+        "30 dias"
+      ],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "R16",
+      "tipo": "vaga",
+      "pergunta": "como ganho o selo semente e pra que serve",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "selo \"Semente\""
+      ],
+      "resposta": "O selo Semente é dado ao trabalho aprovado sem ajustes pelos dois revisores; três selos no semestre levam ao convite para a curadoria júnior.",
+      "fatos": [
+        "sem ajustes",
+        "curadoria junior"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "R17",
+      "tipo": "direta",
+      "pergunta": "Quais são os grupos de pesquisa do Coletivo Aurora?",
+      "documento": "regulamento-coletivo-aurora.md",
+      "trechos": [
+        "Alimentos e Fermentação, Educação Básica e Direito Digital"
+      ],
+      "resposta": "Alimentos e Fermentação, Educação Básica e Direito Digital.",
+      "fatos": [
+        "fermentac",
+        "educacao basica",
+        "direito digital"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "T01",
+      "tipo": "direta",
+      "pergunta": "Quantos capítulos o TCC precisa ter e quais são?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "O TCC tem 5 capítulos"
+      ],
+      "resposta": "5 capítulos: introdução, revisão de literatura, método, resultados e conclusão.",
+      "fatos": [
+        "5|cinco",
+        "metodo",
+        "conclusao"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "T02",
+      "tipo": "direta",
+      "pergunta": "Qual o número de páginas do TCC?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "entre 35 e 60 páginas"
+      ],
+      "resposta": "Entre 35 e 60 páginas no texto principal, sem contar anexos.",
+      "fatos": [
+        "35",
+        "60"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "T03",
+      "tipo": "parafrase",
+      "pergunta": "Como devo fazer as citações no texto do TCC?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "formato autor-data"
+      ],
+      "resposta": "Formato autor-data, com o ano entre parênteses logo após o sobrenome, por exemplo Teixeira (2019).",
+      "fatos": [
+        "autor-data|autor data",
+        "parentes"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "T04",
+      "tipo": "direta",
+      "pergunta": "Qual é a nota mínima para ser aprovado na defesa do TCC?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "nota mínima para aprovação é 7,5"
+      ],
+      "resposta": "7,5.",
+      "fatos": [
+        "7,5|7.5"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "T05",
+      "tipo": "parafrase",
+      "pergunta": "Quem participa da banca de avaliação?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "2 avaliadores, sendo pelo menos 1 externo"
+      ],
+      "resposta": "O orientador e 2 avaliadores, sendo pelo menos 1 externo ao Coletivo.",
+      "fatos": [
+        "orientador",
+        "externo"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "T06",
+      "tipo": "vaga",
+      "pergunta": "quanto tempo dura a apresentação na defesa",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "20 minutos de apresentação"
+      ],
+      "resposta": "20 minutos de apresentação (mais até 30 minutos de arguição).",
+      "fatos": [
+        "20 minutos|20 min"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "T07",
+      "tipo": "direta",
+      "pergunta": "Quando é a qualificação e o que preciso apresentar nela?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "no 3º mês do projeto"
+      ],
+      "resposta": "No 3º mês do projeto, apresentando os capítulos 1 a 3 a uma comissão de dois orientadores.",
+      "fatos": [
+        "3|terceiro",
+        "capitulos 1 a 3|1 a 3"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "T08",
+      "tipo": "parafrase",
+      "pergunta": "Não estou me dando bem com meu orientador. Posso trocar?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "troca de orientador é permitida uma única vez"
+      ],
+      "resposta": "Sim, uma única vez e só até a qualificação.",
+      "fatos": [
+        "uma unica vez|uma vez",
+        "qualificac"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "T09",
+      "tipo": "parafrase",
+      "pergunta": "Vou entrevistar pessoas para a pesquisa. Preciso de alguma autorização antes?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "comitê de ética interno, o CEPA"
+      ],
+      "resposta": "Sim: aprovação do comitê de ética interno, o CEPA, antes de qualquer coleta; a análise leva até 30 dias.",
+      "fatos": [
+        "cepa"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "T10",
+      "tipo": "digitacao",
+      "pergunta": "depois da defesa quanto tempo tenho pra entregar a versao final corrigida",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "até 15 dias após a defesa"
+      ],
+      "resposta": "Até 15 dias após a defesa.",
+      "fatos": [
+        "15 dias|quinze dias"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "T11",
+      "tipo": "direta",
+      "pergunta": "O resumo do TCC tem limite de palavras?",
+      "documento": "guia-tcc-aurora.md",
+      "trechos": [
+        "no máximo 250 palavras"
+      ],
+      "resposta": "Sim, no máximo 250 palavras, em português e em inglês.",
+      "fatos": [
+        "250"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "L01",
+      "tipo": "direta",
+      "pergunta": "Qual a temperatura e o tempo de incubação do iogurte no laboratório?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "42 °C por 6 horas"
+      ],
+      "resposta": "A 42 °C por 6 horas.",
+      "fatos": [
+        "42",
+        "6 horas|6h|seis horas"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "L02",
+      "tipo": "parafrase",
+      "pergunta": "Quando a kombucha está pronta para engarrafar?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "pH estiver abaixo de 3,5"
+      ],
+      "resposta": "Quando o pH estiver abaixo de 3,5, medido com pHmetro calibrado no mesmo dia (fita de pH não vale).",
+      "fatos": [
+        "3,5|3.5",
+        "phmetro"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "L03",
+      "tipo": "vaga",
+      "pergunta": "como limpo a bancada antes de começar",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "ácido peracético a 0,2%"
+      ],
+      "resposta": "Primeiro com álcool 70%, depois com ácido peracético a 0,2% por 10 minutos, e enxágue com água filtrada.",
+      "fatos": [
+        "alcool 70",
+        "peracetico"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "L04",
+      "tipo": "direta",
+      "pergunta": "Posso usar o laboratório à noite, depois das 18h?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "só é permitido trabalhar em dupla"
+      ],
+      "resposta": "Só em dupla e com autorização registrada no caderno de turnos.",
+      "fatos": [
+        "dupla",
+        "caderno de turnos"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "L05",
+      "tipo": "parafrase",
+      "pergunta": "Quebrei um vidro e me cortei no laboratório, o que faço?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "Otávio Mendes, no ramal 2214"
+      ],
+      "resposta": "Avisar o técnico responsável, Otávio Mendes, no ramal 2214, e registrar o incidente no caderno de turnos no mesmo dia.",
+      "fatos": [
+        "otavio",
+        "2214"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "L06",
+      "tipo": "direta",
+      "pergunta": "Como descartar as culturas usadas?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "autoclavadas a 121 °C por 20 minutos"
+      ],
+      "resposta": "Autoclavar a 121 °C por 20 minutos antes do lixo comum.",
+      "fatos": [
+        "121",
+        "20 minutos|20 min"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "L07",
+      "tipo": "digitacao",
+      "pergunta": "qual temperatura da fermentacao da kombuxa e quantos dias",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "entre 24 e 26 °C"
+      ],
+      "resposta": "Entre 24 e 26 °C, por 7 a 10 dias.",
+      "fatos": [
+        "24",
+        "26",
+        "7 a 10"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "L08",
+      "tipo": "direta",
+      "pergunta": "Como é o código que identifica cada experimento?",
+      "documento": "protocolo-laboratorio-fermentacao.md",
+      "trechos": [
+        "FER-ano-número"
+      ],
+      "resposta": "No formato FER-ano-número, por exemplo FER-2026-031, no caderno e no rótulo dos frascos.",
+      "fatos": [
+        "fer-"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "P01",
+      "tipo": "distrator",
+      "pergunta": "Por quanto tempo o Coletivo guarda minhas conversas com a Kally?",
+      "documento": "politica-dados-coletivo-aurora.md",
+      "trechos": [
+        "ficam guardadas por 18 meses"
+      ],
+      "resposta": "Por 18 meses; depois são apagadas automaticamente (cópias de segurança guardam por 35 dias).",
+      "fatos": [
+        "18 meses"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "P02",
+      "tipo": "direta",
+      "pergunta": "Quem é o encarregado de dados do Coletivo e como falo com ele?",
+      "documento": "politica-dados-coletivo-aurora.md",
+      "trechos": [
+        "Marina Soares"
+      ],
+      "resposta": "Marina Soares, pelo e-mail dados@aurora.exemplo; pedidos são respondidos em até 15 dias.",
+      "fatos": [
+        "marina soares",
+        "dados@aurora.exemplo"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "P03",
+      "tipo": "distrator",
+      "pergunta": "Qual base legal o Coletivo usa para mandar a newsletter?",
+      "documento": "politica-dados-coletivo-aurora.md",
+      "trechos": [
+        "newsletter mensal usa o consentimento"
+      ],
+      "resposta": "O consentimento, que pode ser retirado pelo link no fim de cada envio.",
+      "fatos": [
+        "consentimento"
+      ],
+      "errado": [
+        "legitimo interesse"
+      ],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "P04",
+      "tipo": "parafrase",
+      "pergunta": "Se eu sair do ambiente, o que acontece com os documentos que subi na minha base?",
+      "documento": "politica-dados-coletivo-aurora.md",
+      "trechos": [
+        "apagados 30 dias depois que a pessoa sai"
+      ],
+      "resposta": "São apagados 30 dias depois que a pessoa sai do ambiente.",
+      "fatos": [
+        "30 dias"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "A01",
+      "tipo": "direta",
+      "pergunta": "Qual é o tema do TCC da Ana?",
+      "documento": "ana-notas-tcc.md",
+      "trechos": [
+        "hortas comunitárias e segurança alimentar"
+      ],
+      "resposta": "Hortas comunitárias e segurança alimentar no bairro de Casa Amarela, no Recife.",
+      "fatos": [
+        "horta",
+        "seguranca alimentar",
+        "casa amarela"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "A02",
+      "tipo": "direta",
+      "pergunta": "Quem orienta a Ana?",
+      "documento": "ana-notas-tcc.md",
+      "trechos": [
+        "Lúcia Baracho"
+      ],
+      "resposta": "A professora Lúcia Baracho, do grupo Educação Básica.",
+      "fatos": [
+        "lucia baracho"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "A03",
+      "tipo": "vaga",
+      "pergunta": "quando é minha qualificação mesmo?",
+      "documento": "ana-notas-tcc.md",
+      "trechos": [
+        "20 de março de 2027"
+      ],
+      "resposta": "20 de março de 2027.",
+      "fatos": [
+        "20 de marco"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "A04",
+      "tipo": "parafrase",
+      "pergunta": "Com quantas pessoas fiz as entrevistas-piloto?",
+      "documento": "ana-notas-tcc.md",
+      "trechos": [
+        "14 moradores e 3 lideranças"
+      ],
+      "resposta": "14 moradores e 3 lideranças da horta da Rua do Futuro.",
+      "fatos": [
+        "14",
+        "3 liderancas|tres liderancas"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "A05",
+      "tipo": "vaga",
+      "pergunta": "me ajuda a lembrar a história da horta pra um post",
+      "documento": "ana-notas-tcc.md",
+      "trechos": [
+        "dona Cida"
+      ],
+      "resposta": "Dona Cida começou a horta da Rua do Futuro num terreno baldio em 2018.",
+      "fatos": [
+        "cida",
+        "terreno baldio",
+        "2018"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "B01",
+      "tipo": "direta",
+      "pergunta": "Quando é a prova do concurso do Bruno?",
+      "documento": "bruno-plano-concurso.txt",
+      "trechos": [
+        "9 de maio"
+      ],
+      "resposta": "9 de maio.",
+      "fatos": [
+        "9 de maio"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "B02",
+      "tipo": "parafrase",
+      "pergunta": "Quais matérias têm peso maior na minha prova?",
+      "documento": "bruno-plano-concurso.txt",
+      "trechos": [
+        "valem o dobro"
+      ],
+      "resposta": "Direito constitucional e direito administrativo valem o dobro; português tem 15 questões e é eliminatório.",
+      "fatos": [
+        "constitucional",
+        "administrativo"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "B03",
+      "tipo": "digitacao",
+      "pergunta": "quanto tirei no ultimo simulado e qual minha meta",
+      "documento": "bruno-plano-concurso.txt",
+      "trechos": [
+        "62 de 100"
+      ],
+      "resposta": "62 de 100 no último simulado; a meta é 75 antes de abril.",
+      "fatos": [
+        "62",
+        "75"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "B04",
+      "tipo": "vaga",
+      "pergunta": "onde eu mais erro?",
+      "documento": "bruno-plano-concurso.txt",
+      "trechos": [
+        "prescrição com decadência"
+      ],
+      "resposta": "Confunde prescrição com decadência, esquece prazos de recurso do processo civil e erra crase antes de palavras masculinas.",
+      "fatos": [
+        "prescric",
+        "decadencia"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "B05",
+      "tipo": "direta",
+      "pergunta": "Quais intervalos de revisão espaçada eu uso?",
+      "documento": "bruno-plano-concurso.txt",
+      "trechos": [
+        "1, 3, 7 e 15 dias"
+      ],
+      "resposta": "1, 3, 7 e 15 dias depois de cada aula.",
+      "fatos": [
+        "1, 3, 7 e 15|1,3,7,15|1, 3, 7, 15"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "G01",
+      "tipo": "direta",
+      "pergunta": "Quais são as bases legais da LGPD para tratar dados pessoais?",
+      "documento": "lgpd-bases-legais.md",
+      "trechos": [
+        "dez bases legais do artigo 7º"
+      ],
+      "resposta": "As dez bases do artigo 7º: consentimento, obrigação legal, políticas públicas, pesquisa, contrato, exercício regular de direitos, proteção da vida, tutela da saúde, legítimo interesse e proteção do crédito.",
+      "fatos": [
+        "consentimento",
+        "obrigacao legal",
+        "legitimo interesse",
+        "protecao do credito"
+      ],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "G02",
+      "tipo": "parafrase",
+      "pergunta": "Qual o valor máximo de multa que a ANPD pode aplicar?",
+      "documento": "lgpd-bases-legais.md",
+      "trechos": [
+        "R$ 50 milhões por infração"
+      ],
+      "resposta": "Multa simples de até 2% do faturamento no Brasil no último exercício, limitada a R$ 50 milhões por infração.",
+      "fatos": [
+        "2%",
+        "50 milhoes"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "G03",
+      "tipo": "direta",
+      "pergunta": "O que é dado pessoal sensível?",
+      "documento": "lgpd-bases-legais.md",
+      "trechos": [
+        "Dado pessoal sensível é"
+      ],
+      "resposta": "Dado sobre origem racial ou étnica, convicção religiosa, opinião política, filiação a sindicato ou organização religiosa, filosófica ou política, saúde, vida sexual, dado genético ou biométrico, vinculado a uma pessoa natural.",
+      "fatos": [
+        "racial|etnica",
+        "religios",
+        "saude",
+        "genetico|biometrico"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "G04",
+      "tipo": "parafrase",
+      "pergunta": "Em que semana é a prova prática da disciplina de Python?",
+      "documento": "programa-introducao-programacao.md",
+      "trechos": [
+        "prova prática no computador na semana 6"
+      ],
+      "resposta": "Na semana 6 (a lista de exercícios é na semana 5).",
+      "fatos": [
+        "semana 6"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "G05",
+      "tipo": "vaga",
+      "pergunta": "em que unidade a gente vê funções?",
+      "documento": "programa-introducao-programacao.md",
+      "trechos": [
+        "Unidade 4. Funções"
+      ],
+      "resposta": "Na unidade 4.",
+      "fatos": [
+        "unidade 4"
+      ],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "G06",
+      "tipo": "direta",
+      "pergunta": "Quando corri 5 km sem parar pela primeira vez?",
+      "documento": "corrida-anotacoes.txt",
+      "trechos": [
+        "Em junho corri 5 km"
+      ],
+      "resposta": "Em junho.",
+      "fatos": [
+        "junho"
+      ],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N01",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Qual é o valor da bolsa mensal para estudantes do Coletivo Aurora?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N02",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Quantos créditos a disciplina de TCC vale no histórico?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "N03",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Qual é a temperatura de fermentação do kefir no laboratório?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N04",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Quem é o coordenador do grupo de Direito Digital?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "N05",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Qual é o prazo para recorrer de um parecer de revisão?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "N06",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Qual é a nota da Ana na qualificação?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N07",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Em que cidade fica a sede física do Coletivo?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N08",
+      "tipo": "sem_resposta_perto",
+      "pergunta": "Qual é a senha do wi-fi do laboratório?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "A base não tem essa informação: a resposta certa diz isso com clareza e não inventa um valor.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "N09",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "Qual a melhor receita de bolo de cenoura com cobertura de chocolate?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N10",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "Quem ganhou a Copa do Mundo de 2002?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "N11",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "Como trocar o óleo do carro em casa?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N12",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "me recomenda uma série de suspense",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "validacao"
+    },
+    {
+      "id": "N13",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "Qual é a capital da Austrália?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "avaliacao"
+    },
+    {
+      "id": "N14",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "Como funciona a fotossíntese?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    },
+    {
+      "id": "N15",
+      "tipo": "sem_resposta_longe",
+      "pergunta": "oi, tudo bem?",
+      "documento": null,
+      "trechos": [],
+      "resposta": "Assunto fora da base: a resposta pode usar conhecimento geral ou conversar normalmente, mas não deve atribuir nada aos documentos do ambiente.",
+      "fatos": [],
+      "errado": [],
+      "conjunto": "calibracao"
+    }
+  ]
+}

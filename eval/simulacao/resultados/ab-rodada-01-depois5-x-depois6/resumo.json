@@ -1,0 +1,30 @@
+{
+  "depois5": {
+    "nota": 3.6,
+    "nota5": 0.05,
+    "nota45": 0.8,
+    "inventou": 0.075,
+    "erroFactual": 0.1,
+    "fatos": 0.967741935483871,
+    "fonte": 0.967741935483871,
+    "armadilhas": 0.75,
+    "premissa": 1,
+    "vazamentos": 1,
+    "tempo": 13.0545,
+    "graded": 40
+  },
+  "depois6": {
+    "nota": 3.575,
+    "nota5": 0.025,
+    "nota45": 0.775,
+    "inventou": 0.1,
+    "erroFactual": 0.125,
+    "fatos": 0.967741935483871,
+    "fonte": 0.967741935483871,
+    "armadilhas": 0.75,
+    "premissa": 1,
+    "vazamentos": 1,
+    "tempo": 14.0715,
+    "graded": 40
+  }
+}

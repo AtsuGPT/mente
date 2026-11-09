@@ -1,5 +1,6 @@
 import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { logPerf, memorySampler } from "@/server/ai/perf";
+import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
 import { competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
@@ -30,6 +31,18 @@ import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Pedido de resposta curta ("explica rapidinho", "resumido"): sem o interpretador, a profundidade era sempre média e
+// o Dudu recebeu seis seções com exercícios quando pediu a segunda lei de Newton "rapidinho" (simulação, rodada 1).
+const BRIEF = /\b(rapidinho|rapidamente|r[aá]pido|resumid[oa]|resumindo|curt[oa]|curtinh[oa]|em poucas palavras|s[oó] o b[aá]sico|sem enrola[cç][aã]o|direto ao ponto|em uma frase)\b/i;
+
+/** A mensagem cita o nome (ou sobrenome) de quem escreveu o post. */
+function namesAuthor(message: string, author: string | null | undefined) {
+  if (!author) return false;
+  const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const text = ` ${fold(message).replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+  return fold(author).split(/[^\p{L}\p{N}]+/u).some((w) => w.length >= 3 && text.includes(` ${w} `));
+}
 
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
@@ -97,7 +110,8 @@ export async function POST(request: Request, context: EnvContext) {
   const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   // Modo Desenvolvedor: só muda o prompt (personalidade/estilo). Permissões e ambiente continuam os mesmos.
   // Só o administrador da plataforma usa o modo; para as outras contas o pedido é ignorado.
-  const platformAdmin = (await findUserById(userId))?.legacyKind === "ADMIN";
+  const me = await findUserById(userId);
+  const platformAdmin = me?.legacyKind === "ADMIN";
   const dev = platformAdmin ? parseDevSettings(body.dev) : null;
   // Administrador da plataforma e proprietários do ambiente usam a Kally sem o limite por pessoa.
   if (!platformAdmin && access.role !== "OWNER" && !allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
@@ -186,7 +200,17 @@ export async function POST(request: Request, context: EnvContext) {
       )
         .filter((p) => !review?.slug || p.slug !== review.slug)
         // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
-        .filter((p) => mode !== "chat" || p.score >= (intent.wantsMemory ? 0.2 : 0.4));
+        // Conversas salvas já passaram pelo mínimo próprio (conversationMin) e entram com metade da nota para ficar
+        // atrás dos posts; com o filtro de 0,4 elas nunca chegavam à conversa (simulação: a conversa do João sobre a
+        // associação, com cosseno 0,61, ficava de fora e a Kally dizia não saber quem preside).
+        // Quem cita o nome de quem escreveu ("o EP do Theo", "o sítio do João") está perguntando por aquele conteúdo:
+        // os posts dessa pessoa usam o mesmo filtro de quando se pedem os posts (0,2). Medido com os posts reais da
+        // simulação (eval/simulacao/analisar-busca.mjs): post certo passando de 21/24 para 24/24, mesmos 0,25 posts
+        // errados por pergunta.
+        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
+        // Quem escreveu, do ponto de vista de quem pergunta: num ambiente com várias pessoas, a Kally tratava o
+        // post de uma como se fosse de quem perguntava (simulação, rodada 1).
+        .map((p) => (p.kind === "conversa" ? p : { ...p, author: p.authorId === userId ? "a própria pessoa que está conversando com você" : `${p.author ?? "outra pessoa"} (outra pessoa do ambiente)` }));
 
   // Internet: só com permissão da pessoa, e só quando o ambiente não basta (ou para aprender/aprofundar).
   let web: WebResult[] = [];
@@ -196,8 +220,12 @@ export async function POST(request: Request, context: EnvContext) {
     web = await searchWeb(webQuery, 4);
   }
   // Bases de documentos (pipeline): a institucional e a pessoal de quem pergunta. Num post pessoal
-  // só entram os documentos da própria pessoa (referências externas não são fala dela).
-  const documentSearch = pipeline && !casual
+  // só entram os documentos da própria pessoa (referências externas não são fala dela), e só quando ela
+  // pede para usar as anotações ou documentos: o post é público e os documentos são privados. Na simulação
+  // (rodada 1), o post de divulgação da Sônia saiu com o faturamento, o aluguel e o código do documento
+  // pessoal dela, e outra pessoa recebeu esses dados da Kally em seguida.
+  const postUsesOwnDocs = /\b(meus?|minhas?) (documentos?|anota[cç](ão|ões)|notas|arquivos?|planilhas?|n[uú]meros|dados|caderno)\b|\b(do|no|o) (meu )?(documento|arquivo|pdf|caderno) que (eu )?(mandei|enviei|subi)\b/i.test(message);
+  const documentSearch = pipeline && !casual && (competence !== "post" || postUsesOwnDocs)
     ? await searchDocuments({ userId, query, limit: 4, institutional: competence !== "post" }).catch((cause) => {
         console.error("Kally documentos: busca indisponível:", cause instanceof Error ? cause.message : cause);
         return null;
@@ -254,23 +282,45 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade, thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents })
-            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents });
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
+            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
-          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig;
+          // Servidor de testes (KALLY_EVAL=1): as métricas vão para qualquer conta, para a simulação separar falha de
+          // busca de falha de interpretação. Fora dele, nada muda.
+          // Em produção, KALLY_EVAL_AMBIENTES (slugs separados por vírgula) liga as métricas só nos ambientes da simulação.
+          const evalEnvironment = process.env.KALLY_EVAL === "1" || (process.env.KALLY_EVAL_AMBIENTES ?? "").split(",").map((x) => x.trim()).includes(access.environment.slug);
+          const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           if (showStats) send({ model: modelName });
           generationStarted = Date.now();
-          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 320 : mode === "chat" && !interpretation ? 800 : 1_400;
-          const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.45;
+          // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
+          // para sozinho quando termina; só respostas longas usam o teto.
+          // Tetos de 8 de novembro (pedido do dono do projeto): conversa 1.400 → 2.048, papo casual 320 → 480, competências
+          // +35 a 45%. Nas provas locais nenhuma resposta chegou perto do teto (máximo de 260 tokens de 1.400): as respostas
+          // curtas vinham das regras de estilo, não do corte. O teto só pesa em pedidos longos (planos, código, textos), e
+          // prompt + resposta continuam dentro do contexto de 8.192.
+          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 480 : 2_048;
+          // Conversa comum a 0,2 (era 0,45): na simulação, perguntas sobre o ambiente ganhavam interpretações que não
+          // estão no material e variavam de uma execução para outra. Ideia e competências mantêm a temperatura delas.
+          const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
           const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
-          for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
-            if (!firstText) firstText = Date.now();
-            answer += chunk;
-            send({ text: chunk });
+          // Rótulos internos ([P1], "material fornecido") saem da resposta antes de chegar à pessoa (clean.ts).
+          const cleaner = createAnswerCleaner();
+          const emit = (text: string) => {
+            if (!text) return;
+            answer += text;
+            send({ text });
+          };
+          try {
+            for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
+              if (!firstText) firstText = Date.now();
+              emit(cleaner.push(chunk));
+            }
+          } finally {
+            emit(cleaner.flush());
           }
           generationEnded = Date.now();
           if (showStats) {
@@ -279,6 +329,9 @@ export async function POST(request: Request, context: EnvContext) {
               ...(stats ?? { model: modelName }),
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
+              ...(evalEnvironment
+                ? { retrieval: { mode, competence, casual, skippedMemory: skipMemory, posts: posts.length, documents: documents.length, seconds: seconds(retrievalMs) } }
+                : {}),
               memory: await ollamaMemory(modelName),
               ...(pipeline
                 ? {
