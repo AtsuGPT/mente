@@ -793,5 +793,68 @@
       }
     ],
     "segundos": 138.655
+  },
+  {
+    "id": "r2.joao.associacao",
+    "quem": "joao",
+    "tipo": "kally",
+    "rodada": 2,
+    "turnos": [
+      {
+        "mensagem": "aí kally deixa eu te contar a associação dos produtor tem 23 familia e quem preside é a dona joana ela que vai receber a caderneta. como eu organizo a caderneta pra entregar pra associação fica facil de ler",
+        "texto": "Então, você tem uma associação de 23 famílias, presidida pela dona Joana, e vai entregar uma caderneta para ela.  \n\nPara deixar fácil de ler, talvez comece com um cabeçalho claro:  \n**\"Caderneta da Associação dos Produtoras – 23 Famílias\"**  \n\nDepois, organize em seções simples:  \n1. **Dados da Associação**  \n   - Número de famílias: 23  \n   - Nome do presidente: Dona Joana  \n   - Data de entrega: [inserir data]  \n\n2. **Conteúdo da Caderneta**  \n   Aqui, você pode incluir o que for relevante:  \n   - Lista de atividades realizadas  \n   - Metas para o próximo período  \n   - Relatórios de produção ou renda (se houver)  \n   - Observações ou sugestões  \n\n3. **Assinatura**  \n   - Nome do entregador (você)  \n   - Data  \n\nSe quiser, posso ajudar a montar um modelo com essas seções. Deseja?",
+        "sources": [
+          {
+            "title": "aí kally deixa eu te contar a associação dos produtor tem 23 familia e quem pres",
+            "slug": "cmw8id9oz009i7d4lj7mcg9ab",
+            "kind": "conversa"
+          }
+        ],
+        "conversationId": null,
+        "review": null,
+        "stats": {
+          "model": "qwen3:4b-instruct-2507-q4_K_M",
+          "loadSeconds": 0,
+          "promptTokens": 1777,
+          "promptSeconds": 6.49,
+          "outputTokens": 251,
+          "outputSeconds": 39.77,
+          "tokensPerSecond": 6.3,
+          "totalSeconds": 46.74,
+          "thinkingChars": 0,
+          "firstTextSeconds": 7,
+          "wallSeconds": 46.8,
+          "retrieval": {
+            "mode": "chat",
+            "competence": null,
+            "casual": false,
+            "skippedMemory": false,
+            "posts": 1,
+            "documents": 0,
+            "seconds": 4.5
+          },
+          "memory": {
+            "totalGB": 4.26,
+            "vramGB": 2.54,
+            "cpuGB": 1.72,
+            "context": 8192
+          },
+          "pipeline": {
+            "interpreted": false,
+            "competence": null,
+            "interpreterSeconds": 0,
+            "swapSeconds": 0,
+            "queueSeconds": 0,
+            "firstTextTotalSeconds": 11.5,
+            "totalSeconds": 51.3
+          }
+        },
+        "modo": "chat",
+        "erro": null,
+        "primeiroTexto": 12.66,
+        "segundos": 51.328
+      }
+    ],
+    "segundos": 51.328
   }
 ]
