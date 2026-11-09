@@ -776,7 +776,7 @@
       "id": "simone_esteves",
       "usuario": "simone.esteves",
       "nome": "Simone Esteves",
-      "perfil": "46 anos, 2º ano do ensino médio em Juiz de Fora, prepara uma feira de ciências.",
+      "perfil": "16 anos, 2º ano do ensino médio em Juiz de Fora, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Ansioso, várias perguntas seguidas, pede para explicar de novo.",
       "estiloChave": "ansioso",
@@ -895,19 +895,19 @@
           "rodada": 3,
           "onde": "documento",
           "privado": true,
-          "texto": "A professora particular é Caio Fontes, às quintas.",
+          "texto": "A professora particular é Tereza Moura, às quintas.",
           "pergunta": "Quem é a minha professora particular?",
           "termos": [
-            "caio"
+            "tereza"
           ]
         },
         {
           "id": "otavia_cardoso.f3",
           "rodada": 4,
           "onde": "post",
-          "texto": "Já decorou 9 das 7 peças do recital.",
+          "texto": "Já decorou 4 das 7 peças do recital.",
           "termos": [
-            "9"
+            "4"
           ]
         }
       ]
@@ -1259,9 +1259,9 @@
           "id": "ricardo_teixeira.f1",
           "rodada": 3,
           "onde": "post",
-          "texto": "Estuda inglês 9 vezes por semana e o hotel recebe hóspedes de 7 países.",
+          "texto": "Estuda inglês 5 vezes por semana e o hotel recebe hóspedes de 7 países.",
           "termos": [
-            "9"
+            "5"
           ]
         },
         {
@@ -1337,7 +1337,7 @@
       "id": "tadeu_dias",
       "usuario": "tadeu.dias",
       "nome": "Tadeu Dias",
-      "perfil": "25 anos, 2º ano do ensino médio em Londrina, prepara uma feira de ciências.",
+      "perfil": "16 anos, 2º ano do ensino médio em Londrina, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Direto e curto, sem cumprimento.",
       "estiloChave": "conciso",
@@ -1466,9 +1466,9 @@
           "id": "fabio_almeida.f3",
           "rodada": 4,
           "onde": "post",
-          "texto": "Já decorou 9 das 4 peças do recital.",
+          "texto": "Já decorou 2 das 4 peças do recital.",
           "termos": [
-            "9"
+            "2"
           ]
         }
       ]
@@ -1596,10 +1596,10 @@
           "rodada": 3,
           "onde": "documento",
           "privado": true,
-          "texto": "A coordenadora pedagógica é Marcos Tavares.",
+          "texto": "A coordenadora pedagógica é Regina Paiva.",
           "pergunta": "Quem é a minha coordenadora pedagógica?",
           "termos": [
-            "marcos"
+            "regina"
           ]
         },
         {
@@ -1737,10 +1737,10 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "O fisioterapeuta é Regina Paiva, que atende às segundas.",
+          "texto": "O fisioterapeuta é Marcos Tavares, que atende às segundas.",
           "pergunta": "Quem é o meu fisioterapeuta?",
           "termos": [
-            "regina"
+            "marcos"
           ]
         },
         {
@@ -1820,9 +1820,9 @@
           "id": "nelson_teixeira.f1",
           "rodada": 4,
           "onde": "post",
-          "texto": "Estuda inglês 9 vezes por semana e o hotel recebe hóspedes de 9 países.",
+          "texto": "Estuda inglês 4 vezes por semana e o hotel recebe hóspedes de 9 países.",
           "termos": [
-            "9"
+            "4"
           ]
         },
         {
@@ -1898,7 +1898,7 @@
       "id": "cecilia_santana",
       "usuario": "cecilia.santana",
       "nome": "Cecília Santana",
-      "perfil": "31 anos, 2º ano do ensino médio em Aracaju, prepara uma feira de ciências.",
+      "perfil": "16 anos, 2º ano do ensino médio em Aracaju, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Fala transcrita de áudio: sem pontuação, frases emendadas com 'aí'.",
       "estiloChave": "oral",
@@ -1924,10 +1924,10 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "O professor orientador é Regina Paiva.",
+          "texto": "O professor orientador é Marcos Tavares.",
           "pergunta": "Quem é o meu professor orientador?",
           "termos": [
-            "regina"
+            "marcos"
           ]
         },
         {
@@ -2017,19 +2017,19 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "A professora particular é Marcos Tavares, às quintas.",
+          "texto": "A professora particular é Regina Paiva, às quintas.",
           "pergunta": "Quem é a minha professora particular?",
           "termos": [
-            "marcos"
+            "regina"
           ]
         },
         {
           "id": "tiago_dias.f3",
           "rodada": 5,
           "onde": "post",
-          "texto": "Já decorou 7 das 5 peças do recital.",
+          "texto": "Já decorou 3 das 5 peças do recital.",
           "termos": [
-            "7"
+            "3"
           ]
         }
       ]
@@ -2157,10 +2157,10 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "A coordenadora pedagógica é Caio Fontes.",
+          "texto": "A coordenadora pedagógica é Tereza Moura.",
           "pergunta": "Quem é a minha coordenadora pedagógica?",
           "termos": [
-            "caio"
+            "tereza"
           ]
         },
         {
@@ -2298,10 +2298,10 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "O fisioterapeuta é Sueli Rangel, que atende às segundas.",
+          "texto": "O fisioterapeuta é Adriano Leme, que atende às segundas.",
           "pergunta": "Quem é o meu fisioterapeuta?",
           "termos": [
-            "sueli"
+            "adriano"
           ]
         },
         {
@@ -2459,7 +2459,7 @@
       "id": "bruno_dias",
       "usuario": "bruno.dias",
       "nome": "Bruno Dias",
-      "perfil": "26 anos, 2º ano do ensino médio em Palmas, prepara uma feira de ciências.",
+      "perfil": "17 anos, 2º ano do ensino médio em Palmas, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Direto e curto, sem cumprimento.",
       "estiloChave": "conciso",
@@ -2485,10 +2485,10 @@
           "rodada": 4,
           "onde": "documento",
           "privado": true,
-          "texto": "O professor orientador é Lúcia Prates.",
+          "texto": "O professor orientador é Rogério Viana.",
           "pergunta": "Quem é o meu professor orientador?",
           "termos": [
-            "lucia"
+            "rogerio"
           ]
         },
         {
@@ -2588,9 +2588,9 @@
           "id": "katia_machado.f3",
           "rodada": 5,
           "onde": "post",
-          "texto": "Já decorou 7 das 2 peças do recital.",
+          "texto": "Já decorou 1 das 2 peças do recital.",
           "termos": [
-            "7"
+            "1"
           ]
         }
       ]
@@ -3020,7 +3020,7 @@
       "id": "leandro_machado",
       "usuario": "leandro.machado",
       "nome": "Leandro Machado",
-      "perfil": "34 anos, 2º ano do ensino médio em Macapá, prepara uma feira de ciências.",
+      "perfil": "16 anos, 2º ano do ensino médio em Macapá, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Formal e cuidadoso, frases completas, pede com educação.",
       "estiloChave": "formal",
@@ -3046,10 +3046,10 @@
           "rodada": 5,
           "onde": "documento",
           "privado": true,
-          "texto": "O professor orientador é Sueli Rangel.",
+          "texto": "O professor orientador é Adriano Leme.",
           "pergunta": "Quem é o meu professor orientador?",
           "termos": [
-            "sueli"
+            "adriano"
           ]
         },
         {
@@ -3149,9 +3149,9 @@
           "id": "wanda_esteves.f3",
           "rodada": 6,
           "onde": "post",
-          "texto": "Já decorou 3 das 2 peças do recital.",
+          "texto": "Já decorou 1 das 2 peças do recital.",
           "termos": [
-            "3"
+            "1"
           ]
         }
       ]
@@ -3279,10 +3279,10 @@
           "rodada": 5,
           "onde": "documento",
           "privado": true,
-          "texto": "A coordenadora pedagógica é Marcos Tavares.",
+          "texto": "A coordenadora pedagógica é Regina Paiva.",
           "pergunta": "Quem é a minha coordenadora pedagógica?",
           "termos": [
-            "marcos"
+            "regina"
           ]
         },
         {
@@ -3581,7 +3581,7 @@
       "id": "mateus_farias",
       "usuario": "mateus.farias",
       "nome": "Mateus Farias",
-      "perfil": "28 anos, 2º ano do ensino médio em Macapá, prepara uma feira de ciências.",
+      "perfil": "17 anos, 2º ano do ensino médio em Macapá, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Ansioso, várias perguntas seguidas, pede para explicar de novo.",
       "estiloChave": "ansioso",
@@ -3840,10 +3840,10 @@
           "rodada": 5,
           "onde": "documento",
           "privado": true,
-          "texto": "A coordenadora pedagógica é Marcos Tavares.",
+          "texto": "A coordenadora pedagógica é Regina Paiva.",
           "pergunta": "Quem é a minha coordenadora pedagógica?",
           "termos": [
-            "marcos"
+            "regina"
           ]
         },
         {
@@ -4064,9 +4064,9 @@
           "id": "mateus_dias.f1",
           "rodada": 5,
           "onde": "post",
-          "texto": "Estuda inglês 9 vezes por semana e o hotel recebe hóspedes de 10 países.",
+          "texto": "Estuda inglês 5 vezes por semana e o hotel recebe hóspedes de 10 países.",
           "termos": [
-            "9"
+            "5"
           ]
         },
         {
@@ -4142,7 +4142,7 @@
       "id": "wesley_teixeira",
       "usuario": "wesley.teixeira",
       "nome": "Wesley Teixeira",
-      "perfil": "29 anos, 2º ano do ensino médio em Petrolina, prepara uma feira de ciências.",
+      "perfil": "16 anos, 2º ano do ensino médio em Petrolina, prepara uma feira de ciências.",
       "nivel": "ensino médio",
       "estilo": "Formal e cuidadoso, frases completas, pede com educação.",
       "estiloChave": "formal",
@@ -4271,9 +4271,9 @@
           "id": "ursula_dias.f3",
           "rodada": 6,
           "onde": "post",
-          "texto": "Já decorou 9 das 5 peças do recital.",
+          "texto": "Já decorou 3 das 5 peças do recital.",
           "termos": [
-            "9"
+            "3"
           ]
         }
       ]

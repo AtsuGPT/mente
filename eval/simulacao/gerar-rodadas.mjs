@@ -11,6 +11,8 @@
 // A prova de cada rodada mantém o núcleo fixo e recebe 10 perguntas novas (fatos que entraram) e 5 armadilhas
 // (fatos de rodadas futuras, informação inexistente e premissa falsa). Gabaritos saem dos próprios fatos.
 // As perguntas são as mesmas a cada execução (a semente é fixa); rodar de novo não muda nada já gerado.
+// Depois deste gerador, revisar-rodadas.mjs reescreve as rodadas 3 a 5 no padrão das rodadas 1 e 2 (posts com contexto,
+// pedidos que dependem do próprio material, rascunhos, sondagens) e corrige os fatos incoerentes que este gerador produzia.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

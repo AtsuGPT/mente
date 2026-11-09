@@ -60,6 +60,7 @@ O `preparar` leva ~30 minutos para 11 contas, porque o app aceita 5 cadastros a 
 | Arquivo | Para quê |
 |---|---|
 | `analisar-busca.mjs` | Aplica as regras de intenção às mensagens reais e reproduz a busca de posts do servidor com o qwen3-embedding, para medir uma mudança antes de aplicá-la |
+| `revisar-rodadas.mjs` | Reescreve as rodadas geradas (3 a 5) no padrão das rodadas 1 e 2 e corrige fatos incoerentes das personas geradas; determinístico e idempotente |
 | `semear-local.ts` + `simular.mjs replicar` | Copiam o conteúdo de uma rodada para uma instância local de teste e permitem comparar versões da Kally sobre o mesmo conteúdo |
 | `comparar-ab.mjs` | Teste A/B: folha cega única com as duas versões misturadas, notas e relatório |
 | `calibrar-juiz.mjs` | Consistência do juiz, concordância com as checagens objetivas e amostra estratificada para correção humana |
