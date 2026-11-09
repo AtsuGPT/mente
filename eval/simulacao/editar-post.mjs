@@ -23,6 +23,7 @@ const r = await fetch(`${s.api}/env/${s.ambiente.slug}/manage/posts/${post.id}`,
 const body = await r.json().catch(() => ({}));
 if (!r.ok) throw new Error(`Edição falhou (${r.status}): ${JSON.stringify(body).slice(0, 300)}`);
 const logFile = path.join(path.resolve(process.env.SIM_SAIDA || path.join(here, "resultados")), "manutencao.json");
+fs.mkdirSync(path.dirname(logFile), { recursive: true });
 const log = fs.existsSync(logFile) ? JSON.parse(fs.readFileSync(logFile, "utf8")) : [];
 log.push({ data: new Date().toISOString(), acao, postId: post.id, autor: post.autor, arquivo: path.relative(path.resolve(here, "../.."), path.resolve(arquivo)), motivo: process.env.MOTIVO ?? "" });
 fs.writeFileSync(logFile, JSON.stringify(log, null, 2));
