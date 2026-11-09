@@ -1654,5 +1654,132 @@
     "erro": null,
     "primeiroTexto": 10.985,
     "segundos": 18.645
+  },
+  {
+    "id": "R2N03",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "O sabor de kefir que teve mais aprovação no piloto foi o de maracujá, com 61% dos alunos aprovando.\n\nIsso significa que, entre os sabores testados, o de maracujá foi o mais bem recebido pelos alunos. O comentário mais comum foi que ele \"parece suco\", o que pode indicar uma conexão positiva com o sabor esperado por crianças. O sabor de limão teve apenas 38% de aprovação, com comentários como \"parece remédio\", o que sugere que pode não ser tão atraente para o público-alvo.\n\nSe você quiser seguir com o estudo completo, talvez seja interessante manter o maracujá e avaliar se o limão pode ser substituído ou melhorado.",
+    "sources": [
+      {
+        "title": "Etapa 2: resultados do teste-piloto",
+        "slug": "etapa-2-resultados-do-teste-piloto",
+        "kind": "projeto"
+      },
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      },
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 2316,
+      "promptSeconds": 13.96,
+      "outputTokens": 183,
+      "outputSeconds": 34.37,
+      "tokensPerSecond": 5.3,
+      "totalSeconds": 48.36,
+      "thinkingChars": 0,
+      "firstTextSeconds": 14,
+      "wallSeconds": 48.4,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 3,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 14.3,
+        "totalSeconds": 48.7
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 16.32,
+    "segundos": 48.733
+  },
+  {
+    "id": "R2N04",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "O recall do primeiro modelo do Rafael na classe urgente foi de 0,71.\n\nIsso significa que o modelo identificou 71% dos e-mails realmente urgentes no conjunto de dados. Esse valor foi obtido com regressão logística, usando TF-IDF e class_weight='balanced', avaliado por validação cruzada estratificada de 5 partes.\n\nSe você quiser entender como ajustar o limiar de decisão para melhorar o balanceamento entre precision e recall, posso ajudar a montar uma sugestão com base nisso.",
+    "sources": [
+      {
+        "title": "ML do zero #1: precision, recall e por que accuracy engana",
+        "slug": "ml-do-zero-1-precision-recall-e-por-que-accuracy-engana",
+        "kind": "post"
+      },
+      {
+        "title": "ML do zero #2: o primeiro baseline",
+        "slug": "ml-do-zero-2-o-primeiro-baseline",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1991,
+      "promptSeconds": 9.36,
+      "outputTokens": 123,
+      "outputSeconds": 20.75,
+      "tokensPerSecond": 5.9,
+      "totalSeconds": 30.13,
+      "thinkingChars": 0,
+      "firstTextSeconds": 9.4,
+      "wallSeconds": 30.1,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 9.7,
+        "totalSeconds": 30.5
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 10.772,
+    "segundos": 30.497
   }
 ]
