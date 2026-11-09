@@ -856,5 +856,146 @@
       }
     ],
     "segundos": 51.328
+  },
+  {
+    "id": "r2.theo.poema",
+    "quem": "theo",
+    "tipo": "kally",
+    "rodada": 2,
+    "turnos": [
+      {
+        "mensagem": "escrevi isso às 3 da manhã\nnão sei se é poema ou só cansaço\n\na cidade dorme de olho aberto\no poste pisca como quem esquece\na geladeira canta a única música que sei de cor\ne eu conto os carros\ncomo quem conta ovelhas\nque nunca pulam a cerca\n\nme diz com sinceridade se tem alguma coisa aqui",
+        "texto": "Entendi: você quer saber se há algo autêntico no que escreveu, além do cansaço, e quer uma avaliação sincera da presença de significado nas imagens que usou.\n\n<rascunho>\n# Há algo aqui? Ou só cansaço?\n\nEscrevi isso às 3 da manhã. Não sei se é poema ou só cansaço.\n\nA cidade dorme de olho aberto.  \nO poste pisca como quem esquece.  \nA geladeira canta a única música que sei de cor.  \nE eu conto os carros  \ncomo quem conta ovelhas  \nque nunca pulam a cerca.\n\nA pergunta é direta: me diz com sinceridade se tem alguma coisa aqui.\n\nO que há é uma presença contínua, mesmo quando tudo parece parado. O poste que pisca não é só um sinal elétrico — é alguém que esqueceu algo, e o que esqueceu é o que não foi dito. A geladeira canta, não por acaso, porque é a única música que conheço de cor: é um hábito que se tornou memória. Contar os carros como contar ovelhas é uma repetição que não tem fim, porque o que está fora da cerca nunca acontece — e isso é o que me faz sentir que estou aqui, mas não vivo.\n\nO texto não é só cansaço. É o cansaço que se torna imagem. E nesse momento, há algo aqui: uma forma de ver o mundo que não é dito, mas que se mantém, como o poste que pisca, como a música que canta, como o carro que nunca pulou a cerca.\n\nMas não é poema. É o que sobra do cansaço — o que não se esvazia, porque está escrito no que não diz.\n</rascunho>\n\nPreservei as imagens originais e a pergunta central, com uma leitura que mantém a voz do texto e a tensão entre cansaço e presença. Títulos alternativos: \"O que sobra do cansaço\" · \"A cidade dorme de olho aberto\". Você já viu um momento em que o que você conta — como os carros — parecia uma repetição que não tinha fim?",
+        "sources": [
+          {
+            "title": "inverno de concreto",
+            "slug": "inverno-de-concreto",
+            "kind": "post"
+          },
+          {
+            "title": "A padaria do Abílio",
+            "slug": "a-padaria-do-abilio",
+            "kind": "post"
+          },
+          {
+            "title": "A palha que não queima: um gesto que melhora a mandioca",
+            "slug": "a-palha-que-nao-queima-um-gesto-que-melhora-a-mandioca",
+            "kind": "projeto"
+          }
+        ],
+        "conversationId": null,
+        "review": null,
+        "stats": {
+          "model": "qwen3:4b-instruct-2507-q4_K_M",
+          "loadSeconds": 0,
+          "promptTokens": 4124,
+          "promptSeconds": 34.76,
+          "outputTokens": 500,
+          "outputSeconds": 133.41,
+          "tokensPerSecond": 3.7,
+          "totalSeconds": 168.44,
+          "thinkingChars": 0,
+          "firstTextSeconds": 35,
+          "wallSeconds": 168.4,
+          "retrieval": {
+            "mode": "ideia",
+            "competence": "post",
+            "casual": false,
+            "skippedMemory": false,
+            "posts": 3,
+            "documents": 0,
+            "seconds": 0.3
+          },
+          "memory": {
+            "totalGB": 4.26,
+            "vramGB": 2.54,
+            "cpuGB": 1.72,
+            "context": 8192
+          },
+          "pipeline": {
+            "interpreted": true,
+            "competence": "post",
+            "interpreterSeconds": 52.1,
+            "swapSeconds": 0,
+            "queueSeconds": 0,
+            "firstTextTotalSeconds": 87.5,
+            "totalSeconds": 220.9
+          }
+        },
+        "modo": "ideia",
+        "erro": null,
+        "primeiroTexto": 89.599,
+        "segundos": 220.929
+      }
+    ],
+    "segundos": 220.929
+  },
+  {
+    "id": "r2.bia.roteiro",
+    "quem": "bia",
+    "tipo": "kally",
+    "rodada": 2,
+    "turnos": [
+      {
+        "mensagem": "Elabore um roteiro de seções para o meu artigo, respeitando o limite de páginas do congresso, com a estimativa de páginas por seção.",
+        "texto": "Roteiro de seções para o artigo, respeitando o limite de 20 páginas do Congresso de Direito e Tecnologia de Recife:\n\n1. **Introdução** – 1 página  \n   Contextualiza a relevância do tema: uso de plataformas educacionais por escolas públicas e a proteção de dados de crianças. Aponta o foco do artigo: a tensão entre o consentimento parental exigido pela LGPD e a prática institucional de contratação sem envolvimento dos responsáveis.\n\n2. **Base jurídica: o art. 14 da LGPD** – 2 páginas  \n   Explica o conteúdo do artigo 14 da Lei nº 13.709/2018, com ênfase no § 1º, que exige consentimento parental para tratamento de dados de crianças. Destaca a aplicação prática desse disposto nas contratações institucionais.\n\n3. **Análise do tratamento de dados em plataformas educacionais** – 4 páginas  \n   Descreve o que é observado nas plataformas contratadas por escolas públicas: termos de uso, políticas de privacidade, e a forma como os dados de crianças são tratados. Inclui exemplos reais (se disponíveis) ou categorias de plataformas analisadas.\n\n4. **Tensão entre exigência jurídica e prática institucional** – 3 páginas  \n   Aborda a contradição entre a exigência legal de consentimento parental e a realidade de que as escolas contratam plataformas sem consultar os responsáveis. Aponta evidências do fenômeno, como ausência de declaração de consentimento no contrato.\n\n5. **Método de análise: amostra e critérios** – 2 páginas  \n   Descreve a seleção das plataformas (ex: 10 plataformas de ensino contratadas por escolas públicas em regiões específicas) e os critérios para análise dos termos de uso (ex: presença de cláusulas sobre dados de crianças, idade mínima, compartilhamento de dados).\n\n6. **Conclusão e recomendações** – 2 páginas  \n   Sintetiza os achados e propõe recomendações para ações institucionais e jurídicas: revisão de contratos, treinamento de gestores sobre LGPD, e mecanismos de envolvimento dos responsáveis pelos dados de crianças.\n\nTotal: 14 páginas (com espaço para margens, fontes e citações).\n\nPróximo passo: selecione 10 plataformas representativas e comece a analisar seus termos de uso com foco no tratamento de dados de crianças. Use o modelo de análise do art. 14 da LGPD como guia para cada seção.",
+        "sources": [
+          {
+            "title": "Etapa 1: dados de crianças em plataformas educacionais",
+            "slug": "etapa-1-dados-de-criancas-em-plataformas-educacionais",
+            "kind": "projeto"
+          },
+          {
+            "title": "Guia do ambiente Treinamento Kally",
+            "slug": "guia-do-ambiente-treinamento-kally",
+            "kind": "post"
+          }
+        ],
+        "conversationId": null,
+        "review": null,
+        "stats": {
+          "model": "qwen3:4b-instruct-2507-q4_K_M",
+          "loadSeconds": 0,
+          "promptTokens": 2008,
+          "promptSeconds": 9.2,
+          "outputTokens": 640,
+          "outputSeconds": 117.07,
+          "tokensPerSecond": 5.5,
+          "totalSeconds": 127.01,
+          "thinkingChars": 0,
+          "firstTextSeconds": 10,
+          "wallSeconds": 127,
+          "retrieval": {
+            "mode": "chat",
+            "competence": null,
+            "casual": false,
+            "skippedMemory": false,
+            "posts": 2,
+            "documents": 0,
+            "seconds": 0.4
+          },
+          "memory": {
+            "totalGB": 4.26,
+            "vramGB": 2.54,
+            "cpuGB": 1.72,
+            "context": 8192
+          },
+          "pipeline": {
+            "interpreted": false,
+            "competence": null,
+            "interpreterSeconds": 0,
+            "swapSeconds": 0,
+            "queueSeconds": 0,
+            "firstTextTotalSeconds": 10.4,
+            "totalSeconds": 127.4
+          }
+        },
+        "modo": "chat",
+        "erro": null,
+        "primeiroTexto": 12.297,
+        "segundos": 127.482
+      }
+    ],
+    "segundos": 127.482
   }
 ]
