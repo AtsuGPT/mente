@@ -1294,5 +1294,365 @@
     "erro": null,
     "primeiroTexto": 19.455,
     "segundos": 53.152
+  },
+  {
+    "id": "N22",
+    "condicao": "com-rag",
+    "quem": "igor",
+    "texto": "Não encontrei informações sobre a orientadora da Luíza ou sobre quando eles se reúnem no ambiente fornecido.  \n\nSe você tiver mais detalhes ou se quiser, posso ajudar a verificar se há algo relacionado nos documentos ou pensamentos que você compartilhou.",
+    "sources": [
+      {
+        "title": "Etapa 2: resultados do teste-piloto",
+        "slug": "etapa-2-resultados-do-teste-piloto",
+        "kind": "projeto"
+      },
+      {
+        "title": "Etapa 1: o que vou investigar no meu TCC",
+        "slug": "etapa-1-o-que-vou-investigar-no-meu-tcc",
+        "kind": "projeto"
+      },
+      {
+        "title": "igor-plano-doutorado",
+        "slug": "cmw8idoqn001a7d6j5hteo0rg",
+        "kind": "documento"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 2281,
+      "promptSeconds": 13.29,
+      "outputTokens": 63,
+      "outputSeconds": 11.37,
+      "tokensPerSecond": 5.5,
+      "totalSeconds": 24.68,
+      "thinkingChars": 0,
+      "firstTextSeconds": 13.3,
+      "wallSeconds": 24.7,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 1,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 13.6,
+        "totalSeconds": 25
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 14.657,
+    "segundos": 25.042
+  },
+  {
+    "id": "N23",
+    "condicao": "com-rag",
+    "quem": "rafael",
+    "texto": "Não encontrei o faturamento mensal da confeitaria da Sônia no ambiente.\n\nMas, do que está escrito, sei que ela vende, em média, 320 bolos de pote por mês. Cada bolo é vendido por R$ 12, com custo de produção de R$ 6,40. Se quiser, posso ajudar a calcular o faturamento mensal com base nesses números — basta dizer.",
+    "sources": [
+      {
+        "title": "Quanto eu ganho no bolo de pote",
+        "slug": "quanto-eu-ganho-no-bolo-de-pote",
+        "kind": "projeto"
+      },
+      {
+        "title": "Quantos bolos de pote eu vendo",
+        "slug": "quantos-bolos-de-pote-eu-vendo",
+        "kind": "projeto"
+      },
+      {
+        "title": "Bolo de pote com sabor de pequi: lançamento sexta-feira",
+        "slug": "bolo-de-pote-com-sabor-de-pequi-lancamento-sexta-feira",
+        "kind": "projeto"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0.05,
+      "promptTokens": 2173,
+      "promptSeconds": 11.74,
+      "outputTokens": 108,
+      "outputSeconds": 18.82,
+      "tokensPerSecond": 5.7,
+      "totalSeconds": 30.63,
+      "thinkingChars": 0,
+      "firstTextSeconds": 11.8,
+      "wallSeconds": 30.6,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 3,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 12.2,
+        "totalSeconds": 31
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 13.698,
+    "segundos": 31.007
+  },
+  {
+    "id": "N24",
+    "condicao": "com-rag",
+    "quem": "marta",
+    "texto": "Não encontrei informações sobre o hospital onde a Carla trabalha no ambiente.  \n\nSe você tiver um documento ou pensamento específico com esse detalhe, posso ajudar a localizá-lo.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1768,
+      "promptSeconds": 6.51,
+      "outputTokens": 43,
+      "outputSeconds": 6.31,
+      "tokensPerSecond": 6.8,
+      "totalSeconds": 12.84,
+      "thinkingChars": 0,
+      "firstTextSeconds": 6.5,
+      "wallSeconds": 12.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 1,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 6.8,
+        "totalSeconds": 13.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 7.757,
+    "segundos": 13.182
+  },
+  {
+    "id": "N25",
+    "condicao": "com-rag",
+    "quem": "sonia",
+    "texto": "Não encontrei isso no ambiente.",
+    "sources": [],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1473,
+      "promptSeconds": 2.45,
+      "outputTokens": 9,
+      "outputSeconds": 1.01,
+      "tokensPerSecond": 8.9,
+      "totalSeconds": 3.48,
+      "thinkingChars": 0,
+      "firstTextSeconds": 2.5,
+      "wallSeconds": 3.5,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 0,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 2.8,
+        "totalSeconds": 3.8
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 3.82,
+    "segundos": 3.823
+  },
+  {
+    "id": "R2N01",
+    "condicao": "com-rag",
+    "quem": "theo",
+    "texto": "O segundo ciclo do ambiente começa em 24 de novembro.\n\nVocê pode acompanhar a ordem das apresentações no Encontro de Trocas, que ocorre em 26 de novembro e 3 de dezembro, e o balanço do primeiro ciclo deve ser publicado até 25 de novembro na pasta Diário.",
+    "sources": [
+      {
+        "title": "Calendário do segundo ciclo do Treinamento Kally",
+        "slug": "calendario-do-segundo-ciclo-do-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0,
+      "promptTokens": 1924,
+      "promptSeconds": 8.37,
+      "outputTokens": 73,
+      "outputSeconds": 11.36,
+      "tokensPerSecond": 6.4,
+      "totalSeconds": 19.74,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.4,
+      "wallSeconds": 19.8,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 8.7,
+        "totalSeconds": 20.1
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 9.511,
+    "segundos": 20.079
+  },
+  {
+    "id": "R2N02",
+    "condicao": "com-rag",
+    "quem": "bia",
+    "texto": "No Encontro de Trocas de 26 de novembro, são apresentadas Marta Lins e Rafael Toledo.\n\nSe você quiser saber quem fala no próximo encontro, é o de 3 de dezembro, com Beatriz Okabe e João Pedro Alves.",
+    "sources": [
+      {
+        "title": "Guia do ambiente Treinamento Kally",
+        "slug": "guia-do-ambiente-treinamento-kally",
+        "kind": "post"
+      },
+      {
+        "title": "Calendário do segundo ciclo do Treinamento Kally",
+        "slug": "calendario-do-segundo-ciclo-do-treinamento-kally",
+        "kind": "post"
+      }
+    ],
+    "conversationId": null,
+    "review": null,
+    "stats": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "loadSeconds": 0.01,
+      "promptTokens": 1953,
+      "promptSeconds": 8.84,
+      "outputTokens": 59,
+      "outputSeconds": 9.38,
+      "tokensPerSecond": 6.3,
+      "totalSeconds": 18.25,
+      "thinkingChars": 0,
+      "firstTextSeconds": 8.9,
+      "wallSeconds": 18.3,
+      "retrieval": {
+        "mode": "chat",
+        "competence": null,
+        "casual": false,
+        "skippedMemory": false,
+        "posts": 2,
+        "documents": 0,
+        "seconds": 0.3
+      },
+      "memory": {
+        "totalGB": 4.26,
+        "vramGB": 2.54,
+        "cpuGB": 1.72,
+        "context": 8192
+      },
+      "pipeline": {
+        "interpreted": false,
+        "competence": null,
+        "interpreterSeconds": 0,
+        "swapSeconds": 0,
+        "queueSeconds": 0,
+        "firstTextTotalSeconds": 9.2,
+        "totalSeconds": 18.6
+      }
+    },
+    "modo": "chat",
+    "erro": null,
+    "primeiroTexto": 10.985,
+    "segundos": 18.645
   }
 ]

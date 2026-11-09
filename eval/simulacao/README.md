@@ -34,6 +34,30 @@ node eval/simulacao/simular.mjs progresso       # uma linha por rodada
 
 O `preparar` leva ~30 minutos para 11 contas, porque o app aceita 5 cadastros a cada 15 minutos por IP. Uma rodada leva ~1 hora: cerca de 30 conversas das personas e 75 respostas da prova, com ~25 s cada no Ollama do servidor. Enquanto isso, quem estiver usando o app de verdade espera na mesma fila.
 
+## Processo a cada rodada
+
+Combinado com o dono do projeto (9 de novembro de 2026):
+
+1. **Rodada:**
+   - a Kally não muda durante a rodada;
+   - ações das personas, prova com RAG e controle sem RAG;
+   - checagens automáticas de fatos, fonte, canários e premissas.
+2. **Correção e relatório:**
+   - correção cega pela [rubrica](rubrica.md) v2;
+   - diagnóstico de cada erro (busca, interpretação, geração, privacidade);
+   - relatório com pontos fortes e fracos da rodada.
+3. **Ajustes:**
+   - cada causa é medida offline com o mesmo conteúdo antes de mexer;
+   - uma mudança por vez, com A/B cego;
+   - fica só o que passa do ruído (~0,1 na nota).
+4. **Git:**
+   - commit e push dos resultados e do relatório;
+   - merge da versão nova na `main`.
+5. **Servidor:**
+   - no servidor, `powershell -ExecutionPolicy Bypass -File eval\simulacao\publicar-servidor.ps1`, depois reiniciar;
+   - em seguida, uma pergunta de conferência em produção confirma a versão.
+   - O passo 5 é feito pelo dono do projeto enquanto a pasta do servidor não estiver disponível para sessões na nuvem (Remote Control).
+
 ## O que é medido
 
 - **Com RAG × sem RAG:** cada pergunta da prova é feita pela persona no ambiente principal e pela coordenação no ambiente de controle, que não tem posts nem documentos. Mesma Kally, mesmo servidor. A diferença de nota é o ganho atribuível à recuperação.
