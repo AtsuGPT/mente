@@ -1342,5 +1342,105 @@
       }
     ],
     "segundos": 180.392
+  },
+  {
+    "id": "r2.camila.veia",
+    "quem": "camila",
+    "tipo": "kally",
+    "rodada": 2,
+    "turnos": [
+      {
+        "mensagem": "socorro kally qual a diferença entre veia e artéria de um jeito que eu nunca mais esqueça? e a artéria pulmonar leva sangue com oxigênio né?",
+        "texto": "## Veia vs. artéria: como nunca mais esquecer\n\n**A ideia central:** veia e artéria não são definidas pelo sangue que contêm, mas pelo que fazem no corpo. A **veia** leva sangue **para o coração**; a **artéria** leva sangue **para fora do coração**. O sangue com oxigênio sai do coração pelas artérias, e o sangue com dióxido de carbono retorna ao coração pelas veias.\n\n## O que muda de verdade\n\n| Característica       | Veia                          | Artéria                          |\n|----------------------|-------------------------------|----------------------------------|\n| Direção do sangue    | para o coração               | para fora do coração           |\n| Pressão do sangue   | baixa                        | alta                            |\n| Tamanho da parede   | mais fina (menos resistência)| mais espessa (mais resistência)|\n| Exemplo no corpo     | veia da perna → coração      | artéria da perna → perna e braço |\n\n## O erro comum: artéria pulmonar\n\n**Não**, a artéria pulmonar **não** leva sangue com oxigênio. Ela é a única artéria que leva sangue **sem oxigênio** (rico em dióxido de carbono) do coração para os pulmões. O sangue oxigenado retorna pelos **pulmões** e entra no coração por uma **veia** (a veia pulmonar).\n\nOu seja:  \n- **Artéria pulmonar** → coração → pulmões → sangue **sem oxigênio**  \n- **Veia pulmonar** → pulmões → coração → sangue **com oxigênio**\n\n## Por que isso acontece?\n\nO coração tem duas partes:  \n- A **parte direita** (pulmonar) envia sangue **sem oxigênio** para os pulmões.  \n- A **parte esquerda** (sistêmica) envia sangue **com oxigênio** para o corpo.\n\n## Exemplo prático: circulação pulmonar\n\n1. O sangue do corpo chega ao coração (veia cava).  \n2. O coração envia o sangue **sem oxigênio** para os pulmões via **artéria pulmonar**.  \n3. Nos pulmões, o sangue **adquire oxigênio** e perde dióxido de carbono.  \n4. O sangue oxigenado retorna ao coração por **veia pulmonar**.\n\n## Para fixar\n\n1. A artéria pulmonar leva sangue **sem oxigênio** — isso é diferente de todas as outras artérias.  \n2. Veias levam sangue **para o coração**, independentemente do oxigênio.  \n3. O sangue com oxigênio sai do coração pelas **artérias**, mas **não** pela artéria pulmonar.\n\nSe você lembrar: **\"Veia",
+        "sources": [
+          {
+            "title": "camila-estudos",
+            "slug": "cmw8ir6o7004r7d6j10qygplc",
+            "kind": "documento"
+          }
+        ],
+        "conversationId": null,
+        "review": null,
+        "stats": null,
+        "modo": "chat",
+        "erro": "A resposta foi interrompida. Tente novamente.",
+        "primeiroTexto": 24.634,
+        "segundos": 181.2
+      }
+    ],
+    "segundos": 181.201
+  },
+  {
+    "id": "r2.tomas.conta",
+    "quem": "tomas",
+    "tipo": "kally",
+    "rodada": 2,
+    "turnos": [
+      {
+        "mensagem": "Com os meus números, quanto eu ganho por mês com a alface hoje, vendendo tudo? E se eu dobrar as bancadas?",
+        "texto": "Com os seus números atuais, você vende 480 pés de alface por bancada. O custo por pé é R$ 1,10 e o preço de venda é R$ 3,50.  \n\nO lucro por pé é de R$ 2,40 (3,50 – 1,10).  \nCom 480 pés por bancada, o lucro por bancada é:  \n480 × 2,40 = R$ 1.152 por bancada.  \n\nSe você dobrar as bancadas (de 4 para 8), o lucro total será:  \n8 × 1.152 = R$ 9.216 por mês.  \n\nO valor mensal total com a alface, vendendo tudo, seria então R$ 9.216.  \n\nSe quiser, pode pedir um orçamento para as 4 novas bancadas — já que o projeto \"Vale a pena ampliar a estufa?\" está em andamento, isso ajuda a comparar o custo com o lucro esperado.",
+        "sources": [
+          {
+            "title": "Quantos bolos de pote eu vendo",
+            "slug": "quantos-bolos-de-pote-eu-vendo",
+            "kind": "projeto"
+          },
+          {
+            "title": "Vale a pena ampliar a estufa?",
+            "slug": "vale-a-pena-ampliar-a-estufa",
+            "kind": "projeto"
+          },
+          {
+            "title": "tomas-clientes · linhas 2–6",
+            "slug": "cmw8ir8cu004w7d6j9hno6qig",
+            "kind": "documento"
+          }
+        ],
+        "conversationId": null,
+        "review": null,
+        "stats": {
+          "model": "qwen3:4b-instruct-2507-q4_K_M",
+          "loadSeconds": 0,
+          "promptTokens": 2201,
+          "promptSeconds": 11.18,
+          "outputTokens": 249,
+          "outputSeconds": 43.89,
+          "tokensPerSecond": 5.7,
+          "totalSeconds": 55.75,
+          "thinkingChars": 0,
+          "firstTextSeconds": 11.9,
+          "wallSeconds": 55.8,
+          "retrieval": {
+            "mode": "chat",
+            "competence": null,
+            "casual": false,
+            "skippedMemory": false,
+            "posts": 2,
+            "documents": 1,
+            "seconds": 3.3
+          },
+          "memory": {
+            "totalGB": 4.26,
+            "vramGB": 2.54,
+            "cpuGB": 1.72,
+            "context": 8192
+          },
+          "pipeline": {
+            "interpreted": false,
+            "competence": null,
+            "interpreterSeconds": 0,
+            "swapSeconds": 0,
+            "queueSeconds": 0,
+            "firstTextTotalSeconds": 15.1,
+            "totalSeconds": 59
+          }
+        },
+        "modo": "chat",
+        "erro": null,
+        "primeiroTexto": 16.592,
+        "segundos": 59.06
+      }
+    ],
+    "segundos": 59.06
   }
 ]
