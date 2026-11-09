@@ -1,6 +1,6 @@
-# Publica no servidor (Windows) a versão da Kally corrigida na simulação e prepara a rodada 2.
+# Publica no servidor (Windows) a versão da Kally que está na main e prepara as variáveis da simulação.
 #
-#   powershell -ExecutionPolicy Bypass -File eval\simulacao\publicar-servidor.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\publicar-servidor.ps1
 #   (rode na pasta do repositório; o servidor precisa ser reiniciado no fim)
 #
 # O que faz:
