@@ -4,7 +4,7 @@
 #   (rode na pasta do repositório; o servidor precisa ser reiniciado no fim)
 #
 # O que faz:
-#   1. atualiza o código para a branch claude/charming-carson-nodxs5;
+#   1. atualiza o código para a main (a versão da Kally corrigida na simulação está nela);
 #   2. acrescenta ao .env, se faltarem, as variáveis da simulação (não mostra nem altera segredos):
 #      REGISTER_MAX_PER_WINDOW=200   cadastros por IP na janela de 15 min (temporário, só para criar as contas)
 #      KALLY_EVAL_AMBIENTES=...      métricas de recuperação só nos dois ambientes da simulação
@@ -12,7 +12,7 @@
 # Depois da rodada 2, rode com -FimDoCadastro para tirar o REGISTER_MAX_PER_WINDOW.
 param([switch]$FimDoCadastro)
 $ErrorActionPreference = "Stop"
-$branch = "claude/charming-carson-nodxs5"
+$branch = "main"
 
 if (-not (Test-Path ".env")) { throw "Não achei o .env nesta pasta. Rode na pasta do repositório do Minha Mente." }
 
