@@ -1,0 +1,100 @@
+[
+  {
+    "id": "r2.coord.calendario",
+    "quem": "coord",
+    "tipo": "documento",
+    "rodada": 2,
+    "resultado": "post da coordenação (Guia)",
+    "postId": "cmw8ihvvh00277d6jwyips44t",
+    "titulo": "Calendário do segundo ciclo do Treinamento Kally",
+    "segundos": 0.076
+  },
+  {
+    "id": "r2.luiza.post",
+    "quem": "luiza",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihvw300297d6jur4bnh4b",
+    "titulo": "Etapa 2: resultados do teste-piloto",
+    "pasta": "Projetos",
+    "segundos": 0.035
+  },
+  {
+    "id": "r2.dudu.post",
+    "quem": "dudu",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihvx3002b7d6jbwas2zym",
+    "titulo": "onde eu perco ponto",
+    "pasta": "Diário",
+    "segundos": 0.016
+  },
+  {
+    "id": "r2.rafael.post",
+    "quem": "rafael",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihvxo002d7d6jgdj48dgo",
+    "titulo": "ML do zero #2: o primeiro baseline",
+    "pasta": "Estudos",
+    "segundos": 0.019
+  },
+  {
+    "id": "r2.bia.post",
+    "quem": "bia",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihvy9002f7d6jxmhfdal4",
+    "titulo": "Etapa 2: delimitação da amostra",
+    "pasta": "Projetos",
+    "segundos": 0.02
+  },
+  {
+    "id": "r2.bia.doc",
+    "quem": "bia",
+    "tipo": "documento",
+    "rodada": 2,
+    "resultado": "pronto",
+    "documentoId": "cmw8ihvyu002h7d6jkspyvlom",
+    "trechos": 1,
+    "detalhe": "Markdown lido integralmente.",
+    "segundos": 2.104
+  },
+  {
+    "id": "r2.carla.post",
+    "quem": "carla",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihxln002k7d6j7mvve6ue",
+    "titulo": "duas semanas",
+    "pasta": "Diário",
+    "segundos": 0.034
+  },
+  {
+    "id": "r2.theo.doc",
+    "quem": "theo",
+    "tipo": "documento",
+    "rodada": 2,
+    "resultado": "pronto",
+    "documentoId": "cmw8ihxm9002m7d6j1zh5t5v3",
+    "trechos": 1,
+    "detalhe": "Texto lido integralmente.",
+    "segundos": 2.052
+  },
+  {
+    "id": "r2.sonia.post",
+    "quem": "sonia",
+    "tipo": "post",
+    "rodada": 2,
+    "resultado": "publicado",
+    "postId": "cmw8ihz7k002p7d6jky1bc97b",
+    "titulo": "Quantos bolos de pote eu vendo",
+    "pasta": "Projetos",
+    "segundos": 0.044
+  }
+]
