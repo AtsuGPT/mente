@@ -31,7 +31,8 @@ A queixa se confirma, e a causa não é o teto de tokens.
 | Produção (rodada 1) | 289 | — |
 | Produção (réplica local) | 265 | — |
 | v1 a v7 | 98 a 152 | 32 a 44 / 149 a 260 |
+| v8 (orientação no fim do prompt) | 344 | 99 / 234 |
 
 - As correções de v1 a v7 (responder exatamente o que foi perguntado, temperatura 0,2, "pergunta simples pede resposta simples") cortaram a resposta pela metade.
 - Nenhuma resposta chegou perto do teto de 1.400 tokens; a mais longa usou 260. Aumentar o teto não alonga resposta curta, só evita corte em pedidos longos (plano, código, texto). Mesmo assim, os tetos subiram: conversa 2.048, papo casual 480, estudo 2.400, análise 2.048, post 2.048.
-- O que alonga a resposta certa é a regra de orientação no fim do prompt (v8). A comparação v7 × v8 mede o efeito.
+- O que alonga a resposta certa é a regra de orientação no fim do prompt (v8). No A/B v7 × v8, a mediana foi de 98 para 344 caracteres e as respostas 5/5 de 5% para 33%. O custo: algumas orientações erram de pessoa, há acréscimos inventados e o tempo por resposta dobra (12 s → 24 s na CPU).

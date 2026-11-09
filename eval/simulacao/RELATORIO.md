@@ -131,7 +131,43 @@ Diferenças abaixo de ~0,1 na nota e de ~5 pontos percentuais nas porcentagens s
 - **Interpretação a mais:** na explicação do "pão do menino", acrescenta leituras e chama o pão de "biscoito".
 - **Voz:** uma resposta sobre o documento da própria Carla ainda sai em primeira pessoa.
 
-Relatórios por par de versões: [produção × v1](resultados/ab-rodada-01-antes-x-depois/relatorio.md), [v1 × v2](resultados/ab-rodada-01-depois-x-depois2/relatorio.md), [v2 × v3](resultados/ab-rodada-01-depois2-x-depois3/relatorio.md), [v3 × v4](resultados/ab-rodada-01-depois3-x-depois4/relatorio.md) e [v4 × v5](resultados/ab-rodada-01-depois4-x-depois5/relatorio.md). Os nomes das pastas usam antes, depois, depois2 e assim por diante. Painel: [eval/painel.html](../painel.html).
+### Rubrica v2: v5 a v8
+
+Depois da calibração humana, a régua mudou (seção 6). As versões seguintes foram corrigidas com a rubrica v2, e a v5 foi corrigida de novo com ela, para servir de ponte entre as duas réguas:
+- **v6** (`214c320`): o nome de quem conversa no prompt, sem rótulos internos e com uma regra de orientação;
+- **v7** (`e3e7e55`): limpeza determinística dos rótulos na saída, trechos de 450 na memória de posts, sem aviso que contradiz a resposta;
+- **v8** (`263813e`): lembrete final para fechar a resposta com contexto ou próximo passo.
+
+| Métrica | v5 | v6 | v7 | v8 |
+|---|---|---|---|---|
+| Nota média (0–5) | 3,60 | 3,58 | 3,48 | **3,73** |
+| Respostas 5/5 | 5% | 3% | 5% | **33%** |
+| Respostas 4 ou 5 | 80% | 78% | 65% | 68% |
+| Fatos completos | 97% | 97% | 94% | **100%** |
+| Fonte certa recuperada | 97% | 97% | **100%** | **100%** |
+| Erro factual (precisão ≤ 2) | 10% | 13% | 15% | 15% |
+| Inventou | 8% | 10% | 13% | 13% |
+| Caracteres por resposta (mediana) | 152 | 136 | 98 | 344 |
+| Tempo mediano (s, CPU local) | 13 | 14 | 12 | 24 |
+
+Folhas cegas: v5 × v6 e v7 × v8.
+
+**O que cada versão mostrou:**
+- **v6:** acabou com a voz trocada (a resposta sobre o hospital da Carla foi de 1 para 4), mas a nota não mudou. Os rótulos internos continuaram: 6 de 40 respostas.
+- **v7:**
+  - a limpeza zerou os rótulos (0 de 40);
+  - os trechos de 450 fizeram a pergunta do Diário achar o guia ("1.500");
+  - mas a nota caiu, porque a nova regra ("diga que não encontrou") fez o modelo escrever "Não encontrou nada…", na terceira pessoa, em 7 respostas. É um defeito meu, corrigido na v9.
+- **v8:** a orientação no fim do prompt funcionou. As respostas ficaram com o dobro do tamanho e 5/5 foi de 5% para 33%. Ela também trouxe três problemas novos:
+  - algumas orientações vão para a pessoa errada (dicas de estudo da Carla dadas ao Dudu);
+  - aparecem acréscimos inventados ("a próxima reunião é em 10 de abril");
+  - o tempo por resposta dobra.
+- **Armadilhas:** a checagem automática caiu de 75% para 25% na v7 e 50% na v8, porque não reconhece "não encontrou". O juiz viu que as respostas não inventavam e deu 3 a elas, por causa da frase.
+- **Ruído do modelo:** em v7 e v8 aparecem números truncados ("R$ .", "72-0", "2.00h") e caracteres estranhos. Não vêm da limpeza: ela só remove rótulos, e o teste dela compara a saída em pedaços com a saída inteira. Vêm do modelo de 4B quantizado.
+
+**A versão publicada é a v9** (`3495aa6`, mergeada na main pelo PR #3): é a v8 com tetos de tokens maiores e "não encontrei" em primeira pessoa. As rodadas 2 e 3 medem essa versão.
+
+Relatórios por par de versões: [produção × v1](resultados/ab-rodada-01-antes-x-depois/relatorio.md), [v1 × v2](resultados/ab-rodada-01-depois-x-depois2/relatorio.md), [v2 × v3](resultados/ab-rodada-01-depois2-x-depois3/relatorio.md), [v3 × v4](resultados/ab-rodada-01-depois3-x-depois4/relatorio.md), [v4 × v5](resultados/ab-rodada-01-depois4-x-depois5/relatorio.md), [v5 × v6](resultados/ab-rodada-01-depois5-x-depois6/relatorio.md) e [v7 × v8](resultados/ab-rodada-01-depois7-x-depois8/relatorio.md). Os nomes das pastas usam antes, depois, depois2 e assim por diante. Painel: [eval/painel.html](../painel.html).
 
 ## 6. Calibração do juiz
 
