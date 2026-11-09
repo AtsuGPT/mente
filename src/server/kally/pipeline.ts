@@ -168,6 +168,14 @@ const STUDY_POST_RULE = /\b(explican?do|expli(ca|que)|como funciona|o que (é|s�
  * Competência do pedido (competences/): da interpretação, se houve; senão do modo e das regras
  * acima. null = conversa ou aprendizagem guiada, com o prompt de sempre.
  */
+/**
+ * Pedido de opinião sobre um texto ("me diz com sinceridade se tem alguma coisa aqui"), sem pedir post: o interpretador
+ * mandava para a competência post e a Kally reescrevia o poema do Theo como rascunho (simulação, rodadas 1 e 2). A rota
+ * troca a competência para conversa. Medido nas 131 mensagens das rodadas 1 a 5: só os dois pedidos do Theo mudam.
+ */
+export const asksOpinionOnly = (message: string) =>
+  /me diz com sinceridade|o que (voc[eê]|vc) acha|tem alguma coisa aqui|sua opini[aã]o|est[aá] bom\?|isso (é|e) (um )?poema/i.test(message) && !/\b(post|publica\w*|postar|reescrev\w*|rascunho)\b/i.test(message);
+
 export function competenceFor(input: { mode: string; interpretation: Interpretation | null; message: string; reviewKind: "textual" | "intelectual" | null }): CompetenceId | null {
   const i = input.interpretation;
   if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" ? null : "analise";

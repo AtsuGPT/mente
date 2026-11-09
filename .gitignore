@@ -64,3 +64,13 @@ __pycache__/
 
 # Simulação da Kally: contas, senhas e tokens das personas (só na máquina)
 /eval/simulacao/.estado*.json
+
+# Saídas brutas das rodadas locais (respostas, ações): ficam só na máquina; o relatório vai para o Git
+/eval/simulacao/resultados/local-*/
+
+# Avaliação da Kally com personas (scripts, provas, resultados e relatórios): só na máquina de quem roda a simulação
+/eval/simulacao/
+/eval/embeddings/
+/eval/prova/
+/eval/painel.mjs
+/eval/painel.html

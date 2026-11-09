@@ -3,7 +3,7 @@ import { logPerf, memorySampler } from "@/server/ai/perf";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
-import { competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
+import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -145,7 +145,7 @@ export async function POST(request: Request, context: EnvContext) {
   if (pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
     const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
     const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
-    interpretation = r.result;
+    interpretation = r.result && r.result.competencia === "post" && asksOpinionOnly(message) ? { ...r.result, competencia: "conversa" } : r.result;
     interpreterReport = { ...r.lease, model: pipeline.interpreter, ms: r.ms, ok: !!r.result, competencia: r.result?.competencia ?? null };
     if (interpretation) mode = competenceMode(interpretation, { publish: access.permissions.publish, textToReview: message.length > 400 });
   }
@@ -240,6 +240,9 @@ export async function POST(request: Request, context: EnvContext) {
   // documentos dela). Só o tema não basta: o rascunho seria inventado, então a Kally pergunta.
   const ownWords = [raw.replace(/^\/post\s*/i, ""), ...history.filter((m) => m.role === "user").map((m) => m.content)].join(" ").trim();
   const thinMaterial = competence === "post" && !attachment && !documents.length && ownWords.length < 140;
+  // Pouca matéria (um objetivo e uma cidade, por exemplo): rascunho breve. Com o tamanho médio (200 a 400 palavras), o
+  // modelo enchia com motivações, planos e metáforas que a pessoa não contou (rodada 3: 5 rascunhos de apresentação).
+  const shortMaterial = competence === "post" && !attachment && ownWords.length < 400;
   const categories = mode === "ideia" || canDraft ? (await listCategories(access.environment.id)).map((c) => c.name) : [];
   // Com anexo, texto para revisar ou trechos de documentos, o contexto já vai cheio: um exemplo só.
   const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review || documents.length ? 1 : 2 }) : null;
@@ -282,7 +285,7 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
+            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: shortMaterial ? "breve" : interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
             : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
@@ -306,7 +309,11 @@ export async function POST(request: Request, context: EnvContext) {
           // estão no material e variavam de uma execução para outra. Ideia e competências mantêm a temperatura delas.
           const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;
           // Mesmo contexto (num_ctx) para qualquer modelo no dev e no pipeline: comparações justas e sem recargas.
-          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: 180_000 } : {};
+          // KALLY_TIMEOUT_MS: teto do pipeline (padrão 180 s). Na simulação local, na CPU (~7 tokens/s), 4 de 19 respostas
+          // longas da rodada 2 passaram de 180 s e foram cortadas; na GPU do servidor (~34 tokens/s) o teto de 2.048 tokens
+          // cabe em ~60 s. A instância de teste usa um teto maior; a produção continua com o padrão.
+          const pipelineTimeout = Number(process.env.KALLY_TIMEOUT_MS) || 180_000;
+          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: pipelineTimeout } : {};
           // Rótulos internos ([P1], "material fornecido") saem da resposta antes de chegar à pessoa (clean.ts).
           const cleaner = createAnswerCleaner();
           const emit = (text: string) => {

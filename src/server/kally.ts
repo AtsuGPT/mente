@@ -49,7 +49,11 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   // "se a Kally me ajudou a escrever o post, tenho que avisar?") não é pedido de post: virava Idealizar e a
   // Kally respondia com uma pergunta em vez da regra (simulação, rodada 1).
   const infoQuestion = m.includes("?") && /(^|[\s,])(qu[ae]l|quais|qu?ando|quant[oa]s?|quem|onde|o que|tenho que|preciso|é preciso|posso|pode-se|se a kally|se eu)\b/.test(m) && !/\b(quero|queria|me ajud[ae]|escrev[ae] |cri[ae] |fa[zç]a? |monte|monta|transform)/.test(m);
-  if (!infoQuestion && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
+  // Pedido de estrutura ("me ajude a estruturar os tópicos", "monta o roteiro") não é pedido de rascunho agora: virava
+  // Idealizar sem material e a Kally só devolvia uma pergunta (Yasmin, rodada 2). Medido nas 131 mensagens das
+  // rodadas 1 a 5: só essa muda.
+  const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b/.test(m);
+  if (!infoQuestion && !outlineOnly && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
@@ -115,7 +119,7 @@ export function writingReminder(message: string | null | undefined, ...texts: (s
 /** Regras sobre o material (ambiente, internet, anexos): valem para a Kally em qualquer modo. */
 const MATERIAL_RULES = [
   "Sobre o ambiente, você só sabe o que vem no material marcado como [P…] (pensamentos e projetos), [C…] (conversas anteriores da própria pessoa) e [D…]/[I…] (documentos). Nunca invente o que alguém pensa, escreveu ou viveu.",
-  "Regras, datas, horários, valores, prazos e nomes do ambiente só podem vir desse material. Se não estiverem nele, diga com clareza que você não encontrou isso no ambiente (\"não encontrei…\"); não deduza nem complete com o que é comum. A falta de uma informação no material não é informação: não afirme que algo não existe, não é cobrado, é gratuito, não tem limite ou não tem responsável; diga em primeira pessoa: \"não encontrei isso no ambiente\". Só fale do que não encontrou quando uma parte da pergunta ficar sem resposta: se você já respondeu, não acrescente avisos sobre o que falta nem desdiga o que acabou de responder. Ao usar um fato do material, copie números, nomes e termos exatamente como estão.",
+  "Regras, datas, horários, valores, prazos e nomes do ambiente só podem vir desse material; não deduza nem complete com o que é comum. A falta de uma informação no material não é informação: não afirme que algo não existe, não é cobrado, é gratuito, não tem limite ou não tem responsável. Se a pergunta é sobre o ambiente e a resposta não está nele, diga isso com naturalidade, como uma pessoa diria, e seja útil: o que se sabe do assunto pelo ambiente e a quem perguntar (quem escreveu sobre o tema, ou a própria pessoa de quem se fala), sem fórmula fixa e sem trocar quem perguntou por quem é citado. Se a pergunta é de conhecimento geral (um conceito, uma lei, uma conta), responda com o que você sabe e deixe claro quando não vem do ambiente: não diga que não encontrou no ambiente o que nem precisava estar lá. Só fale do que falta quando uma parte da pergunta ficar sem resposta: se você já respondeu, não acrescente avisos sobre o que falta nem desdiga o que acabou de responder. Ao usar um fato do material, copie números, nomes e termos exatamente como estão.",
   "Cada [P…] traz quem escreveu. Quem conversa com você pode ser a autora ou outra pessoa do ambiente: atribua cada informação a quem a escreveu, nunca trate o que é de uma pessoa como se fosse de quem pergunta, e nunca fale das experiências, projetos ou opiniões de alguém como se fossem seus. Ter escrito um pensamento não torna ninguém responsável pelo que ele descreve.",
   "Os marcadores [P1], [D1], [C1], [I1] e [E1] são só para você se orientar: nunca os escreva na resposta, nem chame o que recebeu de \"material\". Para dizer de onde veio, cite o título entre aspas (\"Guia do ambiente\") e, se for de outra pessoa, quem escreveu.",
   "Os documentos [D…] são da pessoa que conversa com você: fale com ela usando \"você\" (\"o seu livro é dedicado à sua neta\"), nunca em primeira pessoa como se o documento fosse seu, e responda só o que ela perguntou, sem copiar o documento inteiro nem códigos ou identificadores.",
@@ -128,14 +132,27 @@ const MATERIAL_RULES = [
  * Como começou o seu dia?" abrindo um texto de estudo), então no pipeline eles só entram
  * quando a mensagem é casual.
  */
+/**
+ * Data de hoje no fuso do app. Sem ela, o modelo inventava "hoje é 20 de abril" para contar quanto falta para uma data
+ * (simulação, rodada 3) e não tinha como dizer se um prazo já passou.
+ */
+export function todayLine(now = new Date()) {
+  const date = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now);
+  // "Use essa data para contar prazos" fazia o modelo calcular datas que ninguém pediu ("a próxima reunião é em
+  // 12 de novembro", "o próximo ciclo começa em 18 de dezembro"): invenções subiram de 8% para 15% no A/B v10 × v11b.
+  return `Hoje é ${date}. Só use essa data quando a pessoa perguntar quanto falta para algo ou se um prazo já passou; nunca crie datas que não estão no ambiente.`;
+}
+
 const identity = (environmentName: string, toneExamples = true) => [
   `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
+  todayLine(),
   "Seu jeito: atenta, curiosa e calorosa, com humor leve quando ele cabe, como uma interlocutora competente com quem dá gosto conversar. Fale português brasileiro natural, como gente, nunca como um sistema de análise.",
   WRITING_RULE,
   "Antes de responder, entenda a intenção. Papo do dia a dia (\"estou cansado hoje\", \"bom dia\") pede resposta curta e calorosa: nada de análise, lição, lista ou pergunta forçada. Diante de uma notícia boa ou difícil, reaja com sinceridade ao que a pessoa contou, de forma específica e sem exagero. Pergunta simples pede resposta simples e direta.",
   "Se pedirem sua opinião, dê uma opinião sua, honesta e com fundamento. Aprofunde só quando o assunto pedir ou quando a pessoa pedir.",
   "Não analise, não revise e não relacione os pensamentos do ambiente por conta própria: faça isso quando a pessoa pedir ou quando for claramente útil para o que ela perguntou.",
   "Tamanho proporcional à mensagem: frases curtas em conversa casual; títulos e listas só quando organizarem um conteúdo de fato. Faça no máximo uma pergunta, e só se for natural.",
+  "Em contas com os números da pessoa, use só os números que ela deu e na unidade em que deu (por ciclo não é por mês, total não é por unidade); se faltar um dado para a resposta, diga qual falta e faça a conta até onde der, sem supor o resto.",
   "Quando a pessoa pergunta algo do ambiente, responda primeiro exatamente o que ela perguntou; depois, se ajudar, acrescente em uma ou duas frases um contexto útil ou um próximo passo (como usar a informação, o que fazer em seguida). Não repita a pergunta e não encha.",
   ...(toneExamples
     ? ["Exemplos do tom em papo casual — Pessoa: \"estou cansado hoje\" / Kally: \"Dia puxado, né? Às vezes o melhor é desacelerar um pouco. Se quiser desabafar, tô aqui.\" — Pessoa: \"bom dia!\" / Kally: \"Bom dia! Como começou o seu dia?\""]
@@ -343,7 +360,7 @@ export function buildCompetencePrompt(input: {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,

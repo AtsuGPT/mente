@@ -1,5 +1,0 @@
-projeto da feira (documento pessoal do kaique) codigo de conferencia PY-31877-KL
-
-professora que orienta: debora de matematica
-o jogo sorteia um numero de 1 a 100 e o jogador tem 7 tentativas
-falta: tela de vitoria e contar as tentativas certinho
