@@ -1,0 +1,162 @@
+[
+ {
+  "name": "formato: conversa intermediária e respostas ricas nos dois 8B",
+  "only": "ollama-8biq4-g34,ollama-8b-g30-livre",
+  "scenarios": "A3,A4,B2",
+  "reps": 3,
+  "reps_per": "B2=2",
+  "out": "results-rico",
+  "done": true,
+  "finished_at": "2026-11-10 07:36"
+ },
+ {
+  "name": "RAM liberada: cache maior do 30B no Colibrì (48 e 64)",
+  "only": "colibri-30b-v28-cap48,colibri-30b-v28-cap64",
+  "scenarios": "A",
+  "reps": 2,
+  "out": "results-livre",
+  "done": true,
+  "finished_at": "2026-11-10 07:42"
+ },
+ {
+  "name": "RAM liberada: 14B e 30B no Ollama (conversa enxuta e post)",
+  "only": "ollama-14b-g20-livre,ollama-30b-g10-livre",
+  "scenarios": "A2,C",
+  "reps": 2,
+  "out": "results-livre",
+  "reps_per": "C=1",
+  "done": true,
+  "finished_at": "2026-11-10 07:52"
+ },
+ {
+  "name": "latência: 8B conversa simples, normal e enxuta (meta 10 s)",
+  "only": "ollama-8b-g30-livre",
+  "scenarios": "A,A2",
+  "reps": 5,
+  "out": "results-livre",
+  "done": true,
+  "finished_at": "2026-11-09 15:11"
+ },
+ {
+  "name": "custo das trocas: 8B -> 14B/30B -> 8B (Ollama)",
+  "cmd": [
+   "swap_test.py",
+   "--small",
+   "ollama-8b-g30",
+   "--big",
+   "ollama-14b-g20,ollama-30b-g10",
+   "--cycles",
+   "2"
+  ],
+  "done": true,
+  "finished_at": "2026-11-09 15:19"
+ },
+ {
+  "name": "concorrência: 8B na placa + 30B na CPU (Colibrì)",
+  "cmd": [
+   "concurrency_test.py",
+   "--small",
+   "ollama-8b-g30",
+   "--big",
+   "colibri-30b-cpu-cap32"
+  ],
+  "done": true,
+  "finished_at": "2026-11-09 15:30"
+ },
+ {
+  "name": "ajuste: 8B compacto IQ4_XS, camadas na placa",
+  "only": "ollama-8biq4-g32,ollama-8biq4-g34,ollama-8biq4-g37",
+  "scenarios": "A3,E",
+  "reps": 2,
+  "out": "results-tune",
+  "reps_per": "E=1",
+  "done": true,
+  "finished_at": "2026-11-09 15:35"
+ },
+ {
+  "name": "completa: 8B compacto IQ4_XS, 34 camadas",
+  "only": "ollama-8biq4-g34",
+  "scenarios": "A,A3,B,C,D,E,F",
+  "reps": 3,
+  "reps_per": "B=1,D=1",
+  "done": true,
+  "finished_at": "2026-11-09 15:44"
+ },
+ {
+  "name": "ajuste: memória da placa e cache em RAM do 30B (Colibrì)",
+  "only": "colibri-30b-v28,colibri-30b-v28-cap16,colibri-30b-v28-cap32,colibri-30b-cpu-cap32",
+  "scenarios": "A",
+  "reps": 2,
+  "out": "results-tune30",
+  "done": true,
+  "finished_at": "2026-11-09 11:40"
+ },
+ {
+  "name": "ajuste: camadas do 8B na placa (Ollama)",
+  "only": "ollama-8b-g26,ollama-8b-g30,ollama-8b-g34,ollama-8b-g30-c4k",
+  "scenarios": "A,E",
+  "reps": 1,
+  "out": "results-tune",
+  "done": true,
+  "finished_at": "2026-11-09 11:48"
+ },
+ {
+  "name": "ajuste: 14B automático e camadas (Ollama)",
+  "only": "ollama-14b,ollama-14b-g16,ollama-14b-g20,ollama-14b-g24",
+  "scenarios": "A,E",
+  "reps": 1,
+  "out": "results-tune",
+  "done": true,
+  "finished_at": "2026-11-09 12:00"
+ },
+ {
+  "name": "ajuste: camadas do 30B na placa (Ollama), só conversa curta",
+  "only": "ollama-30b-g8,ollama-30b-g10",
+  "scenarios": "A",
+  "reps": 1,
+  "out": "results-tune",
+  "done": true,
+  "finished_at": "2026-11-09 12:34"
+ },
+ {
+  "name": "completa: 8B no Ollama, 30 camadas na placa",
+  "only": "ollama-8b-g30",
+  "scenarios": "A,B,C,D,E,F",
+  "reps": 3,
+  "done": true,
+  "finished_at": "2026-11-09 12:51"
+ },
+ {
+  "name": "completa: 4B no Colibrì, inteiro na placa",
+  "only": "colibri-4b-vram2.8",
+  "scenarios": "A,B,C,D,E,F",
+  "reps": 3,
+  "done": true,
+  "finished_at": "2026-11-09 13:00"
+ },
+ {
+  "name": "completa: 14B no Ollama, 20 camadas na placa",
+  "only": "ollama-14b-g20",
+  "scenarios": "A,B,C,D,E,F",
+  "reps": 3,
+  "done": true,
+  "finished_at": "2026-11-09 13:48"
+ },
+ {
+  "name": "completa: 30B-A3B no Colibrì (melhor ajuste), longos ×1",
+  "only": "colibri-30b-v28-cap32",
+  "scenarios": "A,B,C,D,E,F",
+  "reps": 3,
+  "reps_per": "B=1,C=1,D=1,E=1",
+  "done": true,
+  "finished_at": "2026-11-09 14:37"
+ },
+ {
+  "name": "desempenho: 8B e 14B no Colibrì (curtos)",
+  "only": "colibri-8b-cuda2.8,colibri-14b-cuda2.8",
+  "scenarios": "A,F",
+  "reps": 3,
+  "done": true,
+  "finished_at": "2026-11-09 15:09"
+ }
+]

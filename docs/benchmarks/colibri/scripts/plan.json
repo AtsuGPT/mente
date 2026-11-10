@@ -1,0 +1,580 @@
+[
+ {
+  "id": "colibri-4b",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-4b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0"
+  ],
+  "env": {
+   "COLI_CUDA": "1"
+  },
+  "model": "Qwen3-4B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-14b",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-14b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1"
+  },
+  "model": "Qwen3-14B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0"
+  ],
+  "env": {
+   "COLI_CUDA": "1"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-4b",
+  "engine": "ollama",
+  "model": "qwen3:4b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "num_gpu": 37,
+   "top_k": 20,
+   "repeat_penalty": 1.0
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-8b",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-14b",
+  "engine": "ollama",
+  "model": "qwen3:14b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-4b-vram2.8",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-4b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-4B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b-cuda2.8",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b-vulkan",
+  "engine": "colibri",
+  "colibri_dir": "C:/Users/satan/kally-bench/colibri",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--no-think"
+  ],
+  "env": {
+   "COLI_VULKAN": "1"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b-cpu",
+  "engine": "colibri",
+  "colibri_dir": "C:/Users/satan/kally-bench/colibri",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "none",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "0"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b-cuda2.8-omp4",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8",
+   "OMP_NUM_THREADS": "4"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-8b-cuda2.8-omp8",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-8b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8",
+   "OMP_NUM_THREADS": "8"
+  },
+  "model": "Qwen3-8B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-v28",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-v28-cap16",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--cap",
+   "16"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-v28-cap32",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--cap",
+   "32"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-cpu-cap32",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "none",
+   "--cap",
+   "32"
+  ],
+  "env": {
+   "COLI_CUDA": "0"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-8b-g26",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 26
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-8b-g30",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 30
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-8b-g34",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 34
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-8b-g30-c4k",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 4096,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 30
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-14b-g16",
+  "engine": "ollama",
+  "model": "qwen3:14b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 16
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-14b-g20",
+  "engine": "ollama",
+  "model": "qwen3:14b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 20
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-14b-g24",
+  "engine": "ollama",
+  "model": "qwen3:14b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 24
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b-g12",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 12
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b-g18",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 18
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b-g24",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 24
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-14b-cuda2.8",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-14b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--no-think"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-14B Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b-g8",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 8
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-30b-g10",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 10
+  },
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-v28-cap48",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--cap",
+   "48"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "colibri-30b-v28-cap64",
+  "engine": "colibri",
+  "colibri_dir": "C:\\Users\\satan\\kally-bench\\colibri-cuda",
+  "model_dir": "C:\\Users\\satan\\kally-bench\\models\\qwen3-30b-a3b",
+  "ctx": 8192,
+  "serve_args": [
+   "--gpu",
+   "0",
+   "--cap",
+   "64"
+  ],
+  "env": {
+   "COLI_CUDA": "1",
+   "CUDA_EXPERT_GB": "2.8"
+  },
+  "model": "Qwen3-30B-A3B-Instruct-2507 Q4_K_M (blob do Ollama)",
+  "quant": "Q4_K_M"
+ },
+ {
+  "id": "ollama-14b-g20-livre",
+  "engine": "ollama",
+  "model": "qwen3:14b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 20
+  },
+  "quant": "Q4_K_M",
+  "nota": "apps fechados (Discord, VS Code)"
+ },
+ {
+  "id": "ollama-30b-g10-livre",
+  "engine": "ollama",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 10
+  },
+  "quant": "Q4_K_M",
+  "nota": "apps fechados (Discord, VS Code)"
+ },
+ {
+  "id": "ollama-8b-g30-livre",
+  "engine": "ollama",
+  "model": "qwen3:8b",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 30
+  },
+  "quant": "Q4_K_M",
+  "nota": "apps fechados (Discord, VS Code)"
+ },
+ {
+  "id": "ollama-8biq4-g32",
+  "engine": "ollama",
+  "model": "qwen3-8b-iq4xs",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 32
+  },
+  "quant": "IQ4_XS"
+ },
+ {
+  "id": "ollama-8biq4-g34",
+  "engine": "ollama",
+  "model": "qwen3-8b-iq4xs",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 34
+  },
+  "quant": "IQ4_XS"
+ },
+ {
+  "id": "ollama-8biq4-g37",
+  "engine": "ollama",
+  "model": "qwen3-8b-iq4xs",
+  "think": false,
+  "options": {
+   "num_ctx": 8192,
+   "top_k": 20,
+   "repeat_penalty": 1.0,
+   "num_gpu": 37
+  },
+  "quant": "IQ4_XS"
+ }
+]
