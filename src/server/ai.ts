@@ -1,5 +1,5 @@
 import "server-only";
-import { acquireModel, runtimeOptions, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
+import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
 
 /**
  * Provedor de IA da Kally, configurado só no servidor (.env). O app nunca fala com o
@@ -101,6 +101,7 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
           stream,
           messages,
           keep_alive: process.env.AI_KEEP_ALIVE || "30m",
+          ...thinkOption(model),
           ...(options.json ? { format: "json" } : {}),
           options: {
             temperature: options.temperature,

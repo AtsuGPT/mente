@@ -1,5 +1,5 @@
 import "server-only";
-import { acquireModel, runtimeOptions, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
+import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
 
 /**
  * Chamadas ao Ollama usadas pela Kally (chat, criação de posts, anexos).
@@ -107,7 +107,7 @@ async function streamWithLease(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: requestSignal(options),
-      body: JSON.stringify({ model, stream: true, messages, keep_alive: KEEP_ALIVE(), options: modelOptions(options, model) }),
+      body: JSON.stringify({ model, stream: true, messages, keep_alive: KEEP_ALIVE(), ...thinkOption(model), options: modelOptions(options, model) }),
     });
   } catch (error) {
     throw connectionError(error);
@@ -177,6 +177,7 @@ async function jsonWithLease<T>(baseUrl: string, model: string, messages: Ollama
         format: schema,
         messages,
         keep_alive: KEEP_ALIVE(),
+        ...thinkOption(model),
         options: { ...modelOptions(options, model), temperature: options.temperature ?? 0.2 },
       }),
     });

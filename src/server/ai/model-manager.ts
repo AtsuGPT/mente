@@ -64,6 +64,18 @@ export function runtimeOptions(model: string): { num_gpu?: number } {
   return {};
 }
 
+/**
+ * Modelos híbridos (o qwen3:8b e o qwen3:14b raciocinam por padrão): o raciocínio escondido vem antes
+ * do texto e, medido na RTX 2050, levava a 1ª palavra do 8B de ~0,5 s para 30–50 s. Os modelos de
+ * KALLY_NO_THINK_MODELS ("modelo,modelo") recebem think: false; sem a variável, nada muda (o 4B
+ * instruct não raciocina e não precisa).
+ */
+export function thinkOption(model: string): { think?: false } {
+  const name = normalize(model);
+  const list = (process.env.KALLY_NO_THINK_MODELS || "").split(",").map((m) => m.trim()).filter(Boolean).map(normalize);
+  return list.includes(name) ? { think: false } : {};
+}
+
 class ModelManager {
   private current: string | null = null;
   private active = 0;
