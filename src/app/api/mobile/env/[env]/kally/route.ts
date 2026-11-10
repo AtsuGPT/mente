@@ -1,5 +1,8 @@
-import { AiError, defaultChatModel, ollamaMemory, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
+import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
+import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -248,6 +251,33 @@ export async function POST(request: Request, context: EnvContext) {
   const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review || documents.length ? 1 : 2 }) : null;
   const examples: ReferenceExample[] = exampleSelection?.examples ?? [];
 
+  // Roteamento (só no pipeline, fora do modo dev e da revisão textual): local ou remoto (vLLM).
+  // A decisão usa os sinais já calculados acima; com o remoto fora do ar, responde o local.
+  const materialChars = (attachment?.text.length ?? 0) + (review?.text.length ?? 0) + documents.reduce((n, d) => n + d.text.length, 0);
+  const choice = modelChoiceFrom(body.model, platformAdmin || access.role === "OWNER");
+  let route: RouteDecision = { target: "local", reason: "fora do pipeline" };
+  let remoteFallback: string | null = null;
+  if (pipeline && !dev && review?.kind !== "textual" && remoteConfig().enabled) {
+    route = routeModel(
+      { mode, competence, casual, interpretation, message, materialChars, sources: posts.length + documents.length, canDraft, thinMaterial, brief: BRIEF.test(message) },
+      choice,
+    );
+    if (route.target === "remote") {
+      const health = await remoteHealth();
+      if (health.state !== "disponivel") {
+        remoteFallback = `remoto ${health.state}${health.detail ? `: ${health.detail}` : ""}`;
+        // GPU sob demanda: só com KALLY_GPU_AUTOSTART, e nunca bloqueia esta resposta (sai no local).
+        if (gpuConfig().autostart && (health.state === "indisponivel" || health.state === "desligado")) {
+          void startGpu(`pedido de ${competence ?? mode} (${route.reason})`).then((r) => {
+            if (!r.ok) console.info("Kally GPU: não liguei:", r.detail);
+          });
+        }
+        route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
+      }
+    }
+  }
+  ensureGpuWatcher();
+
   if (!conversation && body.save === true) {
     const created = await createConversation(access.environment.id, userId, mode, review?.text.split("\n")[0].replace(/^#\s*/, "Revisão: ") || message);
     conversation = { ...created, owner: null, messages: [] };
@@ -256,9 +286,21 @@ export async function POST(request: Request, context: EnvContext) {
   if (conversationId) await addMessage(conversationId, "user", message);
 
   const encoder = new TextEncoder();
+  // A pessoa fechou a conversa ou saiu: a geração (local ou remota) para e libera o modelo.
+  const cancel = new AbortController();
   const stream = new ReadableStream<Uint8Array>({
+    cancel() {
+      cancel.abort();
+    },
     async start(controller) {
-      const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const send = (event: Record<string, unknown>) => {
+        if (cancel.signal.aborted) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          cancel.abort();
+        }
+      };
       send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
       send({ sources });
       let answer = "";
@@ -296,7 +338,7 @@ export async function POST(request: Request, context: EnvContext) {
           // Em produção, KALLY_EVAL_AMBIENTES (slugs separados por vírgula) liga as métricas só nos ambientes da simulação.
           const evalEnvironment = process.env.KALLY_EVAL === "1" || (process.env.KALLY_EVAL_AMBIENTES ?? "").split(",").map((x) => x.trim()).includes(access.environment.slug);
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
-          if (showStats) send({ model: modelName });
+          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : modelName, backend: route.target });
           generationStarted = Date.now();
           // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
           // para sozinho quando termina; só respostas longas usam o teto.
@@ -321,10 +363,56 @@ export async function POST(request: Request, context: EnvContext) {
             answer += text;
             send({ text });
           };
-          try {
-            for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), ...extra })) {
+          const runLocal = async () => {
+            for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) {
               if (!firstText) firstText = Date.now();
               emit(cleaner.push(chunk));
+            }
+          };
+          // Remoto: o mesmo prompt (a mesma busca, as mesmas regras). Cai para o local, sem misturar modelos,
+          // quando falha ou não manda o 1º texto a tempo ANTES de qualquer texto chegar à pessoa. Depois do 1º
+          // texto, uma falha vira erro (a resposta parcial não é apresentada como completa).
+          const runRemote = async (): Promise<boolean> => {
+            const cfg = remoteConfig();
+            const health = await remoteHealth();
+            const promptTokens = estimateTokens(prompt.map((m) => m.content).join("\n"));
+            const remoteMax = health.maxModelLen ? Math.min(maxTokens, health.maxModelLen - promptTokens - 64) : maxTokens;
+            if (remoteMax < 512) {
+              remoteFallback = `contexto do remoto (${health.maxModelLen}) pequeno para ~${promptTokens} tokens de prompt`;
+              return false;
+            }
+            const firstToken = new AbortController();
+            const timer = setTimeout(() => firstToken.abort(), cfg.firstTokenMs);
+            let gotText = false;
+            try {
+              const chunks = await openChatStream(prompt, { temperature, maxTokens: remoteMax, target: "remote", signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
+              modelName = cfg.model;
+              for await (const chunk of chunks) {
+                if (!gotText) {
+                  gotText = true;
+                  clearTimeout(timer);
+                }
+                if (!firstText) firstText = Date.now();
+                emit(cleaner.push(chunk));
+              }
+              noteRemoteUse();
+              return true;
+            } catch (cause) {
+              if (cancel.signal.aborted || gotText) throw cause;
+              remoteFallback = firstToken.signal.aborted ? `remoto sem 1º texto em ${cfg.firstTokenMs} ms` : `remoto falhou: ${cause instanceof Error ? cause.message : String(cause)}`;
+              console.warn("Kally: remoto → local:", remoteFallback);
+              return false;
+            } finally {
+              clearTimeout(timer);
+            }
+          };
+          try {
+            if (route.target === "remote" && !(await runRemote())) {
+              route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
+              modelName = model || defaultChatModel();
+              await runLocal();
+            } else if (route.target === "local") {
+              await runLocal();
             }
           } finally {
             emit(cleaner.flush());
@@ -334,6 +422,7 @@ export async function POST(request: Request, context: EnvContext) {
             const seconds = (ms: number) => Math.round(ms / 100) / 10;
             const report = {
               ...(stats ?? { model: modelName }),
+              backend: { target: route.target, reason: route.reason, fallback: remoteFallback },
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
               ...(evalEnvironment
@@ -361,13 +450,17 @@ export async function POST(request: Request, context: EnvContext) {
         }
         send({ done: true });
       } catch (cause) {
-        failed = cause instanceof Error ? cause.message : String(cause);
-        console.error("Kally:", failed);
+        failed = cancel.signal.aborted ? "cancelada por quem perguntou" : cause instanceof Error ? cause.message : String(cause);
+        if (!cancel.signal.aborted) console.error("Kally:", failed);
         send({ error: cause instanceof AiError ? cause.message : "A resposta foi interrompida. Tente novamente." });
       } finally {
         // Só conversas salvas guardam a resposta (mesmo parcial).
         if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // já fechado pelo cancelamento
+        }
         const memory = sampler.stop();
         void (async () =>
           logPerf({
@@ -394,6 +487,8 @@ export async function POST(request: Request, context: EnvContext) {
             web: web.length,
             retrievalMs,
             interpreter: interpreterReport,
+            // roteamento: onde respondeu, por quê e, se caiu para o local, o motivo (sem conteúdo do pedido)
+            backend: { target: route.target, reason: route.reason, choice, fallback: remoteFallback },
             executor: modelName
               ? {
                   model: modelName,

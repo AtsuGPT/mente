@@ -1,5 +1,6 @@
 import "server-only";
 import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
+import { acquireRemoteSlot, invalidateRemoteHealth, remoteConfig, remoteHeaders } from "@/server/ai/remote";
 
 /**
  * Provedor de IA da Kally, configurado só no servidor (.env). O app nunca fala com o
@@ -33,6 +34,10 @@ export type AiOptions = {
   onStats?: (stats: GenerationStats) => void;
   /** Recebe a espera na fila e as trocas de modelo feitas pelo gerenciador central. */
   onLease?: (info: LeaseInfo) => void;
+  /** "remote": o vLLM da GPU alugada (server/ai/remote.ts); padrão: o provedor local. */
+  target?: "local" | "remote";
+  /** Cancela a resposta (a pessoa saiu ou o roteador desistiu do remoto). */
+  signal?: AbortSignal;
 };
 
 /** Métricas do Ollama para uma resposta (tempos em segundos). */
@@ -84,7 +89,46 @@ function config() {
   return { provider, baseUrl, model, apiKey } as const;
 }
 
+/**
+ * Pedido ao vLLM remoto (API OpenAI): sem o gerenciador de modelos (a GPU é outra), com vaga
+ * limitada (acquireRemoteSlot) e teto próprio de tempo. O modelo é sempre o KALLY_REMOTE_MODEL.
+ */
+async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean) {
+  const cfg = remoteConfig();
+  if (!cfg.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
+  const slot = acquireRemoteSlot();
+  if (!slot) throw new AiError("O modelo remoto está ocupado.", 503);
+  const body = {
+    model: cfg.model,
+    stream,
+    ...(stream ? { stream_options: { include_usage: true } } : {}),
+    messages: messages.map(({ role, content }) => ({ role, content })),
+    temperature: options.temperature,
+    max_tokens: options.maxTokens,
+    ...(options.json ? { response_format: { type: "json_object" } } : {}),
+  };
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
+  const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
+  let response: Response;
+  try {
+    response = await fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(), body: JSON.stringify(body), signal });
+  } catch (cause) {
+    slot.release();
+    invalidateRemoteHealth();
+    const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+    throw new AiError(timedOut ? "O modelo remoto demorou demais para responder." : "Não consegui conectar ao modelo remoto.", timedOut ? 504 : 503);
+  }
+  if (!response.ok) {
+    slot.release();
+    invalidateRemoteHealth();
+    console.error("Kally remoto:", response.status, (await response.text().catch(() => "")).slice(0, 300));
+    throw new AiError("O modelo remoto não conseguiu responder.", 502);
+  }
+  return { response, provider: "openai" as const, lease: { info: null, release: slot.release } as unknown as Lease, model: cfg.model };
+}
+
 async function request(messages: AiMessage[], options: AiOptions, stream: boolean) {
+  if (options.target === "remote") return remoteRequest(messages, options, stream);
   const { provider, baseUrl, apiKey } = config();
   const model = options.model || config().model;
   if (!baseUrl) throw new AiError("A IA não está configurada no servidor (AI_BASE_URL).", 503);
@@ -134,7 +178,8 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
 
   let response: Response;
   try {
-    response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+    const timeout = AbortSignal.timeout(timeoutMs);
+    response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout });
   } catch (cause) {
     lease?.release();
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
@@ -146,7 +191,7 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
     console.error("AI provider error:", response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O provedor de IA não conseguiu responder. Confira o modelo configurado.", 502);
   }
-  return { response, provider, lease };
+  return { response, provider, lease, model };
 }
 
 /** Resposta completa, de uma vez. */
@@ -154,7 +199,8 @@ export async function completeChat(messages: AiMessage[], options: AiOptions = {
   const { response, provider, lease } = await request(messages, options, false);
   try {
     const data = (await response.json()) as { message?: { content?: string }; choices?: { message?: { content?: string } }[] };
-    const text = provider === "ollama" ? data.message?.content : data.choices?.[0]?.message?.content;
+    const raw = provider === "ollama" ? data.message?.content : data.choices?.[0]?.message?.content;
+    const text = typeof raw === "string" ? raw.replace(/<think>[\s\S]*?<\/think>/g, "") : raw;
     if (typeof text !== "string" || !text.trim()) throw new AiError("A IA retornou uma resposta vazia.", 502);
     return text.trim();
   } finally {
@@ -172,8 +218,8 @@ export async function* streamChat(messages: AiMessage[], options: AiOptions = {}
  * e devolve os pedaços de texto para ler depois.
  */
 export async function openChatStream(messages: AiMessage[], options: AiOptions = {}): Promise<AsyncGenerator<string>> {
-  const { response, provider, lease } = await request(messages, options, true);
-  return readStream(response, provider, options.model || config().model, options.onStats, lease);
+  const { response, provider, lease, model } = await request(messages, options, true);
+  return readStream(response, provider, model, options.onStats, lease);
 }
 
 async function* readStream(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void, lease?: Lease | null): AsyncGenerator<string> {
@@ -190,16 +236,58 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
   if (!reader) throw new AiError("A IA não enviou resposta.", 502);
   const decoder = new TextDecoder();
   let buffer = "";
+  // API OpenAI (vLLM): o tempo vem do relógio daqui e os tokens do bloco usage do fim do stream.
+  const openedAt = Date.now();
+  let firstAt = 0;
+  let finished = false;
+  // Modelos que raciocinam e não têm o reasoning parser no vLLM mandam <think>…</think> no texto: fica de fora.
+  let inThink = false;
+  let pending = "";
+  const stripThink = (text: string): string => {
+    let out = "";
+    let rest = pending + text;
+    pending = "";
+    while (rest) {
+      if (inThink) {
+        const end = rest.indexOf("</think>");
+        if (end < 0) {
+          thinkingChars += rest.length;
+          // guarda um possível "</thin" partido entre dois pedaços
+          pending = rest.slice(-7);
+          return out;
+        }
+        thinkingChars += end;
+        rest = rest.slice(end + 8);
+        inThink = false;
+      } else {
+        const start = rest.indexOf("<think>");
+        if (start < 0) {
+          const cut = rest.lastIndexOf("<");
+          if (cut >= 0 && rest.length - cut < 7 && "<think>".startsWith(rest.slice(cut))) {
+            pending = rest.slice(cut);
+            return out + rest.slice(0, cut);
+          }
+          return out + rest;
+        }
+        out += rest.slice(0, start);
+        rest = rest.slice(start + 7);
+        inThink = true;
+      }
+    }
+    return out;
+  };
 
   // Ollama manda uma linha JSON por pedaço; a API OpenAI manda "data: {...}" (SSE).
   const parse = (line: string): string | null => {
     const raw = provider === "ollama" ? line : line.startsWith("data: ") ? line.slice(6) : "";
+    if (raw.trim() === "[DONE]") finished = true;
     if (!raw.trim() || raw.trim() === "[DONE]") return null;
     const event = JSON.parse(raw) as {
       error?: string;
       done?: boolean;
       message?: { content?: string; thinking?: string };
-      choices?: { delta?: { content?: string } }[];
+      choices?: { delta?: { content?: string; reasoning_content?: string }; finish_reason?: string | null }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
       load_duration?: number;
       prompt_eval_count?: number;
       prompt_eval_duration?: number;
@@ -224,7 +312,33 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
         thinkingChars,
       });
     }
-    return (provider === "ollama" ? event.message?.content : event.choices?.[0]?.delta?.content) ?? null;
+    if (provider === "ollama") {
+      if (event.done) finished = true;
+      return event.message?.content ?? null;
+    }
+    if (event.choices?.[0]?.finish_reason) finished = true;
+    const delta = event.choices?.[0]?.delta;
+    if (delta?.reasoning_content) thinkingChars += delta.reasoning_content.length;
+    if (event.usage && onStats) {
+      const end = Date.now();
+      const outputSeconds = firstAt ? (end - firstAt) / 1000 : 0;
+      const outputTokens = event.usage.completion_tokens ?? 0;
+      onStats({
+        model,
+        loadSeconds: 0,
+        promptTokens: event.usage.prompt_tokens ?? 0,
+        // sem medida separada do prompt na API OpenAI: o tempo até o 1º texto faz as vezes
+        promptSeconds: firstAt ? Math.round((firstAt - openedAt) / 10) / 100 : 0,
+        outputTokens,
+        outputSeconds: Math.round(outputSeconds * 100) / 100,
+        tokensPerSecond: outputSeconds > 0 ? Math.round((Math.max(0, outputTokens - 1) / outputSeconds) * 10) / 10 : 0,
+        totalSeconds: Math.round((end - openedAt) / 10) / 100,
+        thinkingChars,
+      });
+    }
+    const content = delta?.content ? stripThink(delta.content) : "";
+    if (content && !firstAt) firstAt = Date.now();
+    return content || null;
   };
 
   while (true) {
@@ -240,6 +354,10 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
   }
   const rest = parse(buffer.trim());
   if (rest) yield rest;
+  // um "<" do fim que não era o começo de <think>
+  if (!inThink && pending) yield pending;
+  // A conexão caiu sem o fim da resposta (sem done, finish_reason ou [DONE]): não é uma resposta completa.
+  if (!finished) throw new AiError("A resposta foi interrompida antes do fim.", 502);
 }
 
 export const visionModel = () => process.env.AI_VISION_MODEL || "gemma3:4b";
