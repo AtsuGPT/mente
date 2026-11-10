@@ -66,6 +66,7 @@ O que mudou, em ordem dos commits:
 | `KALLY_REMOTE_TIMEOUT_MS` | 240000 | teto da resposta remota inteira |
 | `KALLY_REMOTE_FIRST_TOKEN_MS` | 25000 | sem 1º texto nesse tempo, responde o local |
 | `KALLY_REMOTE_MAX_CONCURRENCY` | 2 | respostas remotas ao mesmo tempo; acima disso, local |
+| `KALLY_REMOTE_NO_THINK` | desligado | `"1"` pede `enable_thinking: false` (Qwen3 híbrido, ex.: Qwen3-32B) |
 | `KALLY_VAST_ENABLED` | desligado | `"1"` liga o controlador da GPU |
 | `KALLY_VAST_API_KEY` / `KALLY_VAST_INSTANCE_ID` | — | chave e instância do Vast.ai |
 | `KALLY_GPU_AUTOSTART` | desligado | `"1"`: um pedido que precisa do remoto liga a GPU (a resposta dele sai no local) |

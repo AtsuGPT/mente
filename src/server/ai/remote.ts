@@ -11,6 +11,7 @@ import "server-only";
  *   KALLY_REMOTE_TIMEOUT_MS       teto da resposta inteira (padrão 240 s).
  *   KALLY_REMOTE_FIRST_TOKEN_MS   sem 1º texto nesse tempo, cai para o modelo local (padrão 25 s).
  *   KALLY_REMOTE_MAX_CONCURRENCY  respostas remotas ao mesmo tempo (padrão 2); acima disso, local.
+ *   KALLY_REMOTE_NO_THINK         "1": desliga o raciocínio de modelos Qwen3 híbridos (enable_thinking: false).
  *
  * O modelo local continua sendo o do pipeline (KALLY_EXECUTOR_MODEL); não há outra variável para ele.
  */
@@ -39,6 +40,8 @@ export function remoteConfig() {
     timeoutMs: number(process.env.KALLY_REMOTE_TIMEOUT_MS, 240_000),
     firstTokenMs: number(process.env.KALLY_REMOTE_FIRST_TOKEN_MS, 25_000),
     maxConcurrent: Math.floor(number(process.env.KALLY_REMOTE_MAX_CONCURRENCY, 2)),
+    /** KALLY_REMOTE_NO_THINK="1": pede enable_thinking: false (modelos Qwen3 híbridos) */
+    noThink: process.env.KALLY_REMOTE_NO_THINK === "1",
   };
 }
 

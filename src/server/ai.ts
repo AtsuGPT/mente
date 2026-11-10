@@ -106,6 +106,9 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
     temperature: options.temperature,
     max_tokens: options.maxTokens,
     ...(options.json ? { response_format: { type: "json_object" } } : {}),
+    // Qwen3 híbrido (ex.: Qwen3-32B): raciocina por padrão e a 1ª palavra demora; o template do modelo
+    // aceita enable_thinking: false pelo chat_template_kwargs do vLLM.
+    ...(cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {}),
   };
   const timeout = AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
