@@ -32,11 +32,28 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
     `Extensão: ${size}. Cada parte precisa acrescentar algo; nada de repetir, de frases genéricas ou de encher.`,
     "Organização visual, usando só o que ajuda a entender: títulos curtos (##); listas; **negrito** nos conceitos-chave; uma tabela Markdown (com linha de cabeçalho) quando houver comparação, etapas com atributos ou dados; um diagrama em bloco ```mermaid (flowchart TD, um nó por linha no formato A[\"Rótulo curto\"], setas A --> B, sem HTML) quando houver processo, fluxo, decisão ou relação entre partes, seguido de uma frase dizendo o que ele mostra; uma citação (> ) para destacar a ideia central; uma lista de tarefas (- [ ]) quando houver passos para a pessoa fazer; e, para um aprofundamento opcional que não deve pesar na leitura, um bloco recolhível exatamente assim:\n:::details[Título do aprofundamento]\nconteúdo\n:::",
     input.post
-      ? "Num rascunho de post, a voz é a da pessoa e o conteúdo é o que ela contou: desenvolva o raciocínio dela com profundidade e boa estrutura, mas sem inventar vivências, dados, citações ou fontes. Depois do rascunho, fora dele, sugira em 2 ou 3 itens o que ela poderia acrescentar para o texto ficar mais forte."
+      ? "Num rascunho de post, a voz é a da pessoa e o conteúdo é só o que ela contou. Desenvolva com explicação, encadeamento e boa estrutura (por que aquilo acontece, o que decorre, como se relaciona), nunca com fatos novos sobre ela: não acrescente nenhuma situação, episódio, exemplo pessoal, lembrança, sentimento, número, citação ou fonte que ela não trouxe, nem em forma de \"uma vez\", \"há pouco tempo\" ou \"por exemplo, quando eu\". Se faltar matéria para um trecho, deixe-o curto. Depois do rascunho, fora dele, sugira em 2 ou 3 itens o que ela poderia acrescentar (com as palavras dela) para o texto ficar mais forte."
       : "Termine com uma seção curta \"Próximos passos\" ou \"Para ir além\": 2 ou 3 sugestões concretas e proativas, específicas para esta pessoa e este pedido (o que melhorar, o que testar, o que ler ou perguntar a seguir).",
+    "Pergunta factual sobre o ambiente: responda primeiro o fato exatamente como está no material; o desenvolvimento vem do próprio material (o que mais ele diz sobre o assunto) e de orientação útil, não de suposições. Não faça contas, porcentagens ou conversões que ninguém pediu; quando fizer uma conta, confira o resultado antes de escrever.",
+    "Código, matemática, ciência e leis: antes de afirmar como algo funciona, confira mentalmente (rode o código na cabeça, refaça a conta). Se não tiver certeza, diga que não tem, em vez de afirmar.",
     "Linguagem: português brasileiro natural, caloroso e sofisticado, como uma pessoa muito competente que se importa com quem pergunta. Mostre que entendeu a situação dela. Sem jargão de sistema, sem bajulação, sem elogiar a pergunta, sem emojis.",
     "Fidelidade: fatos do ambiente (regras, datas, valores, nomes) só os que estão no material; o que vier do conhecimento geral, diga que vem daí; o que for hipótese, diga que é hipótese. Nunca invente fontes, números ou experiências.",
   ].join("\n");
+}
+
+/**
+ * Raciocínio (o "pensar" do Qwen3) no remoto: ligado para estudo, análise, revisão e código, onde a
+ * correção cega mostrou erros de raciocínio com ele desligado (afirmações falsas sobre Python, contas
+ * sem conferência). O vLLM devolve o raciocínio à parte (--reasoning-parser) e ele não chega à pessoa.
+ * KALLY_REMOTE_THINK="nunca" desliga sempre; "sempre" liga sempre.
+ */
+export function remoteThinks(input: { competence: CompetenceId | null; mode: string; message: string; brief: boolean }): boolean {
+  const setting = process.env.KALLY_REMOTE_THINK;
+  if (setting === "nunca") return false;
+  if (setting === "sempre") return true;
+  if (input.brief) return false;
+  if (input.competence === "estudo" || input.competence === "analise" || input.mode === "revisar") return true;
+  return /```|\bdef |\bimport |\bfunction\b|\bprint\(|\btraceback\b|\b(c[oó]digo|bug|erro no|python|javascript)\b|\b(art\.?|artigo)s?\s*\d|\bcalcul|\bquanto (eu )?(ganho|lucro|custa)/i.test(input.message);
 }
 
 /** Teto de tokens da resposta no remoto (o contexto do vLLM ainda limita, em runRemote). */

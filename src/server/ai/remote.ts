@@ -89,7 +89,13 @@ export async function remoteHealth(force = false): Promise<RemoteHealth> {
     const booting = registry.__kallyRemoteBooting && registry.__kallyRemoteBooting.until > started ? registry.__kallyRemoteBooting : null;
     let health: RemoteHealth;
     try {
-      const r = await fetch(`${cfg.baseUrl}/v1/models`, { headers: remoteHeaders(), signal: AbortSignal.timeout(4_000) });
+      // Uma conexão reaproveitada (keep-alive) que o túnel SSH já fechou falha na hora: uma nova tentativa abre outra.
+      const check = () => fetch(`${cfg.baseUrl}/v1/models`, { headers: remoteHeaders(), signal: AbortSignal.timeout(4_000) });
+      const r = await check().catch(async (first) => {
+        if (first instanceof Error && first.name === "TimeoutError") throw first;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return check();
+      });
       if (r.status === 401 || r.status === 403) {
         health = { state: "erro", model: null, maxModelLen: null, latencyMs: Date.now() - started, checkedAt: Date.now(), detail: `vLLM recusou a chave (HTTP ${r.status})` };
       } else if (!r.ok) {

@@ -38,6 +38,8 @@ export type AiOptions = {
   target?: "local" | "remote";
   /** Cancela a resposta (a pessoa saiu ou o roteador desistiu do remoto). */
   signal?: AbortSignal;
+  /** Remoto: liga (true) ou desliga (false) o raciocínio do modelo neste pedido; padrão: KALLY_REMOTE_NO_THINK. */
+  think?: boolean;
 };
 
 /** Métricas do Ollama para uma resposta (tempos em segundos). */
@@ -108,13 +110,21 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
     ...(options.json ? { response_format: { type: "json_object" } } : {}),
     // Qwen3 híbrido (ex.: Qwen3-32B): raciocina por padrão e a 1ª palavra demora; o template do modelo
     // aceita enable_thinking: false pelo chat_template_kwargs do vLLM.
-    ...(cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+    ...(options.think !== undefined ? { chat_template_kwargs: { enable_thinking: options.think } } : cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {}),
   };
   const timeout = AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let response: Response;
+  const send = () => fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(), body: JSON.stringify(body), signal });
   try {
-    response = await fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(), body: JSON.stringify(body), signal });
+    try {
+      response = await send();
+    } catch (first) {
+      // Falha de conexão (túnel que reconectou, soluço de rede): uma nova tentativa rápida antes de desistir.
+      if (signal.aborted || (first instanceof Error && first.name === "TimeoutError")) throw first;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      response = await send();
+    }
   } catch (cause) {
     slot.release();
     invalidateRemoteHealth();
