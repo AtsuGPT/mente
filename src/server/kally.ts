@@ -53,7 +53,9 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   // Idealizar sem material e a Kally só devolvia uma pergunta (Yasmin, rodada 2). Medido nas 131 mensagens das
   // rodadas 1 a 5: só essa muda.
   const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b/.test(m);
-  if (!infoQuestion && !outlineOnly && /(me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
+  // "Quero um post: …", "faz um post sobre…", "monta um post com isso" (teste de 10/11: caía em conversa e saía um texto
+  // genérico, sem rascunho e sem o formato do post).
+  if (!infoQuestion && !outlineOnly && /(\b(quero|queria) (fazer |montar |criar )?(um |o )?post\b|\b(fa[zç]a?|fazer|mont[ae]|montar) (um |o )?post\b|me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };

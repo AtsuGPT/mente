@@ -67,6 +67,8 @@ O que mudou, em ordem dos commits:
 | `KALLY_REMOTE_FIRST_TOKEN_MS` | 25000 | sem 1º texto nesse tempo, responde o local |
 | `KALLY_REMOTE_MAX_CONCURRENCY` | 2 | respostas remotas ao mesmo tempo; acima disso, local |
 | `KALLY_REMOTE_NO_THINK` | desligado | `"1"` pede `enable_thinking: false` (Qwen3 híbrido, ex.: Qwen3-32B) |
+| `KALLY_REMOTE_THINK` | automático | raciocínio do 32B só em código, contas e leis; `"nunca"` ou `"sempre"` mudam o padrão |
+| `KALLY_POST_SOURCES` | ligado | `"0"` desliga as fontes da internet nos posts da Kally remota |
 | `KALLY_VAST_ENABLED` | desligado | `"1"` liga o controlador da GPU |
 | `KALLY_VAST_API_KEY` / `KALLY_VAST_INSTANCE_ID` | — | chave e instância do Vast.ai |
 | `KALLY_GPU_AUTOSTART` | desligado | `"1"`: um pedido que precisa do remoto liga a GPU (a resposta dele sai no local) |
@@ -103,6 +105,30 @@ mudança de interface foi necessária.
 - Remoto que cai depois do 1º texto: a pessoa recebe o erro "A resposta foi interrompida antes do
   fim." (a parte recebida não é apresentada como completa). Não há troca no meio da resposta.
 - Cancelamento: fechar a conversa encerra a geração (local ou remota) e libera o modelo.
+- Ritmo: o vLLM, pelo túnel, entrega o texto em rajadas (pausas de ~0,4 s a 1,4 s). O texto remoto passa
+  por um pacer (`src/server/kally/pacer.ts`) que solta o acumulado em ritmo constante, um pedaço a cada
+  ~47 ms, com atraso máximo de ~0,36 s. Pausas mais longas do próprio túnel ainda aparecem.
+- Espera visível: antes do primeiro texto, a rota manda `{ status }` ("Procurando fontes para o seu
+  post…", "Conferindo o raciocínio antes de escrever…") e o app mostra a etapa no lugar de "Pensando…".
+
+## Posts com fontes (Kally remota)
+
+O post tem duas camadas que não se misturam: a vivência e as opiniões da pessoa, só com o que ela
+contou, e o conhecimento que explica o que ela percebeu, só de fontes reais, citadas com link.
+
+1. O interpretador remoto devolve até 3 conceitos gerais do tema (`termos`), sem nada pessoal. Sem
+   interpretador, uma chamada curta ao 32B faz o mesmo (`post-sources.ts`). Só esses termos saem do
+   servidor; o texto da pessoa nunca vai para a pesquisa.
+2. Cada termo é pesquisado (`SEARCH_PROVIDER`, padrão Wikipédia em português, com o resumo do artigo).
+   Artigos cujo título não tem relação com o termo são descartados.
+3. O rascunho usa os recursos do editor com função (subtítulos que dizem a ideia, citação com a frase
+   dela, tabela quando ela compara, `:::details[Para saber mais]`, seção "Referências").
+4. No fim, a lista de fontes do app fica só com as que o texto citou.
+
+Relatos de perda, doença ou violência não recebem fontes. Com pouca matéria (menos de ~400 caracteres
+da pessoa), o rascunho fica entre 120 e 300 palavras. Raciocínio nos posts foi testado e não
+melhorou a fidelidade (+11 s), então fica desligado. Ainda escapam detalhes pequenos que a pessoa não
+contou, sobretudo com pouca matéria, e palavras com gênero quando ela não revelou o dela.
 
 ## RAG
 

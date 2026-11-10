@@ -4,6 +4,7 @@ import { ollamaJson } from "@/server/ai/ollama";
 import { remoteConfig, remoteHealth } from "@/server/ai/remote";
 import type { LeaseInfo } from "@/server/ai/model-manager";
 import type { CompetenceId } from "./competences/types";
+import { cleanTerms, TERMS_RULE } from "./post-sources";
 
 /**
  * Pipeline da Kally em duas etapas, com UM modelo carregado por vez (server/ai/model-manager.ts):
@@ -33,6 +34,8 @@ export type Interpretation = {
   estrutura: string[];
   lacunas: string[];
   profundidade: "breve" | "media" | "aprofundada";
+  /** só no interpretador remoto: conceitos gerais para buscar fontes do post (post-sources.ts) */
+  termos?: string[];
 };
 
 const COMPETENCES: Competence[] = ["estudo", "post", "analise", "orientacao", "conversa"];
@@ -148,8 +151,9 @@ export async function interpret(
   ].filter(Boolean).join("\n\n");
   try {
     // Com o modelo remoto no ar, ele interpreta (mais rápido e mais preciso que o local); senão, o local.
+    // No remoto: itens curtos (o JSON longo levava ~9 s) e, para post, os termos de pesquisa das fontes na mesma chamada.
     const raw =
-      (await interpretRemote([{ role: "system", content: `${SYSTEM}\nChaves do JSON: competencia, intencao, pontos, estrutura, lacunas, profundidade.` }, { role: "user", content }])) ??
+      (await interpretRemote([{ role: "system", content: `${SYSTEM}\nSeja conciso: cada item de pontos, estrutura e lacunas com no máximo 15 palavras. JSON compacto, numa linha só.\n${TERMS_RULE}\nChaves do JSON: competencia, intencao, pontos, estrutura, lacunas, profundidade, termos.` }, { role: "user", content }])) ??
       (await ollamaJson<Record<string, unknown>>(
         [{ role: "system", content: SYSTEM }, { role: "user", content }],
         SCHEMA,
@@ -164,6 +168,7 @@ export async function interpret(
           estrutura: list(raw.estrutura, 7),
           lacunas: list(raw.lacunas, 3),
           profundidade: DEPTHS.includes(raw.profundidade as Interpretation["profundidade"]) ? (raw.profundidade as Interpretation["profundidade"]) : "media",
+          ...(Array.isArray(raw.termos) ? { termos: cleanTerms(raw.termos) } : {}),
         }
       : null;
     return { result, ms: Date.now() - started, lease };

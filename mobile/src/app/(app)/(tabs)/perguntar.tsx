@@ -59,6 +59,8 @@ type Message = {
   /** modelo que respondeu e métricas do Ollama (só no Modo Desenvolvedor) */
   model?: string;
   stats?: DevStats;
+  /** etapa em andamento antes do primeiro texto (ex.: "Procurando fontes para o seu post…") */
+  status?: string;
 };
 type DevStats = {
   loadSeconds?: number;
@@ -468,6 +470,7 @@ function Kally() {
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
+        if (event.status) update((m) => ({ ...m, status: event.status }));
         const extra = event as { model?: string; stats?: DevStats };
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
@@ -873,7 +876,7 @@ const Bubble = memo(function Bubble({ item, pending, technical }: { item: Messag
         </View>
       ) : null}
       {!item.content ? (
-        <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.mode === "revisar" ? "Revisando…" : "Pensando…"}</Shimmer></View>
+        <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.status ?? (item.mode === "revisar" ? "Revisando…" : "Pensando…")}</Shimmer></View>
       ) : isUser ? (
         <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
       ) : (

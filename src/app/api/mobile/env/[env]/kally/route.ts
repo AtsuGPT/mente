@@ -4,6 +4,8 @@ import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
 import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
+import { createPacer } from "@/server/kally/pacer";
+import { citedSources, findPostSources, intimateStory, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -237,7 +239,7 @@ export async function POST(request: Request, context: EnvContext) {
     : null;
   const documents = documentSearch?.hits ?? [];
   const retrievalMs = Date.now() - retrievalStarted;
-  const sources = toSources(posts, web, documents);
+  let sources = toSources(posts, web, documents);
 
   const canDraft = wantsDraft(competence, message, access.permissions.publish);
   // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, anexo e
@@ -305,6 +307,7 @@ export async function POST(request: Request, context: EnvContext) {
       send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
       send({ sources });
       let answer = "";
+      let postWeb: WebResult[] = [];
       // Desempenho deste pedido (logs/kally-perf.jsonl).
       let modelName: string | null = null;
       let stats = null as GenerationStats | null;
@@ -325,10 +328,29 @@ export async function POST(request: Request, context: EnvContext) {
           ].join("");
           send({ text: answer });
         } else {
+          // Post na remota: fontes reais (Wikipédia por padrão) sobre os conceitos gerais do tema, citadas com link.
+          // Só os termos gerais saem do servidor (post-sources.ts); a pessoa vê a etapa enquanto espera.
+          if (route.target === "remote" && competence === "post" && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
+            send({ status: "Procurando fontes para o seu post…" });
+            const terms = interpretation?.termos ?? (await postSearchTerms(ownWords));
+            if (terms.length && !cancel.signal.aborted) {
+              send({ status: `Lendo sobre ${terms.join(", ")}…` });
+              const found = (await findPostSources(terms)).filter((f) => !web.some((w) => w.url === f.url));
+              if (found.length) {
+                postWeb = found;
+                web = [...web, ...found].slice(0, 5);
+                sources = toSources(posts, web, documents);
+                send({ sources });
+              }
+            }
+          }
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
-          const prompt = spec
-            ? buildCompetencePrompt({ competence: spec, examples, canDraft, depth: shortMaterial ? "breve" : interpretation?.profundidade ?? (BRIEF.test(message) ? "breve" : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName })
+          const competenceArgs = spec
+            ? { competence: spec, examples, canDraft, depth: shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
+            : null;
+          const prompt = competenceArgs
+            ? buildCompetencePrompt(competenceArgs)
             : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
           const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
@@ -379,9 +401,12 @@ export async function POST(request: Request, context: EnvContext) {
             // Prompt do remoto: o mesmo da Kally (material, regras, histórico) + o estilo de alta qualidade no fim.
             const brief = BRIEF.test(message);
             const isPost = competence === "post" && canDraft;
-            const style = remoteStyle({ competence, brief, post: isPost });
-            const last = prompt[prompt.length - 1];
-            const remotePrompt = last?.role === "system" ? [...prompt.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...prompt, { role: "system" as const, content: style }];
+            const style = remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial });
+            // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
+            // O formato vem do esqueleto do estilo.
+            const base = isPost && competenceArgs && examples.length > 1 ? buildCompetencePrompt({ ...competenceArgs, examples: examples.slice(0, 1) }) : prompt;
+            const last = base[base.length - 1];
+            const remotePrompt = last?.role === "system" ? [...base.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...base, { role: "system" as const, content: style }];
             const promptTokens = estimateTokens(remotePrompt.map((m) => m.content).join("\n"));
             // Raciocínio escondido nas tarefas difíceis: mais tokens (o pensar conta no teto) e mais prazo para o 1º texto.
             const thinks = remoteThinks({ competence, mode, message, brief });
@@ -394,8 +419,12 @@ export async function POST(request: Request, context: EnvContext) {
             const firstToken = new AbortController();
             const timer = setTimeout(() => firstToken.abort(), thinks ? Math.max(cfg.firstTokenMs, 120_000) : cfg.firstTokenMs);
             let gotText = false;
+            // O texto do vLLM chega em rajadas: o pacer solta em ritmo constante (pacer.ts).
+            const pacer = createPacer(emit, cancel.signal);
+            if (thinks) send({ status: "Conferindo o raciocínio antes de escrever…" });
             try {
-              const chunks = await openChatStream(remotePrompt, { temperature: Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", think: thinks, signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
+              // Post a 0,2 (a 0,4 saíam palavras truncadas como "escre-las" e mais detalhes inventados); o resto a 0,4 ou mais.
+              const chunks = await openChatStream(remotePrompt, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", think: thinks, signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
               modelName = cfg.model;
               for await (const chunk of chunks) {
                 if (!gotText) {
@@ -403,11 +432,13 @@ export async function POST(request: Request, context: EnvContext) {
                   clearTimeout(timer);
                 }
                 if (!firstText) firstText = Date.now();
-                emit(cleaner.push(chunk));
+                pacer.push(cleaner.push(chunk));
               }
+              await pacer.finish();
               noteRemoteUse();
               return true;
             } catch (cause) {
+              pacer.flushNow();
               if (cancel.signal.aborted || gotText) throw cause;
               remoteFallback = firstToken.signal.aborted ? `remoto sem 1º texto em ${cfg.firstTokenMs} ms` : `remoto falhou: ${cause instanceof Error ? cause.message : String(cause)}`;
               console.warn("Kally: remoto → local:", remoteFallback);
@@ -428,6 +459,13 @@ export async function POST(request: Request, context: EnvContext) {
             emit(cleaner.flush());
           }
           generationEnded = Date.now();
+          // Fontes do post: a lista final mostra só as que o texto citou.
+          if (postWeb.length) {
+            const cited = citedSources(postWeb, answer);
+            web = web.filter((w) => !postWeb.includes(w) || cited.includes(w));
+            sources = toSources(posts, web, documents);
+            send({ sources });
+          }
           if (showStats) {
             const seconds = (ms: number) => Math.round(ms / 100) / 10;
             const report = {
