@@ -101,9 +101,12 @@ type PendingAttachment = {
 const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
 
 /** Modo Desenvolvedor: personalidade definida pela pessoa, guardada neste aparelho. */
-type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental" };
+/** engine: quem responde, só para o administrador (o servidor confere): automático, só a Kally local (8B) ou só a remota (32B). */
+type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental"; engine?: "auto" | "8b" | "32b" };
 type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
 const DEV_KEY = "minha-mente.kally-dev.v1";
+/** Constante simples (a rolagem roda na UI thread, onde só valores capturados funcionam). */
+const IS_WEB = Platform.OS === "web";
 const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false, model: "experimental" };
 const DEV_PERSONAS: { id: DevPersona; label: string }[] = [
   { id: "livre", label: "Só minhas instruções" },
@@ -190,10 +193,14 @@ function Kally() {
   const viewHeight = useSharedValue(0);
   const atEnd = useSharedValue(true);
   const lastOffset = useSharedValue(0);
+  const dragging = useSharedValue(false);
   const [following, setFollowing] = useState(true);
   const keyboardInset = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
+      // Conteúdo que encolheu (tabela, diagrama ou o cartão do rascunho se redesenhando) também puxa a rolagem para
+      // cima, sem gesto nenhum: isso não pode desligar o acompanhamento.
+      const shrank = event.contentSize.height < contentHeight.value - 1;
       scrollY.value = event.contentOffset.y;
       contentHeight.value = event.contentSize.height;
       viewHeight.value = event.layoutMeasurement.height;
@@ -201,14 +208,27 @@ function Kally() {
       const end = offset + event.layoutMeasurement.height >= event.contentSize.height - 72;
       // Só subir (gesto da pessoa) desliga o acompanhamento. A própria rolagem animada até o
       // fim também gera eventos no meio do caminho e, com o texto crescendo, não pode desligá-lo.
+      // No celular, só conta subida com o dedo na tela (ou o embalo dele); na web não há esse aviso.
       if (end && !atEnd.value) {
         atEnd.value = true;
         scheduleOnRN(setFollowing, true);
-      } else if (!end && atEnd.value && offset < lastOffset.value - 2) {
+      } else if (!end && atEnd.value && !shrank && (dragging.value || IS_WEB) && offset < lastOffset.value - 2) {
         atEnd.value = false;
         scheduleOnRN(setFollowing, false);
       }
       lastOffset.value = offset;
+    },
+    onBeginDrag: () => {
+      dragging.value = true;
+    },
+    onEndDrag: () => {
+      dragging.value = false;
+    },
+    onMomentumBegin: () => {
+      dragging.value = true;
+    },
+    onMomentumEnd: () => {
+      dragging.value = false;
     },
   });
   // Teclado abrindo/fechando: a conversa sobe e desce junto, quadro a quadro (o que estava
@@ -449,6 +469,8 @@ function Kally() {
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
       dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
+      // Escolha do modo dev: vale com ou sem personalidade ligada, só para o administrador.
+      model: isAdmin && dev.engine === "8b" ? "local" : isAdmin && dev.engine === "32b" ? "remote" : undefined,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -503,7 +525,8 @@ function Kally() {
   // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
-  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
+  const engineLabel = isAdmin && dev.engine === "8b" ? " · só 8B" : isAdmin && dev.engine === "32b" ? " · só 32B" : "";
+  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}${engineLabel}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
   // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
   // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
   const orbit = useOrbitDock({ keyboardInset, composerFocus, answering: loading, gutter });
@@ -795,6 +818,12 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
           <View style={styles.actions}>
             <Chip label={form.vulgar ? "Linguagem vulgar liberada" : "Sem linguagem vulgar"} selected={form.vulgar} onPress={() => setForm({ ...form, vulgar: !form.vulgar })} />
           </View>
+          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Quem responde (vale também fora do modo desenvolvedor)</AppText>
+          <View style={styles.actions}>
+            <Chip label="Automático" selected={(form.engine ?? "auto") === "auto"} onPress={() => setForm({ ...form, engine: "auto" })} />
+            <Chip label="Só 8B (local)" selected={form.engine === "8b"} onPress={() => setForm({ ...form, engine: "8b" })} />
+            <Chip label="Só 32B (remota)" selected={form.engine === "32b"} onPress={() => setForm({ ...form, engine: "32b" })} />
+          </View>
           <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo (para comparar com as mesmas mensagens)</AppText>
           <View style={styles.actions}>
             <Chip label="Padrão (o da Kally)" selected={form.model === "padrao"} onPress={() => setForm({ ...form, model: "padrao" })} />
@@ -1054,10 +1083,16 @@ function DraftCard({ draft, pending }: { draft: { title: string; content: string
       {editing ? (
         <TextInput value={content} onChangeText={setContent} multiline placeholder="Texto do pensamento" placeholderTextColor={colors.faint} style={[styles.input, styles.bodyInput]} />
       ) : (
-        <Touchable onPress={() => setExpanded((v) => !v)}>
-          <AppText variant="small" color={colors.muted} numberOfLines={expanded ? undefined : 6} style={{ marginTop: space.sm }}>{content}</AppText>
-          {content.length > 320 ? <AppText variant="small" color={colors.violet300}>{expanded ? "Mostrar menos" : "Ver tudo"}</AppText> : null}
-        </Touchable>
+        // Enquanto a Kally escreve, o rascunho aparece inteiro e formatado, para a tela acompanhar o texto
+        // (com só 6 linhas, o que estava sendo escrito ficava escondido). Pronto, volta ao resumo.
+        pending ? (
+          <View style={{ marginTop: space.sm }}><Markdown>{content}</Markdown></View>
+        ) : (
+          <Touchable onPress={() => setExpanded((v) => !v)}>
+            {expanded ? <View style={{ marginTop: space.sm }}><Markdown>{content}</Markdown></View> : <AppText variant="small" color={colors.muted} numberOfLines={6} style={{ marginTop: space.sm }}>{content}</AppText>}
+            {content.length > 320 ? <AppText variant="small" color={colors.violet300}>{expanded ? "Mostrar menos" : "Ver tudo"}</AppText> : null}
+          </Touchable>
+        )
       )}
 
       {stage === "confirm" ? (

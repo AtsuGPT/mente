@@ -187,12 +187,18 @@ export async function findPostSources(terms: PostTerms, options: { timeoutMs?: n
   if (batches.reduce((n, b) => n + b.results.length, 0) < 60 && process.env.BRAVE_API_KEY) {
     batches = [...batches, ...(await pool(pairs.flatMap((p) => [() => brave(p.pt, "web", signal), () => brave(p.pt, "notícia nacional", signal), () => brave(p.en, "notícia global", signal)]), 3))];
   }
-  return { ...rank(batches, [...terms.pt, ...terms.en], PICK), ms: Date.now() - started };
+  // Cada termo é um grupo: a página precisa ter TODAS as palavras de pelo menos um termo ("repetição" e "espaçada").
+  const groups = [...terms.pt, ...terms.en].map((t) => roots([t])).filter((g) => g.length);
+  return { ...rank(batches, groups, PICK, (have) => groups.some((g) => g.every((k) => have.has(k)))), ms: Date.now() - started };
 }
 
-/** Junta as frentes, tira repetidas e fora do assunto, pontua (relevância, credibilidade, data) e escolhe com diversidade. */
-function rank(batches: { query: Query; results: SearxResult[] }[], terms: string[], pick: number): Omit<SourceHunt, "ms"> {
-  const keys = roots(terms);
+/**
+ * Junta as frentes, tira repetidas e as fora do assunto, pontua (relevância, credibilidade, data) e escolhe com
+ * diversidade. `relevant` é o filtro de assunto: recebe as raízes que a página contém (título + trecho). Antes,
+ * uma única palavra parecida bastava, e entravam páginas sem relação com o pedido (pedido do dono, 10/11/2026).
+ */
+function rank(batches: { query: Query; results: SearxResult[] }[], groups: string[][], pick: number, relevant: (have: Set<string>) => boolean): Omit<SourceHunt, "ms"> {
+  const keys = [...new Set(groups.flat())];
   const seen = new Map<string, Hit>();
   for (const { query, results } of batches) {
     for (const r of results) {
@@ -203,8 +209,9 @@ function rank(batches: { query: Query; results: SearxResult[] }[], terms: string
       const title = clean(r.title ?? "").slice(0, 200);
       const snippet = clean(r.content ?? "").slice(0, 420);
       const text = fold(`${title} ${snippet}`);
-      const score = keys.reduce((n, k) => n + (fold(title).includes(k) ? 2 : 0) + (text.includes(k) ? 1 : 0), 0);
-      if (!score || !title) continue;
+      const have = new Set(keys.filter((k) => text.includes(k)));
+      if (!title || !relevant(have)) continue;
+      const score = keys.reduce((n, k) => n + (fold(title).includes(k) ? 2 : 0) + (have.has(k) ? 1 : 0), 0);
       const date = r.publishedDate ? Date.parse(r.publishedDate) || null : null;
       const old = seen.get(url);
       if (old) {
@@ -289,7 +296,46 @@ export async function findAnswerSources(question: string, options: { timeoutMs?:
   ];
   let batches = base ? await Promise.all(queries.map((x) => searx(base, x, signal))) : [];
   if (batches.reduce((n, b) => n + b.results.length, 0) < 10 && process.env.BRAVE_API_KEY) batches = [...batches, await brave(q, "web", signal), await brave(q, "notícia nacional", signal)];
-  return { ...rank(batches, q.split(" ").filter((w) => w.length >= 4), 8), ms: Date.now() - started };
+  // Pergunta: a página precisa ter metade ou mais das palavras-chave (no mínimo 2 quando houver 2 ou mais).
+  const keys = roots([q]);
+  const need = keys.length >= 2 ? Math.max(2, Math.ceil(keys.length * 0.5)) : keys.length;
+  return { ...rank(batches, [keys], 8, (have) => keys.filter((k) => have.has(k)).length >= need), ms: Date.now() - started };
+}
+
+/**
+ * Segundo filtro, com o modelo remoto (quando no ar): lê título e trecho de cada fonte escolhida e tira as que não
+ * tratam do pedido. Sem o remoto, ou se ele falhar, ficam as do filtro de palavras.
+ */
+export async function filterRelevant(request: string, web: WebResult[]): Promise<{ kept: WebResult[]; removed: number }> {
+  if (web.length < 2) return { kept: web, removed: 0 };
+  try {
+    const list = web.map((w, i) => `${i + 1}. ${w.title} — ${w.snippet.slice(0, 220)}`).join("\n");
+    const raw = await completeChat(
+      [
+        { role: "system", content: 'Você filtra fontes de pesquisa. Dado um pedido e uma lista numerada de páginas (título e trecho), devolva os números das páginas que tratam diretamente do assunto do pedido e ajudariam a responder ou a fundamentar o texto. Página de outro assunto, que só repete uma palavra, propaganda, loja ou caça-clique fica de fora. Responda só com o JSON compacto: {"relevantes":[1,3]}' },
+        { role: "user", content: `Pedido: """${request.slice(0, 1_500)}"""\n\nPáginas:\n${list}` },
+      ],
+      { target: "remote", json: true, temperature: 0, maxTokens: 120, timeoutMs: 8_000, think: false },
+    );
+    const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { relevantes?: unknown };
+    const ids = new Set((Array.isArray(parsed.relevantes) ? parsed.relevantes : []).map(Number));
+    const kept = web.filter((_, i) => ids.has(i + 1));
+    // Se o filtro tirasse tudo, provavelmente errou: fica a seleção do filtro de palavras.
+    return kept.length ? { kept, removed: web.length - kept.length } : { kept: web, removed: 0 };
+  } catch {
+    return { kept: web, removed: 0 };
+  }
+}
+
+/**
+ * Versão reduzida das fontes para a Kally local (8B na placa de 4 GB). Com as 8 fontes inteiras o prompt do 8B
+ * passou de ~1.600 para 2.900 a 3.800 tokens e a escrita caiu de ~15 para 5 a 6,6 tokens/s (log de 10/11): o texto
+ * parecia travar. A local recebe as 3 primeiras (as mais bem pontuadas), com trecho de até 260 caracteres.
+ *   KALLY_LOCAL_SOURCES = quantas (padrão 3; "0" tira as fontes da local).
+ */
+export function localSources(web: WebResult[]): WebResult[] {
+  const n = Number.isFinite(Number(process.env.KALLY_LOCAL_SOURCES)) && process.env.KALLY_LOCAL_SOURCES !== "" ? Number(process.env.KALLY_LOCAL_SOURCES) : 3;
+  return web.slice(0, Math.max(0, n)).map((w) => ({ ...w, snippet: w.snippet.length > 260 ? `${w.snippet.slice(0, 257).replace(/\s+\S*$/, "")}…` : w.snippet }));
 }
 
 /** No fim, a lista de fontes do post fica só com as que o texto citou (o link aparece na resposta). */

@@ -5,7 +5,7 @@ import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
 import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
 import { createPacer, typeOut } from "@/server/kally/pacer";
-import { autoWebEnabled, citedSources, findAnswerSources, findPostSources, intimateStory, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
+import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
@@ -228,12 +228,14 @@ export async function POST(request: Request, context: EnvContext) {
   }
   // Pedido de conhecimento: fontes da internet automáticas, na local e na remota, para a resposta se apoiar nelas
   // e não afirmar o que não encontrou (post-sources.ts). Fora: papo casual, posts (busca própria) e relato pessoal.
-  let answerHunt: { consulted: number; sites: number; picked: number; ms: number } | null = null;
+  let answerHunt: { consulted: number; sites: number; picked: number; removed: number; ms: number } | null = null;
   const knowledgeAsk = competence === "estudo" || (competence === "analise" && mode !== "revisar") || mode === "aprender" || (mode === "chat" && needsOutsideHelp(posts) && (message.includes("?") || /\b(o que|como|por ?que|quando|quem|qual|quanto|explica|diferen[çc]a)\b/i.test(message)));
   if (!web.length && autoWebEnabled() && !casual && competence !== "post" && mode !== "ideia" && knowledgeAsk && !intimateStory(message)) {
     const hunt = await findAnswerSources(message);
-    web = hunt.picked;
-    answerHunt = { consulted: hunt.consulted, sites: hunt.sites, picked: hunt.picked.length, ms: hunt.ms };
+    // Segundo filtro de assunto com o 32B, se ele estiver no ar (não liga a GPU por isso).
+    const filtered = hunt.picked.length && remoteConfig().enabled && (await remoteHealth()).state === "disponivel" ? await filterRelevant(message, hunt.picked) : { kept: hunt.picked, removed: 0 };
+    web = filtered.kept;
+    answerHunt = { consulted: hunt.consulted, sites: hunt.sites, picked: filtered.kept.length, removed: filtered.removed, ms: hunt.ms };
   }
   // Bases de documentos (pipeline): a institucional e a pessoal de quem pergunta. Num post pessoal
   // só entram os documentos da própria pessoa (referências externas não são fala dela), e só quando ela
@@ -275,6 +277,11 @@ export async function POST(request: Request, context: EnvContext) {
       { mode, competence, casual, interpretation, message, materialChars, sources: posts.length + documents.length, canDraft, thinMaterial, brief: BRIEF.test(message) },
       choice,
     );
+  } else if (dev && choice === "remote" && remoteConfig().enabled) {
+    // Modo dev com a personalidade ligada e "só 32B": o mesmo prompt do modo dev, no remoto.
+    route = { target: "remote", reason: "modo dev: só 32B" };
+  }
+  {
     if (route.target === "remote") {
       const health = await remoteHealth();
       if (health.state !== "disponivel") {
@@ -318,7 +325,7 @@ export async function POST(request: Request, context: EnvContext) {
       send({ sources });
       let answer = "";
       let postWeb: WebResult[] = [];
-      let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; ms: number } | null = null;
+      let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
       let modelName: string | null = null;
@@ -349,8 +356,10 @@ export async function POST(request: Request, context: EnvContext) {
             if (terms.pt.length && !cancel.signal.aborted) {
               send({ status: `Pesquisando ${terms.pt.join(", ")} em notícias, redes sociais e sites…` });
               const hunt = await findPostSources(terms);
-              sourceHunt = { terms: terms.pt, consulted: hunt.consulted, sites: hunt.sites, byKind: hunt.byKind, picked: hunt.picked.length, ms: hunt.ms };
-              const found = hunt.picked.filter((f) => !web.some((w) => w.url === f.url));
+              // Segundo filtro: o 32B confere se cada fonte trata do que ela escreveu (post-sources.ts).
+              const filtered = await filterRelevant(ownWords, hunt.picked);
+              sourceHunt = { terms: terms.pt, consulted: hunt.consulted, sites: hunt.sites, byKind: hunt.byKind, picked: filtered.kept.length, removed: filtered.removed, ms: hunt.ms };
+              const found = filtered.kept.filter((f) => !web.some((w) => w.url === f.url));
               if (found.length) {
                 send({ status: `Li ${hunt.consulted} fontes em ${hunt.sites} sites. Escrevendo o rascunho…` });
                 postWeb = found;
@@ -365,11 +374,17 @@ export async function POST(request: Request, context: EnvContext) {
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
             : null;
-          const prompt = competenceArgs
-            ? buildCompetencePrompt(competenceArgs)
-            : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
+          const promptWith = (w: WebResult[]) =>
+            competenceArgs
+              ? buildCompetencePrompt({ ...competenceArgs, web: w })
+              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
+          // Local (8B): versão reduzida das fontes, para o prompt não pesar na placa (localSources). Remota: todas.
+          const reducedWeb = localSources(web);
+          const prompt = promptWith(reducedWeb);
+          const fullPrompt = reducedWeb.length === web.length && reducedWeb.every((w, i) => w.snippet === web[i].snippet) ? prompt : promptWith(web);
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
-          const model = dev ? devModel(dev) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          // Modo dev com "só 8B": o executor do pipeline (KALLY_EXECUTOR_MODEL), não o modelo experimental.
+          const model = dev ? (choice === "local" ? process.env.KALLY_EXECUTOR_MODEL || devModel(dev) : devModel(dev)) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
           // Servidor de testes (KALLY_EVAL=1): as métricas vão para qualquer conta, para a simulação separar falha de
@@ -417,12 +432,13 @@ export async function POST(request: Request, context: EnvContext) {
             // Prompt do remoto: o mesmo da Kally (material, regras, histórico) + o estilo de alta qualidade no fim.
             const brief = BRIEF.test(message);
             const isPost = competence === "post" && canDraft;
-            const style = remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial });
+            // Modo dev: o prompt do modo, sem o estilo de alta qualidade (a personalidade definida manda no formato).
+            const style = dev ? "" : remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial });
             // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
             // O formato vem do esqueleto do estilo.
-            const base = isPost && competenceArgs && examples.length > 1 ? buildCompetencePrompt({ ...competenceArgs, examples: examples.slice(0, 1) }) : prompt;
+            const base = isPost && competenceArgs && examples.length > 1 ? buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) }) : fullPrompt;
             const last = base[base.length - 1];
-            const remotePrompt = last?.role === "system" ? [...base.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...base, { role: "system" as const, content: style }];
+            const remotePrompt = !style ? base : last?.role === "system" ? [...base.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...base, { role: "system" as const, content: style }];
             const promptTokens = estimateTokens(remotePrompt.map((m) => m.content).join("\n"));
             // Raciocínio escondido nas tarefas difíceis: mais tokens (o pensar conta no teto) e mais prazo para o 1º texto.
             const thinks = remoteThinks({ competence, mode, message, brief });
