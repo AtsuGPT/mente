@@ -1,5 +1,7 @@
 import "server-only";
+import { completeChat } from "@/server/ai";
 import { ollamaJson } from "@/server/ai/ollama";
+import { remoteConfig, remoteHealth } from "@/server/ai/remote";
 import type { LeaseInfo } from "@/server/ai/model-manager";
 import type { CompetenceId } from "./competences/types";
 
@@ -116,6 +118,19 @@ const SYSTEM = [
   "Escreva os campos em português. Responda só com o JSON.",
 ].join("\n");
 
+/** O intérprete no modelo remoto (JSON). null se ele não estiver disponível ou falhar: aí o local interpreta. */
+async function interpretRemote(messages: { role: "system" | "user"; content: string }[]): Promise<Record<string, unknown> | null> {
+  if (!remoteConfig().enabled || (await remoteHealth()).state !== "disponivel") return null;
+  try {
+    const text = await completeChat(messages, { target: "remote", json: true, temperature: 0.1, maxTokens: 600, timeoutMs: 25_000 });
+    const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (cause) {
+    console.warn("Kally interpretador remoto → local:", cause instanceof Error ? cause.message : cause);
+    return null;
+  }
+}
+
 const clip = (value: unknown, max: number) => (typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, max) : "");
 const list = (value: unknown, items: number) => (Array.isArray(value) ? value.map((v) => clip(v, 240)).filter(Boolean).slice(0, items) : []);
 
@@ -132,11 +147,14 @@ export async function interpret(
     input.attachment ? `Anexo "${input.attachment.name}" (início):\n"""${input.attachment.text.slice(0, 1_200)}"""` : "",
   ].filter(Boolean).join("\n\n");
   try {
-    const raw = await ollamaJson<Record<string, unknown>>(
-      [{ role: "system", content: SYSTEM }, { role: "user", content }],
-      SCHEMA,
-      { model, temperature: 0.1, numPredict: 500, timeoutMs: 90_000, onLease: (info) => (lease = info) },
-    );
+    // Com o modelo remoto no ar, ele interpreta (mais rápido e mais preciso que o local); senão, o local.
+    const raw =
+      (await interpretRemote([{ role: "system", content: `${SYSTEM}\nChaves do JSON: competencia, intencao, pontos, estrutura, lacunas, profundidade.` }, { role: "user", content }])) ??
+      (await ollamaJson<Record<string, unknown>>(
+        [{ role: "system", content: SYSTEM }, { role: "user", content }],
+        SCHEMA,
+        { model, temperature: 0.1, numPredict: 500, timeoutMs: 90_000, onLease: (info) => (lease = info) },
+      ));
     const competencia = COMPETENCES.includes(raw?.competencia as Competence) ? (raw!.competencia as Competence) : null;
     const result: Interpretation | null = raw && competencia
       ? {

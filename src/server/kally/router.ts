@@ -48,6 +48,9 @@ export function routeModel(s: RouteSignals, choice: ModelChoice = "auto"): Route
   if (choice === "local") return { target: "local", reason: "escolha explícita: local" };
   if (choice === "remote") return { target: "remote", reason: "escolha explícita: remoto" };
   if (s.casual) return { target: "local", reason: "papo casual" };
+  // KALLY_REMOTE_PRIORITY="qualidade": com o remoto rápido (~25–35 tokens/s no Qwen3-32B), tudo o que não é
+  // papo casual vai para ele; o local fica com o papo e com o fallback.
+  if (process.env.KALLY_REMOTE_PRIORITY === "qualidade") return { target: "remote", reason: "prioridade de qualidade" };
   if (s.brief) return { target: "local", reason: "pedido de resposta curta" };
   const deep = s.interpretation?.profundidade === "aprofundada";
   if (s.competence === "post") {

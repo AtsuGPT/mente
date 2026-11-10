@@ -3,6 +3,7 @@ import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/a
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
+import { remoteMaxTokens, remoteStyle } from "@/server/kally/remote-style";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -375,8 +376,15 @@ export async function POST(request: Request, context: EnvContext) {
           const runRemote = async (): Promise<boolean> => {
             const cfg = remoteConfig();
             const health = await remoteHealth();
-            const promptTokens = estimateTokens(prompt.map((m) => m.content).join("\n"));
-            const remoteMax = health.maxModelLen ? Math.min(maxTokens, health.maxModelLen - promptTokens - 64) : maxTokens;
+            // Prompt do remoto: o mesmo da Kally (material, regras, histórico) + o estilo de alta qualidade no fim.
+            const brief = BRIEF.test(message);
+            const isPost = competence === "post" && canDraft;
+            const style = remoteStyle({ competence, brief, post: isPost });
+            const last = prompt[prompt.length - 1];
+            const remotePrompt = last?.role === "system" ? [...prompt.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...prompt, { role: "system" as const, content: style }];
+            const promptTokens = estimateTokens(remotePrompt.map((m) => m.content).join("\n"));
+            const wanted = Math.max(maxTokens, remoteMaxTokens(competence, brief, isPost));
+            const remoteMax = health.maxModelLen ? Math.min(wanted, health.maxModelLen - promptTokens - 64) : wanted;
             if (remoteMax < 512) {
               remoteFallback = `contexto do remoto (${health.maxModelLen}) pequeno para ~${promptTokens} tokens de prompt`;
               return false;
@@ -385,7 +393,7 @@ export async function POST(request: Request, context: EnvContext) {
             const timer = setTimeout(() => firstToken.abort(), cfg.firstTokenMs);
             let gotText = false;
             try {
-              const chunks = await openChatStream(prompt, { temperature, maxTokens: remoteMax, target: "remote", signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
+              const chunks = await openChatStream(remotePrompt, { temperature: Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
               modelName = cfg.model;
               for await (const chunk of chunks) {
                 if (!gotText) {
