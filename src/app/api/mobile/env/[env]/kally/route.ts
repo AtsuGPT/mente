@@ -4,8 +4,9 @@ import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
 import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
-import { createPacer } from "@/server/kally/pacer";
-import { citedSources, findPostSources, intimateStory, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
+import { createPacer, typeOut } from "@/server/kally/pacer";
+import { autoWebEnabled, citedSources, findAnswerSources, findPostSources, intimateStory, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
+import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -225,6 +226,15 @@ export async function POST(request: Request, context: EnvContext) {
     const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
     web = await searchWeb(webQuery, 4);
   }
+  // Pedido de conhecimento: fontes da internet automáticas, na local e na remota, para a resposta se apoiar nelas
+  // e não afirmar o que não encontrou (post-sources.ts). Fora: papo casual, posts (busca própria) e relato pessoal.
+  let answerHunt: { consulted: number; sites: number; picked: number; ms: number } | null = null;
+  const knowledgeAsk = competence === "estudo" || (competence === "analise" && mode !== "revisar") || mode === "aprender" || (mode === "chat" && needsOutsideHelp(posts) && (message.includes("?") || /\b(o que|como|por ?que|quando|quem|qual|quanto|explica|diferen[çc]a)\b/i.test(message)));
+  if (!web.length && autoWebEnabled() && !casual && competence !== "post" && mode !== "ideia" && knowledgeAsk && !intimateStory(message)) {
+    const hunt = await findAnswerSources(message);
+    web = hunt.picked;
+    answerHunt = { consulted: hunt.consulted, sites: hunt.sites, picked: hunt.picked.length, ms: hunt.ms };
+  }
   // Bases de documentos (pipeline): a institucional e a pessoal de quem pergunta. Num post pessoal
   // só entram os documentos da própria pessoa (referências externas não são fala dela), e só quando ela
   // pede para usar as anotações ou documentos: o post é público e os documentos são privados. Na simulação
@@ -308,6 +318,8 @@ export async function POST(request: Request, context: EnvContext) {
       send({ sources });
       let answer = "";
       let postWeb: WebResult[] = [];
+      let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; ms: number } | null = null;
+      let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
       let modelName: string | null = null;
       let stats = null as GenerationStats | null;
@@ -328,17 +340,21 @@ export async function POST(request: Request, context: EnvContext) {
           ].join("");
           send({ text: answer });
         } else {
-          // Post na remota: fontes reais (Wikipédia por padrão) sobre os conceitos gerais do tema, citadas com link.
-          // Só os termos gerais saem do servidor (post-sources.ts); a pessoa vê a etapa enquanto espera.
+          // Post na remota: fontes reais e diversas (notícias nacionais e globais, redes sociais, referências, vídeos)
+          // sobre os conceitos gerais do tema, citadas com link. Só os termos gerais saem do servidor (post-sources.ts);
+          // a pessoa vê cada etapa enquanto espera.
           if (route.target === "remote" && competence === "post" && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
-            send({ status: "Procurando fontes para o seu post…" });
-            const terms = interpretation?.termos ?? (await postSearchTerms(ownWords));
-            if (terms.length && !cancel.signal.aborted) {
-              send({ status: `Lendo sobre ${terms.join(", ")}…` });
-              const found = (await findPostSources(terms)).filter((f) => !web.some((w) => w.url === f.url));
+            send({ status: "Escolhendo o que pesquisar para o seu post…" });
+            const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
+            if (terms.pt.length && !cancel.signal.aborted) {
+              send({ status: `Pesquisando ${terms.pt.join(", ")} em notícias, redes sociais e sites…` });
+              const hunt = await findPostSources(terms);
+              sourceHunt = { terms: terms.pt, consulted: hunt.consulted, sites: hunt.sites, byKind: hunt.byKind, picked: hunt.picked.length, ms: hunt.ms };
+              const found = hunt.picked.filter((f) => !web.some((w) => w.url === f.url));
               if (found.length) {
+                send({ status: `Li ${hunt.consulted} fontes em ${hunt.sites} sites. Escrevendo o rascunho…` });
                 postWeb = found;
-                web = [...web, ...found].slice(0, 5);
+                web = [...web, ...found].slice(0, 16);
                 sources = toSources(posts, web, documents);
                 send({ sources });
               }
@@ -421,6 +437,11 @@ export async function POST(request: Request, context: EnvContext) {
             let gotText = false;
             // O texto do vLLM chega em rajadas: o pacer solta em ritmo constante (pacer.ts).
             const pacer = createPacer(emit, cancel.signal);
+            // Post: o rascunho é escrito inteiro, passa pela revisão de fidelidade (post-review.ts) e só então aparece.
+            // Enquanto isso, a pessoa vê o andamento (palavras escritas, revisão).
+            const collect = isPost && postReviewEnabled();
+            let draft = "";
+            let lastStatus = 0;
             if (thinks) send({ status: "Conferindo o raciocínio antes de escrever…" });
             try {
               // Post a 0,2 (a 0,4 saíam palavras truncadas como "escre-las" e mais detalhes inventados); o resto a 0,4 ou mais.
@@ -431,15 +452,34 @@ export async function POST(request: Request, context: EnvContext) {
                   gotText = true;
                   clearTimeout(timer);
                 }
-                if (!firstText) firstText = Date.now();
-                pacer.push(cleaner.push(chunk));
+                const part = cleaner.push(chunk);
+                if (!collect) {
+                  if (!firstText) firstText = Date.now();
+                  pacer.push(part);
+                  continue;
+                }
+                draft += part;
+                if (Date.now() - lastStatus > 1_500) {
+                  lastStatus = Date.now();
+                  send({ status: `Escrevendo o rascunho… ${draft.split(/\s+/).filter(Boolean).length} palavras` });
+                }
               }
-              await pacer.finish();
+              if (collect) {
+                draft += cleaner.flush();
+                send({ status: "Conferindo se tudo veio de você e das fontes…" });
+                const checked = await reviewPostFidelity({ ownWords, sources: web, draft });
+                postReview = { applied: checked.applied, proposed: checked.proposed, ms: checked.ms, ok: checked.ok };
+                firstText = Date.now();
+                await typeOut(checked.text, emit, cancel.signal);
+              } else {
+                await pacer.finish();
+              }
               noteRemoteUse();
               return true;
             } catch (cause) {
               pacer.flushNow();
-              if (cancel.signal.aborted || gotText) throw cause;
+              // Nada chegou à pessoa ainda (inclusive no post, que só aparece no fim): dá para cair para o local.
+              if (cancel.signal.aborted || answer) throw cause;
               remoteFallback = firstToken.signal.aborted ? `remoto sem 1º texto em ${cfg.firstTokenMs} ms` : `remoto falhou: ${cause instanceof Error ? cause.message : String(cause)}`;
               console.warn("Kally: remoto → local:", remoteFallback);
               return false;
@@ -471,6 +511,8 @@ export async function POST(request: Request, context: EnvContext) {
             const report = {
               ...(stats ?? { model: modelName }),
               backend: { target: route.target, reason: route.reason, fallback: remoteFallback },
+              ...(sourceHunt ? { sources: sourceHunt } : {}),
+              ...(postReview ? { postReview } : {}),
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
               ...(evalEnvironment
@@ -537,6 +579,10 @@ export async function POST(request: Request, context: EnvContext) {
             interpreter: interpreterReport,
             // roteamento: onde respondeu, por quê e, se caiu para o local, o motivo (sem conteúdo do pedido)
             backend: { target: route.target, reason: route.reason, choice, fallback: remoteFallback },
+            // fontes do post (quantas páginas e sites, sem o texto) e revisão de fidelidade
+            postSources: sourceHunt,
+            answerSources: answerHunt,
+            postReview,
             executor: modelName
               ? {
                   model: modelName,

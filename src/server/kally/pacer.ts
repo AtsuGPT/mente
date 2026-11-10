@@ -8,6 +8,24 @@ const TICK_MS = 40;
 const WINDOW_MS = 360;
 const MIN_CHARS = 3;
 
+/**
+ * Texto já pronto (o post revisado): sai em pedaços, em ~CHARS_PER_SECOND, cortando em espaço, para o app
+ * mostrar o rascunho se formando sem receber o texto inteiro de uma vez.
+ */
+const CHARS_PER_SECOND = 1_800;
+export async function typeOut(text: string, emit: (text: string) => void, signal: AbortSignal) {
+  const step = Math.ceil((CHARS_PER_SECOND * TICK_MS) / 1_000);
+  let at = 0;
+  while (at < text.length && !signal.aborted) {
+    let end = Math.min(text.length, at + step);
+    const space = text.indexOf(" ", end);
+    if (end < text.length && space > 0 && space - end < 20) end = space + 1;
+    emit(text.slice(at, end));
+    at = end;
+    if (at < text.length) await new Promise((resolve) => setTimeout(resolve, TICK_MS));
+  }
+}
+
 export function createPacer(emit: (text: string) => void, signal: AbortSignal) {
   let queue = "";
   let timer: ReturnType<typeof setInterval> | null = null;

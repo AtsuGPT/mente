@@ -69,6 +69,9 @@ O que mudou, em ordem dos commits:
 | `KALLY_REMOTE_NO_THINK` | desligado | `"1"` pede `enable_thinking: false` (Qwen3 híbrido, ex.: Qwen3-32B) |
 | `KALLY_REMOTE_THINK` | automático | raciocínio do 32B só em código, contas e leis; `"nunca"` ou `"sempre"` mudam o padrão |
 | `KALLY_POST_SOURCES` | ligado | `"0"` desliga as fontes da internet nos posts da Kally remota |
+| `KALLY_POST_REVIEW` | ligado | `"0"` desliga a revisão de fidelidade do post (o rascunho volta a aparecer enquanto é escrito) |
+| `KALLY_AUTO_WEB` | ligado | `"0"` desliga as fontes automáticas nos pedidos de conhecimento (local e remota) |
+| `SEARXNG_URL` | — | buscador SearXNG local (`http://127.0.0.1:8888`, contêiner `kally-searxng`); sem ele, `BRAVE_API_KEY` |
 | `KALLY_VAST_ENABLED` | desligado | `"1"` liga o controlador da GPU |
 | `KALLY_VAST_API_KEY` / `KALLY_VAST_INSTANCE_ID` | — | chave e instância do Vast.ai |
 | `KALLY_GPU_AUTOSTART` | desligado | `"1"`: um pedido que precisa do remoto liga a GPU (a resposta dele sai no local) |
@@ -119,8 +122,20 @@ contou, e o conhecimento que explica o que ela percebeu, só de fontes reais, ci
 1. O interpretador remoto devolve até 3 conceitos gerais do tema (`termos`), sem nada pessoal. Sem
    interpretador, uma chamada curta ao 32B faz o mesmo (`post-sources.ts`). Só esses termos saem do
    servidor; o texto da pessoa nunca vai para a pesquisa.
-2. Cada termo é pesquisado (`SEARCH_PROVIDER`, padrão Wikipédia em português, com o resumo do artigo).
-   Artigos cujo título não tem relação com o termo são descartados.
+2. Cada termo é pesquisado ao mesmo tempo no SearXNG local, em várias frentes: web em português e inglês,
+   notícias nacionais e globais, redes sociais (Reddit, X, Instagram, TikTok, LinkedIn, Mastodon, Lemmy) e
+   vídeos, sem Wikipédia. Nos testes de 10/11: 394 a 922 páginas relacionadas em 118 a 398 sites, em ~8 s.
+   Referências e veículos conhecidos sobem na pontuação e títulos caça-clique descem; vão até 14 para o
+   modelo, no máximo 2 por site. Reserva: Brave Search (`BRAVE_API_KEY`).
+3. Revisão de fidelidade (`post-review.ts`): o rascunho é escrito inteiro, vai numerado frase por frase a uma
+   segunda chamada, que aponta o que afirma sobre a pessoa algo que ela não disse e o gênero que ela não
+   revelou. Essas frases saem (nunca as dela nem as que citam fonte) e só então o rascunho aparece. A pessoa
+   vê o andamento ("Li 552 fontes em 244 sites", "Escrevendo o rascunho… 300 palavras", "Conferindo…").
+   Custa 2 a 19 s; o post completo leva ~45 a 80 s.
+
+Pedidos de conhecimento (estudo, análise, aprender, pergunta que o ambiente não responde), na local e na
+remota, também recebem fontes automáticas (3 consultas, ~2 a 3 s, até 8 fontes), e a regra comum manda
+responder apoiado nelas e dizer que não encontrou quando nem o ambiente nem as fontes trazem a resposta.
 3. O rascunho usa os recursos do editor com função (subtítulos que dizem a ideia, citação com a frase
    dela, tabela quando ela compara, `:::details[Para saber mais]`, seção "Referências").
 4. No fim, a lista de fontes do app fica só com as que o texto citou.
