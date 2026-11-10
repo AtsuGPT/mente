@@ -24,7 +24,8 @@ import { clearRemoteBooting, markRemoteBooting, remoteHealth } from "@/server/ai
  * Ao religar, a instância pode esperar indefinidamente se a GPU foi alugada por outra pessoa.
  */
 
-const API = "https://console.vast.ai/api/v0";
+// KALLY_VAST_API_URL só existe para testes (um Vast.ai falso); o padrão é a API oficial.
+const API = () => (process.env.KALLY_VAST_API_URL || "https://console.vast.ai/api/v0").replace(/\/+$/, "");
 const STATE_FILE = () => path.join(process.cwd(), ".cache", "kally-gpu.json");
 const START_COOLDOWN_MS = 10 * 60_000;
 
@@ -96,7 +97,7 @@ function accrue(s: GpuState) {
 
 async function vast(method: "GET" | "PUT", body?: Record<string, unknown>) {
   const { instanceId } = gpuConfig();
-  const r = await fetch(`${API}/instances/${encodeURIComponent(instanceId)}/`, {
+  const r = await fetch(`${API()}/instances/${encodeURIComponent(instanceId)}/`, {
     method,
     headers: { Authorization: `Bearer ${process.env.KALLY_VAST_API_KEY}`, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
@@ -122,6 +123,7 @@ export type GpuStatus = {
 
 export async function gpuStatus(): Promise<GpuStatus> {
   const cfg = gpuConfig();
+  ensureGpuWatcher();
   const s = load();
   let instance: string | null = null;
   let intended: string | null = null;
@@ -172,6 +174,7 @@ export async function startGpu(reason: string): Promise<{ ok: boolean; detail: s
       const current = ((await vast("GET")).instances as Record<string, unknown> | undefined)?.actual_status;
       if (current === "running") {
         s.runningSince ??= Date.now();
+        ensureGpuWatcher();
         return { ok: true, detail: "a instância já estava ligada" };
       }
       s.starts += 1;
@@ -181,6 +184,8 @@ export async function startGpu(reason: string): Promise<{ ok: boolean; detail: s
       s.runningSince = Date.now();
       s.lastError = null;
       markRemoteBooting(cfg.bootTimeoutMs, "a GPU está ligando");
+      // O vigia (inatividade, limite de gasto) começa junto com a instância, venha o pedido de onde vier.
+      ensureGpuWatcher();
       console.info("Kally GPU: ligando a instância:", reason);
       return { ok: true, detail: "ligando" };
     } catch (cause) {
