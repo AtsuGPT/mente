@@ -12,7 +12,7 @@ import { completeChat } from "@/server/ai";
  *     título da parte), sorteadas sem repetir a última usada. Sem custo de modelo (a local não perde tempo).
  */
 
-export type Step = "gpu" | "gpuFalhou" | "postFontes" | "postPesquisa" | "postLeu" | "raciocinio" | "rascunho" | "revisao" | "planejar" | "planoFalhou" | "primeiraParte" | "parte" | "parteRefeita" | "escrevendo";
+export type Step = "gpu" | "gpuFalhou" | "postFontes" | "postPesquisa" | "postLeu" | "raciocinio" | "rascunho" | "revisao" | "planejar" | "planoFalhou" | "primeiraParte" | "parte" | "parteRefeita" | "fechando" | "escrevendo";
 export type Ctx = { tempo?: string; termos?: string; paginas?: number; sites?: number; palavras?: number; partes?: string; label?: string; feito?: string };
 
 const POOLS: Record<Step, ((c: Ctx) => string)[]> = {
@@ -81,6 +81,11 @@ const POOLS: Record<Step, ((c: Ctx) => string)[]> = {
     (c) => `A ${c.label} fugiu um pouco do que você perguntou, então estou reescrevendo para ficar no ponto…`,
     (c) => `Não gostei da ${c.label}: desviou do seu pedido. Refazendo…`,
     (c) => `Reescrevendo a ${c.label} para ela tratar exatamente do que você quer saber…`,
+  ],
+  fechando: [
+    (c) => `Para a resposta chegar inteira em até 5 minutos, a ${c.label} vai concluir com o essencial do que faltava…`,
+    (c) => `O tempo do Aprofundado está no fim: uso a ${c.label} para fechar a resposta, sem deixar nada pela metade…`,
+    (c) => `Fechando na ${c.label}, com o principal do que viria depois, para não passar dos 5 minutos…`,
   ],
   escrevendo: [
     (c) => `${c.feito}. Agora escrevo a resposta…`,

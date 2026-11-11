@@ -59,6 +59,13 @@ No menu de modo, "Modo aprofundado" abre a tela de escolha do modelo e do esfor�
   - Aprofundado: planeja a resposta (JSON com a abertura e 3 a 4 partes) e escreve parte por parte; cada parte
     recebe o plano e o fim do que já foi escrito (~6.000 caracteres), para continuar sem repetir. A última fecha
     com próximos passos. 1 a 3 minutos na remota.
+    **Teto de 5 minutos** com qualquer modelo e pedido (`budgetMs`, do plano à última parte; a espera da GPU ligar
+    fica antes e não entra na conta). Cada parte recebe só os tokens que cabem no tempo que resta, pela velocidade
+    medida. Quando depois dela não caberia outra, ela fecha a resposta (resume em poucas frases o que ficaria para
+    as partes seguintes) e as demais ficam de fora. Se o tempo acabar no meio de uma parte, ela é cortada no último
+    ponto inteiro (`wholeText`: parágrafo, frase ou item de lista completo; bloco de código aberto sai inteiro).
+    Na Kally 1.5 (~8 tokens/s), isso costuma dar uma parte só, já de fechamento. O registro guarda `skipped`,
+    `trimmed` e `ms`.
   - Máximo: 5 a 6 partes, com o raciocínio do 32B ligado em cada uma. 3 a 6 minutos na remota.
   Com esforço acima do normal e modelo Automático, o pedido vai para a remota. Na local, cada parte leva minutos; a
   tela avisa antes. Papo casual, posts (que têm revisão própria) e o modo ideia continuam com uma resposta só.

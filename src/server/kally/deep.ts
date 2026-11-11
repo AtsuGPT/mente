@@ -58,11 +58,34 @@ export async function onTopic(request: string, text: string): Promise<{ ok: bool
 export type Effort = "normal" | "aprofundado" | "maximo";
 export const effortFrom = (value: unknown): Effort => (value === "aprofundado" || value === "maximo" ? value : "normal");
 
-export const EFFORTS: Record<Exclude<Effort, "normal">, { parts: string; min: number; max: number; tokens: number; think: boolean }> = {
+/**
+ * budgetMs: tempo máximo da resposta em partes, do plano à última parte (null = sem teto). O Aprofundado tem 5 minutos
+ * com qualquer modelo e qualquer pedido (decisão do dono do projeto, 11/11/2026): sem teto, com a Kally 1.5 ele passava
+ * de 10 minutos e virava um Máximo. Perto do fim, a parte seguinte fecha a resposta e as que não cabem ficam de fora
+ * (route.ts, runDeep); nada é cortado no meio da frase.
+ */
+export const EFFORTS: Record<Exclude<Effort, "normal">, { parts: string; min: number; max: number; tokens: number; think: boolean; budgetMs: number | null }> = {
   // Folga para tabelas e exemplos; se ainda assim bater no limite, a parte continua sozinha (route.ts, continueFrom).
-  aprofundado: { parts: "3 ou 4", min: 3, max: 4, tokens: 1_800, think: false },
-  maximo: { parts: "5 ou 6", min: 5, max: 6, tokens: 2_200, think: true },
+  aprofundado: { parts: "3 ou 4", min: 3, max: 4, tokens: 1_800, think: false, budgetMs: 5 * 60_000 },
+  maximo: { parts: "5 ou 6", min: 5, max: 6, tokens: 2_200, think: true, budgetMs: null },
 };
+
+/**
+ * Corta o texto no último ponto inteiro (parágrafo ou frase completa) quando ele parou antes do fim: estourou o tempo
+ * ou o limite de tokens sem poder continuar. Bloco de código ou diagrama aberto sai inteiro.
+ */
+export function wholeText(text: string) {
+  let t = text.trimEnd();
+  if ((t.match(/```/g) ?? []).length % 2 === 1) t = t.slice(0, t.lastIndexOf("```")).trimEnd();
+  if (/[.!?:)»"”]$|\|$/.test(t)) return t;
+  const paragraph = t.lastIndexOf("\n\n");
+  const sentence = Math.max(...[". ", "! ", "? ", ".\n", "!\n", "?\n"].map((m) => t.lastIndexOf(m)));
+  // Item de lista cortado: sai só a última linha (os itens de cima estão inteiros).
+  const line = t.lastIndexOf("\n");
+  const listCut = line > 0 && /^\s*(?:[-*+]|\d+[.)])\s/.test(t.slice(line + 1)) ? line : -1;
+  const cut = Math.max(sentence > paragraph ? sentence + 1 : paragraph, listCut);
+  return cut > 0 ? t.slice(0, cut).trimEnd() : t;
+}
 
 export type Plan = { abertura: string; partes: { titulo: string; objetivo: string }[] };
 
@@ -105,9 +128,12 @@ function tail(text: string, max = 6_000) {
 }
 
 /** Prompt de uma parte: o mesmo da Kally (material, regras, memória) + plano + o que já foi escrito + a tarefa. */
-export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string, request: string, retry = false): AiMessage[] {
+/** final: o tempo da resposta está no fim e esta parte fecha a resposta, mesmo que o plano tivesse mais partes. */
+export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string, request: string, retry = false, final = false): AiMessage[] {
   const part = plan.partes[index];
-  const last = index === plan.partes.length - 1;
+  const early = final && index < plan.partes.length - 1;
+  const last = index === plan.partes.length - 1 || final;
+  const rest = plan.partes.slice(index + 1).map((p) => p.titulo).join("; ");
   const outline = plan.partes.map((p, i) => `${i + 1}. ${p.titulo}: ${p.objetivo}`).join("\n");
   const task = [
     `RESPOSTA EM PARTES: parte ${index + 1} de ${plan.partes.length}. Pedido da pessoa: """${request.slice(0, 1_500)}"""`,
@@ -120,7 +146,11 @@ export function partPrompt(base: AiMessage[], plan: Plan, index: number, written
     `O que esta parte entrega: ${part.objetivo}`,
     "Desenvolva de verdade (explicação, exemplo concreto, nuance), com tabela, diagrama ```mermaid, lista ou exemplo quando a parte pedir. Não anuncie as próximas partes, não diga \"nesta parte\" e não volte ao que já foi escrito.",
     "Formato: subtítulos com ## (um por parte; ### dentro dela, se precisar), listas e tabelas Markdown com linha de cabeçalho. Fórmulas em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ), nunca LaTeX ($, \\frac, \\cdot) nem blocos ```math; nada de HTML.",
-    last ? "É a última parte: feche com aplicação prática e 2 ou 3 próximos passos concretos, sem resumir tudo de novo." : "Não escreva conclusão: a resposta continua na próxima parte.",
+    early
+      ? `É a última parte: o tempo desta resposta acabou. Entregue o que esta parte promete, de forma mais enxuta, toque em poucas frases no essencial do que ficaria para depois (${rest}) e feche com aplicação prática e 2 ou 3 próximos passos concretos.`
+      : last
+        ? "É a última parte: feche com aplicação prática e 2 ou 3 próximos passos concretos, sem resumir tudo de novo."
+        : "Não escreva conclusão: a resposta continua na próxima parte.",
     retry ? `ATENÇÃO: a versão anterior desta parte saiu do assunto e foi descartada. Escreva de novo tratando só do pedido da pessoa ("${request.slice(0, 300)}"), usando os termos dele.` : "",
   ].filter(Boolean);
   return [...base, { role: "system", content: task.join("\n") }];

@@ -9,7 +9,7 @@ import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPo
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
 import { essentialOf } from "@/server/kally/essential";
-import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer } from "@/server/kally/deep";
+import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer, wholeText } from "@/server/kally/deep";
 import { markDone, markRunning } from "@/server/kally/running";
 import { personalOpener, say } from "@/server/kally/narration";
 import { latexToText } from "@/server/kally/math-text";
@@ -480,7 +480,7 @@ export async function POST(request: Request, context: EnvContext) {
       let answer = "";
       let postWeb: WebResult[] = [];
       let continuations = 0;
-      let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number } | null = null;
+      let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number; skipped: number; trimmed: number; ms: number } | null = null;
       let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
@@ -706,58 +706,107 @@ export async function POST(request: Request, context: EnvContext) {
             const own = competenceArgs ? withMemory(buildCompetencePrompt({ ...competenceArgs, examples: [], web: remote ? web : localSources(web) })) : remote ? fullPrompt : prompt;
             const lastMsg = own[own.length - 1];
             const base = !style ? own : lastMsg?.role === "system" ? [...own.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...own, { role: "system" as const, content: style }];
+            // Teto de tempo (Aprofundado: 5 minutos, com qualquer modelo): conta do plano à última parte.
+            const deadline = deep.budgetMs ? Date.now() + deep.budgetMs : null;
+            const left = () => (deadline ? deadline - Date.now() : Number.POSITIVE_INFINITY);
             send({ status: say("planejar", { partes: deep.parts }), step: "planejar" });
             const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
             if (!plan || cancel.signal.aborted) {
               send({ status: say("planoFalhou"), step: "plano-falhou" });
               return false;
             }
-            deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local", retried: 0, dropped: 0 };
+            deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local", retried: 0, dropped: 0, skipped: 0, trimmed: 0, ms: 0 };
+            const deepStarted = Date.now();
             send({ status: `Planejei ${plan.partes.length} partes: ${plan.partes.map((p) => `«${p.titulo}»`).join(" · ")}.`, step: "plano" });
-            /** Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). */
-            const writePart = async (messages: AiMessage[]) => {
+            // Velocidade medida da geração (tokens/s), para caber a parte no tempo que resta; antes da 1ª parte, uma estimativa.
+            let rate = remote ? 35 : 8;
+            const partMs: number[] = [];
+            /**
+             * Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). Com teto de tempo, a
+             * parte para quando o tempo acaba e é cortada no último ponto inteiro (wholeText): nunca no meio da frase.
+             */
+            const writePart = async (messages: AiMessage[], maxTokens: number) => {
               let text = "";
               let current = messages;
-              for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
-                let reason = "other" as FinishReason;
-                if (remote) {
-                  const thinkPart = round === 0 && (deep.think || remoteThinks({ competence, mode, message, brief: false }));
-                  const chunks = await openChatStream(current, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st), onFinish: (r) => (reason = r) });
-                  modelName = remoteConfig().model;
-                  for await (const chunk of chunks) text += cleaner.push(chunk);
-                } else {
-                  for await (const chunk of streamChat(current, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, onFinish: (r) => (reason = r), ...extra })) text += cleaner.push(chunk);
+              let unfinished = false;
+              const timeUp = new AbortController();
+              const timer = deadline ? setTimeout(() => timeUp.abort(), Math.max(0, left())) : null;
+              const signal = AbortSignal.any([cancel.signal, timeUp.signal]);
+              try {
+                for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+                  let reason = "other" as FinishReason;
+                  if (remote) {
+                    const thinkPart = round === 0 && (deep.think || remoteThinks({ competence, mode, message, brief: false }));
+                    const chunks = await openChatStream(current, { temperature: 0.4, maxTokens: maxTokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal, onStats: (st) => (stats = st), onFinish: (r) => (reason = r) });
+                    modelName = remoteConfig().model;
+                    for await (const chunk of chunks) text += cleaner.push(chunk);
+                  } else {
+                    for await (const chunk of streamChat(current, { temperature, maxTokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal, onFinish: (r) => (reason = r), ...extra })) text += cleaner.push(chunk);
+                  }
+                  text += cleaner.flush();
+                  if (reason !== "length" || signal.aborted) break;
+                  // Sem tempo para continuar: fica o que cabe, cortado num ponto inteiro.
+                  if (left() < 20_000) {
+                    unfinished = true;
+                    break;
+                  }
+                  continuations += 1;
+                  current = continueFrom(messages, text);
                 }
+              } catch (cause) {
+                // Só o fim do tempo é tratado aqui (fica o que já foi escrito); o Parar e as falhas seguem para fora.
+                if (cancel.signal.aborted || !timeUp.signal.aborted) throw cause;
                 text += cleaner.flush();
-                if (reason !== "length" || cancel.signal.aborted) break;
-                continuations += 1;
-                current = continueFrom(messages, text);
+                unfinished = true;
+              } finally {
+                if (timer) clearTimeout(timer);
               }
-              return text.trim();
+              if (stats?.tokensPerSecond) rate = stats.tokensPerSecond;
+              if (unfinished && deepReport) deepReport.trimmed += 1;
+              return (unfinished ? wholeText(text) : text).trim();
             };
             try {
               for (const [i, part] of plan.partes.entries()) {
                 if (cancel.signal.aborted) break;
+                const partStarted = Date.now();
+                const average = partMs.length ? partMs.reduce((a, b) => a + b, 0) / partMs.length : null;
+                // Sem tempo nem para uma parte curta: as que faltam ficam de fora (a anterior já fechou, se deu para prever).
+                if (i > 0 && left() < 25_000) {
+                  deepReport.skipped = plan.partes.length - i;
+                  break;
+                }
+                // Depois desta não haveria tempo para outra: esta fecha a resposta. Antes da 1ª parte, a estimativa vem da
+                // velocidade (uma parte costuma usar ~70% do limite): no 8B, a 1ª parte sozinha pode levar quase os 5 minutos.
+                const estimate = average ?? ((deep.tokens * 0.7) / rate) * 1000;
+                const final = deadline !== null && i < plan.partes.length - 1 && left() < estimate * 2;
                 const label = `parte ${i + 1} de ${plan.partes.length}: ${part.titulo}`;
-                send({ status: say(i === 0 ? "primeiraParte" : "parte", { label }), step: `parte-${i}` });
-                // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez e,
-                // se continuar fora, não entra na resposta.
-                let text = await writePart(partPrompt(base, plan, i, answer, message));
+                send({ status: say(final ? "fechando" : i === 0 ? "primeiraParte" : "parte", { label }), step: `parte-${i}` });
+                // Tokens que cabem no tempo que resta (com folga), sem passar do limite normal da parte.
+                const budget = () => (deadline ? Math.max(300, Math.min(deep.tokens, Math.floor(((left() - 10_000) / 1000) * rate * 0.85))) : deep.tokens);
+                // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez (se
+                // houver tempo) e, se continuar fora, não entra na resposta.
+                let text = await writePart(partPrompt(base, plan, i, answer, message, false, final), budget());
                 let check = await onTopic(message, text);
-                if (!check.ok && !cancel.signal.aborted) {
+                if (!check.ok && !cancel.signal.aborted && left() > (average ?? 60_000)) {
                   deepReport.retried += 1;
                   send({ status: say("parteRefeita", { label }), step: `parte-${i}-refeita` });
-                  text = await writePart(partPrompt(base, plan, i, answer, message, true));
+                  text = await writePart(partPrompt(base, plan, i, answer, message, true, final), budget());
                   check = await onTopic(message, text);
                 }
+                partMs.push(Date.now() - partStarted);
                 if (!check.ok || !text) {
                   deepReport.dropped += 1;
                   console.warn("Kally em partes: parte fora do assunto descartada:", part.titulo, check);
-                  continue;
+                } else {
+                  if (!firstText) firstText = Date.now();
+                  await typeOut(`${answer ? "\n\n" : ""}${text}`, emit, cancel.signal);
                 }
-                if (!firstText) firstText = Date.now();
-                await typeOut(`${answer ? "\n\n" : ""}${text}`, emit, cancel.signal);
+                if (final) {
+                  deepReport.skipped = plan.partes.length - i - 1;
+                  break;
+                }
               }
+              deepReport.ms = Date.now() - deepStarted;
               send({ status: "" });
               if (remote) noteRemoteUse();
               return true;

@@ -1032,9 +1032,11 @@ function Kally() {
             `Respostas com **${MODEL_LABEL[next.model]}** e esforço **${EFFORT_LABEL[next.effort].toLowerCase()}**.` +
               (next.effort === "normal"
                 ? ""
-                : next.model === "local"
-                  ? " A resposta vem em partes e, com a Kally 1.5, pode passar de 10 minutos."
-                  : ` A resposta vem em partes e demora mais (${next.effort === "maximo" ? "3 a 6" : "1 a 3"} minutos${next.model === "remote" ? "" : " com a Kally 32"}).`),
+                : next.effort === "aprofundado"
+                  ? " A resposta vem em partes e leva no máximo 5 minutos."
+                  : next.model === "local"
+                    ? " A resposta vem em partes e, com a Kally 1.5, pode passar de 10 minutos."
+                    : ` A resposta vem em partes e demora mais (3 a 6 minutos${next.model === "remote" ? "" : " com a Kally 32"}).`),
           );
         }}
       />
@@ -1119,7 +1121,7 @@ const MODEL_HINT: Record<AnswerConfig["model"], string> = {
 };
 const EFFORT_HINT: Record<AnswerConfig["effort"], string> = {
   normal: "Uma resposta, no tempo de sempre.",
-  aprofundado: "Planeja e escreve em 3 a 4 partes encadeadas, cada uma coerente com a anterior. Leva de 1 a 3 minutos com a Kally 32 e mais tempo com a Kally 1.5.",
+  aprofundado: "Planeja e escreve em até 4 partes encadeadas, cada uma coerente com a anterior. Leva no máximo 5 minutos: se o tempo apertar, fecha a resposta com menos partes, sem cortar nada no meio.",
   maximo: "5 a 6 partes, conferindo o raciocínio em cada uma. Leva de 3 a 6 minutos com a Kally 32; com a Kally 1.5, pode passar de 10.",
 };
 function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; value: AnswerConfig; onClose: () => void; onSave: (next: AnswerConfig) => void }) {
