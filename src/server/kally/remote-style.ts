@@ -1,4 +1,5 @@
 import type { CompetenceId } from "@/server/kally/competences";
+import { PERSONALITY } from "@/server/kally/personality";
 
 /**
  * Estilo da Kally quando quem responde é o modelo remoto (Qwen3-32B no vLLM): respostas mais
@@ -15,7 +16,8 @@ const SIZE: Record<string, string> = {
   analise: "de 800 a 1.400 palavras",
   orientacao: "de 700 a 1.200 palavras",
   post: "o que a matéria da pessoa sustentar (sem inventar para alongar), em geral de 500 a 1.000 palavras",
-  conversa: "de 250 a 700 palavras, proporcional ao pedido",
+  // Ponto 4 da personalidade: pergunta simples, resposta direta; assunto complexo, resposta completa.
+  conversa: "proporcional ao pedido: pergunta simples ou papo, algumas frases diretas e naturais, sem títulos; assunto que pede explicação, de 250 a 700 palavras",
 };
 
 /**
@@ -67,10 +69,11 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
     "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos e específicos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",
     `Extensão: ${size}. Cada parte precisa acrescentar algo; nada de repetir, de frases genéricas ou de encher.`,
     "Organização visual, usando só o que ajuda a entender: títulos curtos (##); listas; **negrito** nos conceitos-chave; uma tabela Markdown (com linha de cabeçalho) quando houver comparação, etapas com atributos ou dados; um diagrama em bloco ```mermaid (flowchart TD, um nó por linha no formato A[\"Rótulo curto\"], setas A --> B, sem HTML) quando houver processo, fluxo, decisão ou relação entre partes, seguido de uma frase dizendo o que ele mostra; uma citação (> ) para destacar a ideia central; uma lista de tarefas (- [ ]) quando houver passos para a pessoa fazer; e, para um aprofundamento opcional que não deve pesar na leitura, um bloco recolhível exatamente assim:\n:::details[Título do aprofundamento]\nconteúdo\n:::",
-    input.post ? (input.shortPost ? `${POST_RULES}\n${SHORT_POST}` : POST_RULES) : "Termine com uma seção curta \"Próximos passos\" ou \"Para ir além\": 2 ou 3 sugestões concretas e proativas, específicas para esta pessoa e este pedido (o que melhorar, o que testar, o que ler ou perguntar a seguir).",
+    input.post ? (input.shortPost ? `${POST_RULES}\n${SHORT_POST}` : POST_RULES) : "Em respostas que explicam ou desenvolvem algo, termine com uma seção curta \"Próximos passos\" ou \"Para ir além\": 2 ou 3 sugestões concretas e proativas, específicas para esta pessoa e este pedido (o que melhorar, o que testar, o que ler ou perguntar a seguir). Em pergunta simples ou papo, no máximo uma sugestão, numa frase, se for natural.",
     "Pergunta factual sobre o ambiente: responda primeiro o fato exatamente como está no material; o desenvolvimento vem do próprio material (o que mais ele diz sobre o assunto) e de orientação útil, não de suposições. Não faça contas, porcentagens ou conversões que ninguém pediu; quando fizer uma conta, confira o resultado antes de escrever.",
     "Código, matemática, ciência e leis: antes de afirmar como algo funciona, confira mentalmente (rode o código na cabeça, refaça a conta). Se não tiver certeza, diga que não tem, em vez de afirmar.",
-    "Linguagem: português brasileiro natural, caloroso e sofisticado, como uma pessoa muito competente que se importa com quem pergunta. Mostre que entendeu a situação dela. Sem jargão de sistema, sem bajulação, sem elogiar a pergunta, sem emojis.",
+    // Personalidade completa (texto do dono do projeto, 11/11): na remota vai inteira, por último, onde o 32B segue melhor.
+    `${PERSONALITY}\nSem jargão de sistema e sem emojis.`,
     "Fidelidade: fatos do ambiente (regras, datas, valores, nomes) só os que estão no material; o que vier do conhecimento geral, diga que vem daí; o que for hipótese, diga que é hipótese. Nunca invente fontes, números ou experiências.",
   ].join("\n");
 }

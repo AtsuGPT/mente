@@ -111,6 +111,12 @@ const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imag
 type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental"; engine?: "auto" | "8b" | "32b" };
 type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
 const DEV_KEY = "minha-mente.kally-dev.v1";
+/** Como a Kally responde (para qualquer pessoa): o modelo e o esforço. Fica salvo no aparelho. */
+type AnswerConfig = { model: "auto" | "local" | "remote"; effort: "normal" | "aprofundado" | "maximo" };
+const ANSWER_KEY = "minha-mente.kally-resposta.v1";
+const ANSWER_DEFAULT: AnswerConfig = { model: "auto", effort: "normal" };
+const MODEL_LABEL: Record<AnswerConfig["model"], string> = { auto: "Automático", local: "Kally local · 8B", remote: "Kally remota · 32B" };
+const EFFORT_LABEL: Record<AnswerConfig["effort"], string> = { normal: "Normal", aprofundado: "Aprofundado", maximo: "Máximo" };
 /** Constante simples (a rolagem roda na UI thread, onde só valores capturados funcionam). */
 const IS_WEB = Platform.OS === "web";
 const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false, model: "experimental" };
@@ -181,6 +187,8 @@ function Kally() {
     accountApi.kallyDocuments().then((r) => setBaseEnabled(r.enabled), () => setBaseEnabled(false));
   }, [signedUser]);
   const [devSheet, setDevSheet] = useState(false);
+  const [answerCfg, setAnswerCfgState] = useState<AnswerConfig>(ANSWER_DEFAULT);
+  const [answerSheet, setAnswerSheet] = useState(false);
   const list = useAnimatedRef<FlatList<Message>>();
   const attachSeq = useRef(0);
   const { activity, kick } = useKallyActivity();
@@ -297,6 +305,15 @@ function Kally() {
   const setDev = (next: DevConfig) => {
     setDevState(next);
     void setItem(DEV_KEY, JSON.stringify(next)).catch(() => undefined);
+  };
+  useEffect(() => {
+    void getItem(ANSWER_KEY).then((saved) => {
+      if (saved) setAnswerCfgState({ ...ANSWER_DEFAULT, ...(JSON.parse(saved) as Partial<AnswerConfig>) });
+    }).catch(() => undefined);
+  }, []);
+  const setAnswerCfg = (next: AnswerConfig) => {
+    setAnswerCfgState(next);
+    void setItem(ANSWER_KEY, JSON.stringify(next)).catch(() => undefined);
   };
   const notice = (content: string) => setMessages((current) => [...current, { id: newId(), role: "assistant", content, local: true }]);
 
@@ -506,8 +523,9 @@ function Kally() {
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
       dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
-      // Escolha do modo dev: vale com ou sem personalidade ligada, só para o administrador.
-      model: isAdmin && dev.engine === "8b" ? "local" : isAdmin && dev.engine === "32b" ? "remote" : undefined,
+      // Como a Kally responde: o modelo e o esforço que a pessoa escolheu ("Modelo e esforço" no menu de modo).
+      model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
+      effort: answerCfg.effort !== "normal" ? answerCfg.effort : undefined,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -606,7 +624,7 @@ function Kally() {
   // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
-  const engineLabel = isAdmin && dev.engine === "8b" ? " · só 8B" : isAdmin && dev.engine === "32b" ? " · só 32B" : "";
+  const engineLabel = `${answerCfg.model === "local" ? " · 8B" : answerCfg.model === "remote" ? " · 32B" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
   const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}${engineLabel}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
   // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
   // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
@@ -819,6 +837,13 @@ function Kally() {
 
       <Sheet visible={modeMenu} onClose={() => setModeMenu(false)}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
+            <Touchable onPress={() => { setModeMenu(false); setAnswerSheet(true); }} style={styles.modeRow}>
+              <Icon name="sparkle" size={18} color={colors.violet300} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="uiMedium">Modelo e esforço</AppText>
+                <AppText variant="small" color={colors.faint}>{MODEL_LABEL[answerCfg.model]} · {EFFORT_LABEL[answerCfg.effort]}</AppText>
+              </View>
+            </Touchable>
             {isAdmin ? (
             <Touchable onPress={() => { setModeMenu(false); setDevSheet(true); }} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
               <Icon name="settings" size={18} color={dev.active ? colors.warning : colors.muted} />
@@ -840,6 +865,23 @@ function Kally() {
             ))}
       </Sheet>
 
+      <AnswerSheet
+        visible={answerSheet}
+        value={answerCfg}
+        onClose={() => setAnswerSheet(false)}
+        onSave={(next) => {
+          setAnswerCfg(next);
+          setAnswerSheet(false);
+          notice(
+            `Respostas com **${MODEL_LABEL[next.model]}** e esforço **${EFFORT_LABEL[next.effort].toLowerCase()}**.` +
+              (next.effort === "normal"
+                ? ""
+                : next.model === "local"
+                  ? " A resposta vem em partes e, na Kally local, pode passar de 10 minutos."
+                  : ` A resposta vem em partes e demora mais (${next.effort === "maximo" ? "3 a 6" : "1 a 3"} minutos na Kally remota).`),
+          );
+        }}
+      />
       <DevSheet visible={devSheet} value={dev} onClose={() => setDevSheet(false)} onSave={(next) => { setDev(next); setDevSheet(false); notice(next.active ? "Modo desenvolvedor **ligado** com a nova configuração." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }} />
 
       <PostPicker visible={picking} onClose={() => setPicking(false)} onPick={(post) => { setReviewTarget(post); setPicking(false); }} />
@@ -900,12 +942,6 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
           <View style={styles.actions}>
             <Chip label={form.vulgar ? "Linguagem vulgar liberada" : "Sem linguagem vulgar"} selected={form.vulgar} onPress={() => setForm({ ...form, vulgar: !form.vulgar })} />
           </View>
-          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Quem responde (vale também fora do modo desenvolvedor)</AppText>
-          <View style={styles.actions}>
-            <Chip label="Automático" selected={(form.engine ?? "auto") === "auto"} onPress={() => setForm({ ...form, engine: "auto" })} />
-            <Chip label="Só 8B (local)" selected={form.engine === "8b"} onPress={() => setForm({ ...form, engine: "8b" })} />
-            <Chip label="Só 32B (remota)" selected={form.engine === "32b"} onPress={() => setForm({ ...form, engine: "32b" })} />
-          </View>
           <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo (para comparar com as mesmas mensagens)</AppText>
           <View style={styles.actions}>
             <Chip label="Padrão (o da Kally)" selected={form.model === "padrao"} onPress={() => setForm({ ...form, model: "padrao" })} />
@@ -915,6 +951,61 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
             <Button label="Ativar" icon="check" compact onPress={() => onSave({ ...form, active: true })} />
             <Button label="Voltar à Kally padrão" variant="secondary" compact onPress={() => onSave({ ...form, active: false })} />
           </View>
+    </Sheet>
+  );
+}
+
+/** Modelo e esforço: para qualquer pessoa, com o aviso de quanto cada escolha demora. */
+const MODEL_HINT: Record<AnswerConfig["model"], string> = {
+  auto: "A Kally escolhe: a local para papo e pedidos simples, a remota para pedidos maiores.",
+  local: "No seu computador. Começa a responder mais rápido, com respostas mais simples.",
+  remote: "Na GPU alugada. Respostas mais completas e elaboradas. Se ela estiver desligada, liga sozinha (a primeira resposta leva uns 5 minutos).",
+};
+const EFFORT_HINT: Record<AnswerConfig["effort"], string> = {
+  normal: "Uma resposta, no tempo de sempre.",
+  aprofundado: "Planeja e escreve em 3 a 4 partes encadeadas, cada uma coerente com a anterior. Leva de 1 a 3 minutos na Kally remota.",
+  maximo: "5 a 6 partes, conferindo o raciocínio em cada uma. Leva de 3 a 6 minutos na Kally remota.",
+};
+function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; value: AnswerConfig; onClose: () => void; onSave: (next: AnswerConfig) => void }) {
+  const [form, setForm] = useState(value);
+  useEffect(() => {
+    if (visible) setForm(value);
+  }, [visible, value]);
+  const slow = form.effort !== "normal";
+  return (
+    <Sheet visible={visible} onClose={onClose} style={{ gap: space.sm }}>
+      <AppText variant="title">Como a Kally responde</AppText>
+      <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo</AppText>
+      {(Object.keys(MODEL_LABEL) as AnswerConfig["model"][]).map((m) => (
+        <Touchable key={m} onPress={() => setForm({ ...form, model: m })} style={[styles.modeRow, form.model === m && styles.modeRowOn]}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="uiMedium" color={form.model === m ? colors.violet200 : colors.text}>{MODEL_LABEL[m]}</AppText>
+            <AppText variant="small" color={colors.faint}>{MODEL_HINT[m]}</AppText>
+          </View>
+        </Touchable>
+      ))}
+      <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Esforço</AppText>
+      {(Object.keys(EFFORT_LABEL) as AnswerConfig["effort"][]).map((e) => (
+        <Touchable key={e} onPress={() => setForm({ ...form, effort: e })} style={[styles.modeRow, form.effort === e && styles.modeRowOn]}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="uiMedium" color={form.effort === e ? colors.violet200 : colors.text}>{EFFORT_LABEL[e]}</AppText>
+            <AppText variant="small" color={colors.faint}>{EFFORT_HINT[e]}</AppText>
+          </View>
+        </Touchable>
+      ))}
+      {slow ? (
+        <View style={styles.saveOffer}>
+          <AppText variant="small" color={colors.warning}>
+            {form.model === "local"
+              ? "Atenção: na Kally local (8B), cada parte leva alguns minutos e a resposta inteira pode passar de 10 minutos."
+              : "Atenção: a resposta vem em partes e demora mais que o normal. Papo casual e posts continuam no ritmo de sempre."}
+          </AppText>
+        </View>
+      ) : null}
+      <View style={styles.actions}>
+        <Button label="Salvar" icon="check" compact onPress={() => onSave(form)} />
+        <Button label="Cancelar" variant="secondary" compact onPress={onClose} />
+      </View>
     </Sheet>
   );
 }

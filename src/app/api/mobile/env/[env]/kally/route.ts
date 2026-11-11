@@ -8,6 +8,7 @@ import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
+import { EFFORTS, effortFrom, partPrompt, planAnswer } from "@/server/kally/deep";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -281,7 +282,12 @@ export async function POST(request: Request, context: EnvContext) {
   // Roteamento (só no pipeline, fora do modo dev e da revisão textual): local ou remoto (vLLM).
   // A decisão usa os sinais já calculados acima; com o remoto fora do ar, responde o local.
   const materialChars = (attachment?.text.length ?? 0) + (review?.text.length ?? 0) + documents.reduce((n, d) => n + d.text.length, 0);
-  const choice = modelChoiceFrom(body.model, platformAdmin || access.role === "OWNER");
+  // Quem conversa escolhe o modelo (Automático, Kally local 8B, Kally remota 32B) e o esforço (pedido do dono do
+  // projeto, 11/11/2026). Os limites da GPU (vagas, gasto por dia) continuam valendo.
+  const effort = effortFrom(body.effort);
+  // Esforço acima do normal no Automático vai para a remota (no 8B cada parte levaria minutos) e espera a GPU ligar.
+  const chosen = modelChoiceFrom(body.model, true);
+  const choice = chosen === "auto" && effort !== "normal" ? "remote" : chosen;
   let route: RouteDecision = { target: "local", reason: "fora do pipeline" };
   let remoteFallback: string | null = null;
   /** pedido grande com a GPU desligada ou ligando: espera o 32B (dentro da resposta) em vez de ir para o 8B */
@@ -379,6 +385,7 @@ export async function POST(request: Request, context: EnvContext) {
       send({ sources });
       let answer = "";
       let postWeb: WebResult[] = [];
+      let deepReport: { effort: string; parts: number; target: string } | null = null;
       let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
@@ -559,12 +566,66 @@ export async function POST(request: Request, context: EnvContext) {
               clearTimeout(timer);
             }
           };
+          // Resposta em partes (esforço aprofundado ou máximo, deep.ts): planeja e escreve parte por parte, cada uma
+          // com o plano e o que já foi escrito. Fora do post (que tem revisão própria), da ideia e do papo casual.
+          const deep = effort !== "normal" && !casual && competence !== "post" && mode !== "ideia" ? EFFORTS[effort] : null;
+          const runDeep = async (remote: boolean): Promise<boolean> => {
+            if (!deep || effort === "normal") return false;
+            const style = remote && !dev ? remoteStyle({ competence, brief: false, post: false }) : "";
+            const lastMsg = fullPrompt[fullPrompt.length - 1];
+            const base = !remote ? prompt : !style ? fullPrompt : lastMsg?.role === "system" ? [...fullPrompt.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...fullPrompt, { role: "system" as const, content: style }];
+            send({ status: `Planejando a resposta em ${deep.parts} partes…` });
+            const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
+            if (!plan || cancel.signal.aborted) {
+              send({ status: "Não consegui planejar em partes; respondendo direto…" });
+              return false;
+            }
+            deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local" };
+            const pacer = createPacer(emit, cancel.signal);
+            try {
+              for (const [i, part] of plan.partes.entries()) {
+                if (cancel.signal.aborted) break;
+                if (!answer) send({ status: `Escrevendo a parte ${i + 1} de ${plan.partes.length}: ${part.titulo}…` });
+                const messages = partPrompt(base, plan, i, answer);
+                if (i > 0) emit("\n\n");
+                if (remote) {
+                  const thinkPart = deep.think || remoteThinks({ competence, mode, message, brief: false });
+                  const chunks = await openChatStream(messages, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st) });
+                  modelName = remoteConfig().model;
+                  for await (const chunk of chunks) {
+                    if (!firstText) firstText = Date.now();
+                    pacer.push(cleaner.push(chunk));
+                  }
+                  pacer.push(cleaner.flush());
+                  await pacer.finish();
+                } else {
+                  for await (const chunk of streamChat(messages, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) {
+                    if (!firstText) firstText = Date.now();
+                    emit(cleaner.push(chunk));
+                  }
+                  emit(cleaner.flush());
+                }
+              }
+              if (remote) noteRemoteUse();
+              return true;
+            } catch (cause) {
+              pacer.flushNow();
+              // Já há texto na tela: a falha vira erro (a resposta parcial não passa por completa). Sem texto, cai para o normal.
+              if (cancel.signal.aborted || answer) throw cause;
+              remoteFallback = `em partes falhou: ${cause instanceof Error ? cause.message : String(cause)}`;
+              return false;
+            }
+          };
           try {
-            if (route.target === "remote" && !(await runRemote())) {
-              route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
-              modelName = model || defaultChatModel();
-              await runLocal();
-            } else if (route.target === "local") {
+            if (route.target === "remote") {
+              const done = (deep && (await runDeep(true))) || (await runRemote());
+              if (!done) {
+                route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
+                modelName = model || defaultChatModel();
+                // A remota falhou: a local responde direto (em partes, no 8B, levaria muitos minutos).
+                await runLocal();
+              }
+            } else if (!(deep && (await runDeep(false)))) {
               await runLocal();
             }
           } finally {
@@ -662,6 +723,8 @@ export async function POST(request: Request, context: EnvContext) {
             backend: { target: route.target, reason: route.reason, choice, fallback: remoteFallback },
             // fontes do post (quantas páginas e sites, sem o texto) e revisão de fidelidade
             postSources: sourceHunt,
+            effort,
+            deep: deepReport,
             answerSources: answerHunt,
             postReview,
             executor: modelName

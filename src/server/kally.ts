@@ -7,6 +7,7 @@ import type { DocumentHit } from "./kally/documents";
 import { recall, type Retrieved } from "./kally-memory";
 import type { WebResult } from "./web-search";
 import type { Scope } from "./scope";
+import { PERSONALITY_SHORT } from "./kally/personality";
 
 /**
  * Kally: assistente de aprendizagem de cada ambiente. O conhecimento vem da memória do
@@ -148,7 +149,7 @@ export function todayLine(now = new Date()) {
 const identity = (environmentName: string, toneExamples = true) => [
   `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
   todayLine(),
-  "Seu jeito: atenta, curiosa e calorosa, com humor leve quando ele cabe, como uma interlocutora competente com quem dá gosto conversar. Fale português brasileiro natural, como gente, nunca como um sistema de análise.",
+  `${PERSONALITY_SHORT} Fale português brasileiro natural, como gente, nunca como um sistema de análise.`,
   WRITING_RULE,
   "Antes de responder, entenda a intenção. Papo do dia a dia (\"estou cansado hoje\", \"bom dia\") pede resposta curta e calorosa: nada de análise, lição, lista ou pergunta forçada. Diante de uma notícia boa ou difícil, reaja com sinceridade ao que a pessoa contou, de forma específica e sem exagero. Pergunta simples pede resposta simples e direta.",
   "Se pedirem sua opinião, dê uma opinião sua, honesta e com fundamento. Aprofunde só quando o assunto pedir ou quando a pessoa pedir.",
@@ -362,7 +363,7 @@ export function buildCompetencePrompt(input: {
   const c = input.competence;
   const documents = input.documents ?? [];
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, PERSONALITY_SHORT, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,

@@ -46,3 +46,27 @@ Botão com o ícone do cérebro no topo da conversa → tela "Kally" (`/kally-pa
   ~1,2 s quando chega de uma vez (o post revisado). Não há mais saltos de bloco a cada 60 ms.
 - "Pensando…" e as etapas aparecem na cor do tema (violet400), com as letras pulando uma de cada vez, em ciclo.
   Com "reduzir movimento" ligado, o texto fica parado.
+
+## Modelo e esforço (para quem conversa)
+
+No menu de modo, "Modelo e esforço" abre a tela "Como a Kally responde" (salva no aparelho):
+
+- **Modelo:** Automático (a Kally escolhe), Kally local · 8B ou Kally remota · 32B. A escolha vale para qualquer
+  pessoa; os limites da GPU (vagas, gasto e ligações por dia) continuam valendo, e a remota desligada liga sozinha
+  (o pedido espera por ela, com o andamento na tela).
+- **Esforço** (`src/server/kally/deep.ts`):
+  - Normal: uma resposta.
+  - Aprofundado: planeja a resposta (JSON com a abertura e 3 a 4 partes) e escreve parte por parte; cada parte
+    recebe o plano e o fim do que já foi escrito (~6.000 caracteres), para continuar sem repetir. A última fecha
+    com próximos passos. 1 a 3 minutos na remota.
+  - Máximo: 5 a 6 partes, com o raciocínio do 32B ligado em cada uma. 3 a 6 minutos na remota.
+  Com esforço acima do normal e modelo Automático, o pedido vai para a remota. Na local, cada parte leva minutos; a
+  tela avisa antes. Papo casual, posts (que têm revisão própria) e o modo ideia continuam com uma resposta só.
+  Se o plano falhar, a resposta sai normal; se a remota falhar antes do primeiro texto, a local responde direto.
+
+## Personalidade
+
+`src/server/kally/personality.ts`: o texto de linguagem, comunicação e personalidade do dono do projeto (11/11).
+A remota recebe o texto inteiro, no fim do prompt; a local, uma versão condensada dos mesmos sete pontos (prompt
+longo deixa o 8B mais lento nesta placa). O estilo da remota passou a responder pergunta simples de forma direta,
+sem seções, e deixa "Próximos passos" só para respostas que explicam algo.
