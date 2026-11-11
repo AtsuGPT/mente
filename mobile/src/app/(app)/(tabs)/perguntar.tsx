@@ -115,7 +115,7 @@ const DEV_KEY = "minha-mente.kally-dev.v1";
 type AnswerConfig = { model: "auto" | "local" | "remote"; effort: "normal" | "aprofundado" | "maximo" };
 const ANSWER_KEY = "minha-mente.kally-resposta.v1";
 const ANSWER_DEFAULT: AnswerConfig = { model: "auto", effort: "normal" };
-const MODEL_LABEL: Record<AnswerConfig["model"], string> = { auto: "Automático", local: "Kally local · 8B", remote: "Kally remota · 32B" };
+const MODEL_LABEL: Record<AnswerConfig["model"], string> = { auto: "Automático", local: "Kally 1.5", remote: "Kally 32" };
 const EFFORT_LABEL: Record<AnswerConfig["effort"], string> = { normal: "Normal", aprofundado: "Aprofundado", maximo: "Máximo" };
 /** Constante simples (a rolagem roda na UI thread, onde só valores capturados funcionam). */
 const IS_WEB = Platform.OS === "web";
@@ -670,7 +670,7 @@ function Kally() {
   // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
-  const engineLabel = `${answerCfg.model === "local" ? " · 8B" : answerCfg.model === "remote" ? " · 32B" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
+  const engineLabel = `${answerCfg.model === "local" ? " · Kally 1.5" : answerCfg.model === "remote" ? " · Kally 32" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
   const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}${engineLabel}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
   // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
   // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
@@ -923,8 +923,8 @@ function Kally() {
               (next.effort === "normal"
                 ? ""
                 : next.model === "local"
-                  ? " A resposta vem em partes e, na Kally local, pode passar de 10 minutos."
-                  : ` A resposta vem em partes e demora mais (${next.effort === "maximo" ? "3 a 6" : "1 a 3"} minutos na Kally remota).`),
+                  ? " A resposta vem em partes e, com a Kally 1.5, pode passar de 10 minutos."
+                  : ` A resposta vem em partes e demora mais (${next.effort === "maximo" ? "3 a 6" : "1 a 3"} minutos${next.model === "remote" ? "" : " com a Kally 32"}).`),
           );
         }}
       />
@@ -1003,14 +1003,14 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
 
 /** Modelo e esforço: para qualquer pessoa, com o aviso de quanto cada escolha demora. */
 const MODEL_HINT: Record<AnswerConfig["model"], string> = {
-  auto: "A Kally escolhe: a local para papo e pedidos simples, a remota para pedidos maiores.",
-  local: "No seu computador. Começa a responder mais rápido, com respostas mais simples.",
-  remote: "Na GPU alugada. Respostas mais completas e elaboradas. Se ela estiver desligada, liga sozinha (a primeira resposta leva uns 5 minutos).",
+  auto: "A Kally escolhe a melhor para cada pedido: a Kally 1.5 para conversas e pedidos rápidos, a Kally 32 para pedidos maiores.",
+  local: "Mais ágil para começar a responder. Boa para conversas, dúvidas rápidas e textos curtos.",
+  remote: "Mais completa e elaborada, para estudos, análises e textos longos. Depois de um tempo sem uso, a primeira resposta pode levar alguns minutos para começar.",
 };
 const EFFORT_HINT: Record<AnswerConfig["effort"], string> = {
   normal: "Uma resposta, no tempo de sempre.",
-  aprofundado: "Planeja e escreve em 3 a 4 partes encadeadas, cada uma coerente com a anterior. Leva de 1 a 3 minutos na Kally remota.",
-  maximo: "5 a 6 partes, conferindo o raciocínio em cada uma. Leva de 3 a 6 minutos na Kally remota.",
+  aprofundado: "Planeja e escreve em 3 a 4 partes encadeadas, cada uma coerente com a anterior. Leva de 1 a 3 minutos com a Kally 32 e mais tempo com a Kally 1.5.",
+  maximo: "5 a 6 partes, conferindo o raciocínio em cada uma. Leva de 3 a 6 minutos com a Kally 32; com a Kally 1.5, pode passar de 10.",
 };
 function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; value: AnswerConfig; onClose: () => void; onSave: (next: AnswerConfig) => void }) {
   const [form, setForm] = useState(value);
@@ -1044,7 +1044,7 @@ function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; va
         <View style={styles.saveOffer}>
           <AppText variant="small" color={colors.warning}>
             {form.model === "local"
-              ? "Atenção: na Kally local (8B), cada parte leva alguns minutos e a resposta inteira pode passar de 10 minutos."
+              ? "Atenção: com a Kally 1.5, cada parte leva alguns minutos e a resposta inteira pode passar de 10 minutos."
               : "Atenção: a resposta vem em partes e demora mais que o normal. Papo casual e posts continuam no ritmo de sempre."}
           </AppText>
         </View>

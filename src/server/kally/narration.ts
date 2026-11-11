@@ -17,15 +17,15 @@ export type Ctx = { tempo?: string; termos?: string; paginas?: number; sites?: n
 
 const POOLS: Record<Step, ((c: Ctx) => string)[]> = {
   gpu: [
-    (c) => `Estou ligando a Kally remota (32B), que dá conta melhor de um pedido assim. Na primeira vez leva uns minutos; já foram ${c.tempo}.`,
-    (c) => `Acordando a Kally remota para este pedido, que merece o modelo maior. Mais um pouquinho: ${c.tempo} até agora.`,
-    (c) => `A GPU estava dormindo; estou ligando para te responder com o 32B, que vai mais fundo. ${c.tempo} e contando.`,
-    (c) => `Preparando a Kally remota: vale a espera, porque ela elabora melhor. Já se passaram ${c.tempo}.`,
+    (c) => `Estou chamando a Kally 32, que dá conta melhor de um pedido assim. Depois de um tempo sem uso ela leva uns minutos para acordar; já foram ${c.tempo}.`,
+    (c) => `Acordando a Kally 32 para este pedido, que merece a versão mais completa. Mais um pouquinho: ${c.tempo} até agora.`,
+    (c) => `A Kally 32 estava descansando; estou acordando ela para te responder com mais profundidade. ${c.tempo} e contando.`,
+    (c) => `Preparando a Kally 32: vale a espera, porque ela elabora melhor. Já se passaram ${c.tempo}.`,
   ],
   gpuFalhou: [
-    () => "A Kally remota demorou mais que o normal para ligar, então vou responder com a local, para você não ficar esperando.",
-    () => "A remota não ficou pronta a tempo. Sigo com a local, para você ter a resposta agora.",
-    () => "Melhor não te deixar esperando mais: a remota não acordou, então respondo com a local.",
+    () => "A Kally 32 demorou mais que o normal para acordar, então eu, a Kally 1.5, respondo, para você não ficar esperando.",
+    () => "A Kally 32 não ficou pronta a tempo. Sigo com a Kally 1.5, para você ter a resposta agora.",
+    () => "Melhor não te deixar esperando mais: a Kally 32 não acordou, então respondo com a Kally 1.5.",
   ],
   postFontes: [
     () => "Vou buscar fontes para dar base ao seu post. Escolho só os conceitos gerais do tema; nada pessoal seu sai daqui.",
