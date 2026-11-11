@@ -582,8 +582,11 @@ export async function POST(request: Request, context: EnvContext) {
           const runDeep = async (remote: boolean): Promise<boolean> => {
             if (!deep || effort === "normal") return false;
             const style = remote && !dev ? remoteStyle({ competence, brief: false, post: false }) : "";
-            const lastMsg = fullPrompt[fullPrompt.length - 1];
-            const base = !remote ? prompt : !style ? fullPrompt : lastMsg?.role === "system" ? [...fullPrompt.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...fullPrompt, { role: "system" as const, content: style }];
+            // Sem os exemplos de referência: no teste de 11/11 o 8B escreveu uma parte inteira sobre o tema do exemplo
+            // ("elasticidade-preço") numa pergunta sobre inflação.
+            const own = competenceArgs ? withMemory(buildCompetencePrompt({ ...competenceArgs, examples: [], web: remote ? web : localSources(web) })) : remote ? fullPrompt : prompt;
+            const lastMsg = own[own.length - 1];
+            const base = !style ? own : lastMsg?.role === "system" ? [...own.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...own, { role: "system" as const, content: style }];
             send({ status: `Planejando a resposta em ${deep.parts} partes…` });
             const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
             if (!plan || cancel.signal.aborted) {
@@ -596,7 +599,7 @@ export async function POST(request: Request, context: EnvContext) {
               for (const [i, part] of plan.partes.entries()) {
                 if (cancel.signal.aborted) break;
                 if (!answer) send({ status: `Escrevendo a parte ${i + 1} de ${plan.partes.length}: ${part.titulo}…` });
-                const messages = partPrompt(base, plan, i, answer);
+                const messages = partPrompt(base, plan, i, answer, message);
                 if (i > 0) emit("\n\n");
                 if (remote) {
                   const thinkPart = deep.think || remoteThinks({ competence, mode, message, brief: false });

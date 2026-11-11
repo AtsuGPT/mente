@@ -62,12 +62,14 @@ function tail(text: string, max = 6_000) {
 }
 
 /** Prompt de uma parte: o mesmo da Kally (material, regras, memória) + plano + o que já foi escrito + a tarefa. */
-export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string): AiMessage[] {
+export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string, request: string): AiMessage[] {
   const part = plan.partes[index];
   const last = index === plan.partes.length - 1;
   const outline = plan.partes.map((p, i) => `${i + 1}. ${p.titulo}: ${p.objetivo}`).join("\n");
   const task = [
-    `RESPOSTA EM PARTES: parte ${index + 1} de ${plan.partes.length}. Plano completo:\n${outline}`,
+    `RESPOSTA EM PARTES: parte ${index + 1} de ${plan.partes.length}. Pedido da pessoa: """${request.slice(0, 1_500)}"""`,
+    "Tudo nesta parte trata do assunto DESTE pedido; não traga outro tema, nem o de exemplos que apareceram antes no prompt.",
+    `Plano completo:\n${outline}`,
     written ? `Já escrito (continue daqui, coerente com isso, sem repetir nem resumir):\n"""${tail(written)}"""` : "",
     index === 0
       ? `AGORA: comece pela abertura, em uma ou duas frases naturais que respondam direto ao pedido (${plan.abertura || "o essencial do que a pessoa pediu"}), e depois escreva a parte 1 com o subtítulo "## ${part.titulo}".`
