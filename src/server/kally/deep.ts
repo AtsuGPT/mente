@@ -118,6 +118,7 @@ export function partPrompt(base: AiMessage[], plan: Plan, index: number, written
       : `AGORA: escreva só a parte ${index + 1}, começando com o subtítulo "## ${part.titulo}".`,
     `O que esta parte entrega: ${part.objetivo}`,
     "Desenvolva de verdade (explicação, exemplo concreto, nuance), com tabela, diagrama ```mermaid, lista ou exemplo quando a parte pedir. Não anuncie as próximas partes, não diga \"nesta parte\" e não volte ao que já foi escrito.",
+    "Formato: subtítulos com ## (um por parte; ### dentro dela, se precisar), listas e tabelas Markdown com linha de cabeçalho. Fórmulas em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ), nunca LaTeX ($, \\frac, \\cdot) nem blocos ```math; nada de HTML.",
     last ? "É a última parte: feche com aplicação prática e 2 ou 3 próximos passos concretos, sem resumir tudo de novo." : "Não escreva conclusão: a resposta continua na próxima parte.",
     retry ? `ATENÇÃO: a versão anterior desta parte saiu do assunto e foi descartada. Escreva de novo tratando só do pedido da pessoa ("${request.slice(0, 300)}"), usando os termos dele.` : "",
   ].filter(Boolean);

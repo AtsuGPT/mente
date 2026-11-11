@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { applySuggestions, extractDraft, handOffDraft } from "@/lib/draft-handoff";
 import { hasStructure } from "@/lib/structured";
+import { addStep, closeStep, formatElapsed, type ProgressStep } from "@/lib/progress-steps";
 import { formatDateShort, formatHandle } from "@/lib/format";
 import { pickImage, uploadablePart } from "@/lib/upload";
 import { getItem, setItem } from "@/lib/secure-storage";
@@ -61,6 +62,11 @@ type Message = {
   stats?: DevStats;
   /** etapa em andamento antes do primeiro texto (ex.: "Procurando fontes para o seu post…") */
   status?: string;
+  /** etapas acumuladas desta resposta (o que a Kally fez e quanto levou cada coisa) */
+  steps?: ProgressStep[];
+  /** quando a pergunta saiu e quando a resposta terminou (relógio do aparelho) */
+  startedAt?: number;
+  finishedAt?: number;
   /** o que a Kally guardou na memória a partir desta mensagem (conversa salva) */
   remembered?: string[];
   /** pedido maior numa conversa temporária: a Kally oferece salvar (só salva com o sim da pessoa) */
@@ -534,7 +540,7 @@ function Kally() {
     const message = content || `Revise "${reviewTarget?.title}"`;
 
     const user: Message = { id: newId(), role: "user", content: message, attachmentName: ready?.name, imageUri: ready?.localUri, reviewSource: reviewing && !reviewTarget ? content : undefined };
-    const assistant: Message = { id: newId(), role: "assistant", content: "", reviewSource: user.reviewSource };
+    const assistant: Message = { id: newId(), role: "assistant", content: "", reviewSource: user.reviewSource, startedAt: Date.now() };
     // Temporária: o app manda o histórico (o servidor não guarda nada).
     const temporaryHistory = conversationId ? undefined : messages.filter((m) => !m.local).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
     setMessages((current) => [...current, user, assistant]);
@@ -631,7 +637,12 @@ function Kally() {
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
-        if (event.status !== undefined) update((m) => ({ ...m, status: event.status || undefined }));
+        if (event.status !== undefined) {
+          const key = (event as { step?: string }).step;
+          const text = event.status;
+          const now = Date.now();
+          update((m) => ({ ...m, status: text || undefined, steps: addStep(m.steps, text, key, now) }));
+        }
         if (event.remembered?.length) update((m) => ({ ...m, remembered: event.remembered }));
         if (event.offerSave) update((m) => ({ ...m, offerSave: true }));
         const extra = event as { model?: string; stats?: DevStats };
@@ -639,10 +650,11 @@ function Kally() {
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
         if (event.text) {
           kick();
-          // A etapa de antes do texto ("Procurando fontes…") sai quando o texto começa; as do modo em partes voltam depois.
+          // O texto começou: a etapa em andamento termina (no modo em partes, as próximas etapas chegam depois).
           if (!textStarted) {
             textStarted = true;
-            update((m) => ({ ...m, status: undefined }));
+            const now = Date.now();
+            update((m) => ({ ...m, status: undefined, steps: closeStep(m.steps, now) }));
           }
           typeIn(event.text);
         }
@@ -652,12 +664,15 @@ function Kally() {
       flushAll();
       // Conversa salva: a conexão caiu, mas a Kally continua escrevendo no servidor. Em vez do erro, espera a resposta.
       if (savedId) {
-        update((m) => ({ ...m, content: "", status: "A conexão caiu, mas a Kally continua escrevendo. A resposta aparece aqui assim que ficar pronta." }));
+        const text = "A conexão caiu, mas a Kally continua escrevendo. A resposta aparece aqui assim que ficar pronta.";
+        update((m) => ({ ...m, content: "", status: text, steps: addStep(m.steps, text, "conexao", Date.now()) }));
         setWaitingFor(savedId);
         return;
       }
       update((m) => ({ ...m, failed: true, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
     } finally {
+      const end = Date.now();
+      update((m) => ({ ...m, finishedAt: end, steps: closeStep(m.steps, end) }));
       setLoading(false);
       if (save || deepSave || conversationId) void loadHistory();
     }
@@ -1135,7 +1150,14 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: 
         </View>
       ) : null}
       {!item.content ? (
-        <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.status ?? (item.mode === "revisar" ? "Revisando…" : "Pensando…")}</Shimmer></View>
+        item.steps?.length ? (
+          <View style={styles.typingColumn}>
+            <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{pending ? "Trabalhando no seu pedido…" : "Parei aqui."}</Shimmer></View>
+            <StepList steps={item.steps} startedAt={item.startedAt} finishedAt={item.finishedAt} live={pending} />
+          </View>
+        ) : (
+          <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.status ?? (item.mode === "revisar" ? "Revisando…" : "Pensando…")}</Shimmer></View>
+        )
       ) : isUser ? (
         <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
       ) : (
@@ -1143,7 +1165,11 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: 
           {before ? <Markdown>{before}</Markdown> : null}
           {draft ? <DraftCard draft={draft} pending={pending} /> : null}
           {after ? <Markdown>{after}</Markdown> : null}
-          {pending && item.status ? <View style={{ marginTop: space.sm }}><Shimmer>{item.status}</Shimmer></View> : null}
+          {item.steps?.length && pending && item.steps.some((st) => st.key.startsWith("parte") || st.key === "plano") ? (
+            <View style={{ marginTop: space.sm }}><StepList steps={item.steps} startedAt={item.startedAt} finishedAt={item.finishedAt} live /></View>
+          ) : item.steps?.length && !isUser ? (
+            <StepSummary steps={item.steps} startedAt={item.startedAt} finishedAt={item.finishedAt} live={pending} />
+          ) : null}
         </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
@@ -1516,6 +1542,101 @@ function KallyMark({ failed }: { failed: boolean }) {
 
 /** Texto do "pensando…" com uma luz que passa por ele, devagar (parado com "reduzir movimento"). */
 /**
+ * Relógio de cada segundo, alinhado à virada do segundo, só enquanto `active`. O tempo é sempre calculado pelo
+ * relógio do aparelho (Date.now), então não atrasa nem acumula erro quando o app vai para o fundo e volta.
+ */
+function useSecondTicker(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let alive = true;
+    const tick = () => {
+      if (!alive) return;
+      const t = Date.now();
+      setNow(t);
+      timer = setTimeout(tick, 1000 - (t % 1000) + 8);
+    };
+    tick();
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [active]);
+  return now;
+}
+
+/** Ponto que pulsa ao lado da etapa em andamento. */
+function PulseDot() {
+  const reduceMotion = useReducedMotion();
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    pulse.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) }), -1, true);
+    return () => cancelAnimation(pulse);
+  }, [pulse, reduceMotion]);
+  const style = useAnimatedStyle(() => ({ opacity: 0.45 + pulse.value * 0.55, transform: [{ scale: 0.8 + pulse.value * 0.35 }] }));
+  return <Animated.View style={[styles.stepDot, style]} />;
+}
+
+/**
+ * O que a Kally está fazendo, etapa por etapa (acumulado): as concluídas com a marca de feito e o tempo que levaram,
+ * a atual com as letras pulando e o tempo correndo, e o total no topo. Só esta lista redesenha a cada segundo.
+ */
+const StepList = memo(function StepList({ steps, startedAt, finishedAt, live }: { steps: ProgressStep[]; startedAt?: number; finishedAt?: number; live: boolean }) {
+  const now = useSecondTicker(live);
+  const end = live ? now : finishedAt ?? steps[steps.length - 1]?.doneAt ?? now;
+  return (
+    <Animated.View layout={layoutTransition} style={styles.steps}>
+      {startedAt ? (
+        <AppText variant="small" color={colors.faint} style={styles.stepTotal}>
+          {live ? "Trabalhando há " : "Levou "}
+          <AppText variant="small" color={colors.violet300} style={styles.stepTime}>{formatElapsed(end - startedAt)}</AppText>
+        </AppText>
+      ) : null}
+      {steps.map((step) => {
+        const current = live && step.doneAt === undefined;
+        return (
+          <Animated.View key={step.key} entering={enter.rise} layout={layoutTransition} style={styles.stepRow}>
+            <View style={styles.stepIcon}>{current ? <PulseDot /> : <Icon name="check" size={13} color={colors.violet300} />}</View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {current ? <Shimmer>{step.text}</Shimmer> : <AppText variant="small" color={colors.muted}>{step.text}</AppText>}
+            </View>
+            <AppText variant="small" color={current ? colors.violet300 : colors.faint} style={styles.stepTime}>{formatElapsed((step.doneAt ?? end) - step.at)}</AppText>
+          </Animated.View>
+        );
+      })}
+    </Animated.View>
+  );
+});
+
+/** Resposta pronta (ou já escrevendo, fora do modo em partes): uma linha com o tempo; tocar mostra as etapas. */
+const StepSummary = memo(function StepSummary({ steps, startedAt, finishedAt, live }: { steps: ProgressStep[]; startedAt?: number; finishedAt?: number; live: boolean }) {
+  const [open, setOpen] = useState(false);
+  const now = useSecondTicker(live);
+  const end = live ? now : finishedAt ?? steps[steps.length - 1]?.doneAt ?? now;
+  if (!startedAt) return null;
+  return (
+    <Animated.View layout={layoutTransition} style={{ marginTop: space.sm }}>
+      <Touchable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} pressScale={0.98} style={styles.stepSummary}>
+        <Icon name="clock" size={13} color={colors.faint} />
+        <AppText variant="small" color={colors.faint} style={{ flex: 1 }}>
+          {live ? "Escrevendo há " : "Feito em "}
+          <AppText variant="small" color={colors.violet300} style={styles.stepTime}>{formatElapsed(end - startedAt)}</AppText>
+          {` · ${steps.length} ${steps.length === 1 ? "etapa" : "etapas"}`}
+        </AppText>
+        <AppText variant="small" color={colors.violet300}>{open ? "Ocultar" : "Ver etapas"}</AppText>
+      </Touchable>
+      {open ? (
+        <Animated.View entering={enter.rise} exiting={exit.fade}>
+          <StepList steps={steps} startedAt={startedAt} finishedAt={finishedAt ?? end} live={false} />
+        </Animated.View>
+      ) : null}
+    </Animated.View>
+  );
+});
+
+/**
  * "Pensando…" (ou a etapa em andamento) na cor do tema, com as letras pulando uma de cada vez, em ciclo.
  * As palavras não quebram no meio; com "reduzir movimento" ligado, o texto fica parado.
  */
@@ -1663,6 +1784,14 @@ const styles = StyleSheet.create({
   bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.glass },
   typing: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 36 },
   bounceRow: { flexDirection: "row", flexWrap: "wrap", flexShrink: 1 },
+  typingColumn: { gap: space.sm },
+  steps: { gap: space.xs + 2, paddingLeft: space.xs },
+  stepTotal: { marginBottom: 2 },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", gap: space.sm },
+  stepIcon: { width: 16, height: 18, alignItems: "center", justifyContent: "center" },
+  stepDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.violet400 },
+  stepTime: { fontVariant: ["tabular-nums"] },
+  stepSummary: { flexDirection: "row", alignItems: "center", gap: space.xs + 2, paddingVertical: 4 },
   bounceWord: { flexDirection: "row" },
   memoryNote: { flexDirection: "row", alignItems: "center", gap: space.xs, marginTop: space.sm },
   saveOffer: { marginTop: space.md, padding: space.md, gap: space.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet600, backgroundColor: colors.violet950 },

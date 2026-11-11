@@ -17,10 +17,10 @@ export type Ctx = { tempo?: string; termos?: string; paginas?: number; sites?: n
 
 const POOLS: Record<Step, ((c: Ctx) => string)[]> = {
   gpu: [
-    (c) => `Estou chamando a Kally 32, que dá conta melhor de um pedido assim. Depois de um tempo sem uso ela leva uns minutos para acordar; já foram ${c.tempo}.`,
-    (c) => `Acordando a Kally 32 para este pedido, que merece a versão mais completa. Mais um pouquinho: ${c.tempo} até agora.`,
-    (c) => `A Kally 32 estava descansando; estou acordando ela para te responder com mais profundidade. ${c.tempo} e contando.`,
-    (c) => `Preparando a Kally 32: vale a espera, porque ela elabora melhor. Já se passaram ${c.tempo}.`,
+    () => "Estou chamando a Kally 32, que dá conta melhor de um pedido assim. Depois de um tempo sem uso, ela leva uns minutos para acordar.",
+    () => "Acordando a Kally 32 para este pedido, que merece a versão mais completa. Mais um pouquinho…",
+    () => "A Kally 32 estava descansando; estou acordando ela para te responder com mais profundidade.",
+    () => "Preparando a Kally 32: vale a espera, porque ela elabora melhor.",
   ],
   gpuFalhou: [
     () => "A Kally 32 demorou mais que o normal para acordar, então eu, a Kally 1.5, respondo, para você não ficar esperando.",

@@ -1,5 +1,6 @@
 import { addMessage, createConversation, KALLY_MODES, MAX_MESSAGE_LENGTH, type KallyMode } from "@/server/kally";
 import { rememberFrom } from "@/server/kally/memory";
+import { latexToText } from "@/server/kally/math-text";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ export async function POST(request: Request, context: EnvContext) {
   if (!first) return error("Não há mensagens para salvar.", 400);
   const mode: KallyMode = KALLY_MODES.includes(body.mode as KallyMode) && body.mode !== "auto" ? (body.mode as KallyMode) : "chat";
   const created = await createConversation(access.environment.id, userId, mode as Exclude<KallyMode, "auto">, first.content);
-  for (const m of messages) await addMessage(created.id, m.role, m.content);
+  for (const m of messages) await addMessage(created.id, m.role, m.role === "assistant" ? latexToText(m.content) : m.content);
   // Memória em segundo plano: não segura a resposta do salvar.
   void (async () => {
     for (const m of messages.filter((x) => x.role === "user").slice(-8)) await rememberFrom({ environmentId: access.environment.id, userId, message: m.content, conversationId: created.id });

@@ -11,6 +11,7 @@ import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory
 import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer } from "@/server/kally/deep";
 import { markDone, markRunning } from "@/server/kally/running";
 import { personalOpener, say } from "@/server/kally/narration";
+import { latexToText } from "@/server/kally/math-text";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -63,6 +64,14 @@ const remoteWaitMs = () => {
   const v = Number(process.env.KALLY_REMOTE_WAIT_MS);
   return process.env.KALLY_REMOTE_WAIT_MS !== undefined && process.env.KALLY_REMOTE_WAIT_MS !== "" && Number.isFinite(v) && v >= 0 ? v : 360_000;
 };
+
+/** Até 3 sites das fontes, para a etapa dizer de onde vem a base: ", como g1.globo.com, cdc.gov e uol.com.br". */
+function siteNames(web: WebResult[], prefix = ", como ") {
+  const names = [...new Set(web.map((w) => { try { return new URL(w.url).hostname.replace(/^www\./, ""); } catch { return ""; } }).filter(Boolean))].slice(0, 3);
+  if (!names.length) return "";
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+  return prefix.startsWith(",") ? `${prefix}${list}` : `${prefix}${list}.`;
+}
 
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
@@ -377,10 +386,8 @@ export async function POST(request: Request, context: EnvContext) {
         });
         while (!cancel.signal.aborted && Date.now() - began < remoteWaitMs()) {
           const s = Math.round((Date.now() - began) / 1000);
-          // A frase muda a cada minuto (as outras atualizações só trocam o tempo), para não piscar texto novo a cada 5 s.
-          const tempo = s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`;
-          if (!gpuLine || s % 60 < 5) gpuLine = say("gpu", { tempo: "{tempo}" });
-          send({ status: gpuLine.replace("{tempo}", tempo) });
+          gpuLine ||= say("gpu");
+          send({ status: gpuLine, step: "gpu" });
           await new Promise((resolve) => setTimeout(resolve, 5_000));
           if (failed) break;
           const h = await remoteHealth(true);
@@ -397,7 +404,7 @@ export async function POST(request: Request, context: EnvContext) {
         if (route.target !== "remote") {
           remoteFallback = failed ? `GPU não ligou: ${failed}` : `GPU não ficou pronta em ${Math.round(remoteWaitMs() / 1000)} s`;
           route = { target: "local", reason: `${waitRemote.reason}; ${remoteFallback}` };
-          send({ status: say("gpuFalhou") });
+          send({ status: say("gpuFalhou"), step: "gpu-falhou" });
         }
       }
       send({ sources });
@@ -406,12 +413,12 @@ export async function POST(request: Request, context: EnvContext) {
         const done = [
           posts.length ? `encontrei ${posts.length === 1 ? "um pensamento" : `${posts.length} pensamentos`} do ambiente sobre isso` : "",
           documents.length ? `olhei ${documents.length === 1 ? "um trecho" : `${documents.length} trechos`} dos seus documentos` : "",
-          web.length ? `consultei ${web.length} ${web.length === 1 ? "fonte" : "fontes"}${answerHunt ? ` (entre ${answerHunt.consulted} páginas de ${answerHunt.sites} sites)` : ""}, para te responder com base e não de cabeça` : "",
+          web.length ? `consultei ${web.length} ${web.length === 1 ? "fonte" : "fontes"}${siteNames(web)}${answerHunt ? `, entre ${answerHunt.consulted} páginas de ${answerHunt.sites} sites` : ""}, para te responder com base e não de cabeça` : "",
           memories.length ? "lembrei do que você já me contou, para deixar a resposta do seu jeito" : "",
         ].filter(Boolean);
         if (done.length) {
           const text = done.length === 1 ? done[0] : `${done.slice(0, -1).join(", ")} e ${done[done.length - 1]}`;
-          send({ status: say("escrevendo", { feito: `${text.charAt(0).toUpperCase()}${text.slice(1)}` }) });
+          send({ status: say("escrevendo", { feito: `${text.charAt(0).toUpperCase()}${text.slice(1)}` }), step: "resumo" });
         }
         // Abertura única para este pedido, escrita pelo 32B em paralelo (só com a remota no ar). Entra se chegar antes
         // do texto e antes de outra etapa; senão fica de fora (não atrasa nada).
@@ -423,7 +430,7 @@ export async function POST(request: Request, context: EnvContext) {
             effort !== "normal" && competence !== "post" ? "planejar e escrever a resposta em partes, conferindo cada uma" : "",
           ].filter(Boolean);
           void personalOpener({ message, plans }).then((frase) => {
-            if (frase && !answer && statusSeq === seq) send({ status: frase });
+            if (frase && !answer && statusSeq === seq) send({ status: frase, step: "resumo" });
           });
         }
       }
@@ -456,17 +463,17 @@ export async function POST(request: Request, context: EnvContext) {
           // sobre os conceitos gerais do tema, citadas com link. Só os termos gerais saem do servidor (post-sources.ts);
           // a pessoa vê cada etapa enquanto espera.
           if (route.target === "remote" && competence === "post" && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
-            send({ status: say("postFontes") });
+            send({ status: say("postFontes"), step: "post-fontes" });
             const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
             if (terms.pt.length && !cancel.signal.aborted) {
-              send({ status: say("postPesquisa", { termos: terms.pt.join(", ") }) });
+              send({ status: say("postPesquisa", { termos: terms.pt.join(", ") }), step: "post-pesquisa" });
               const hunt = await findPostSources(terms);
               // Segundo filtro: o 32B confere se cada fonte trata do que ela escreveu (post-sources.ts).
               const filtered = await filterRelevant(ownWords, hunt.picked);
               sourceHunt = { terms: terms.pt, consulted: hunt.consulted, sites: hunt.sites, byKind: hunt.byKind, picked: filtered.kept.length, removed: filtered.removed, ms: hunt.ms };
               const found = filtered.kept.filter((f) => !web.some((w) => w.url === f.url));
               if (found.length) {
-                send({ status: say("postLeu", { paginas: hunt.consulted, sites: hunt.sites }) });
+                send({ status: say("postLeu", { paginas: hunt.consulted, sites: hunt.sites }) + siteNames(found, " Entre elas: "), step: "post-leu" });
                 postWeb = found;
                 web = [...web, ...found].slice(0, 16);
                 sources = toSources(posts, web, documents);
@@ -566,7 +573,7 @@ export async function POST(request: Request, context: EnvContext) {
             let draft = "";
             let lastStatus = 0;
             let rascunhoLine = "";
-            if (thinks) send({ status: say("raciocinio") });
+            if (thinks) send({ status: say("raciocinio"), step: "raciocinio" });
             try {
               // Post a 0,2 (a 0,4 saíam palavras truncadas como "escre-las" e mais detalhes inventados); o resto a 0,4 ou mais.
               const chunks = await openChatStream(remotePrompt, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", think: thinks, signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
@@ -586,12 +593,12 @@ export async function POST(request: Request, context: EnvContext) {
                 if (Date.now() - lastStatus > 1_500) {
                   lastStatus = Date.now();
                   rascunhoLine ||= say("rascunho", { palavras: -1 });
-                  send({ status: rascunhoLine.replace("-1", String(draft.split(/\s+/).filter(Boolean).length)) });
+                  send({ status: rascunhoLine.replace("-1", String(draft.split(/\s+/).filter(Boolean).length)), step: "rascunho" });
                 }
               }
               if (collect) {
                 draft += cleaner.flush();
-                send({ status: say("revisao") });
+                send({ status: say("revisao"), step: "revisao" });
                 const checked = await reviewPostFidelity({ ownWords, sources: web, draft });
                 postReview = { applied: checked.applied, proposed: checked.proposed, ms: checked.ms, ok: checked.ok };
                 firstText = Date.now();
@@ -623,13 +630,14 @@ export async function POST(request: Request, context: EnvContext) {
             const own = competenceArgs ? withMemory(buildCompetencePrompt({ ...competenceArgs, examples: [], web: remote ? web : localSources(web) })) : remote ? fullPrompt : prompt;
             const lastMsg = own[own.length - 1];
             const base = !style ? own : lastMsg?.role === "system" ? [...own.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...own, { role: "system" as const, content: style }];
-            send({ status: say("planejar", { partes: deep.parts }) });
+            send({ status: say("planejar", { partes: deep.parts }), step: "planejar" });
             const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
             if (!plan || cancel.signal.aborted) {
-              send({ status: say("planoFalhou") });
+              send({ status: say("planoFalhou"), step: "plano-falhou" });
               return false;
             }
             deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local", retried: 0, dropped: 0 };
+            send({ status: `Planejei ${plan.partes.length} partes: ${plan.partes.map((p) => `«${p.titulo}»`).join(" · ")}.`, step: "plano" });
             /** Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). */
             const writePart = async (messages: AiMessage[]) => {
               let text = "";
@@ -647,14 +655,14 @@ export async function POST(request: Request, context: EnvContext) {
               for (const [i, part] of plan.partes.entries()) {
                 if (cancel.signal.aborted) break;
                 const label = `parte ${i + 1} de ${plan.partes.length}: ${part.titulo}`;
-                send({ status: say(i === 0 ? "primeiraParte" : "parte", { label }) });
+                send({ status: say(i === 0 ? "primeiraParte" : "parte", { label }), step: `parte-${i}` });
                 // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez e,
                 // se continuar fora, não entra na resposta.
                 let text = await writePart(partPrompt(base, plan, i, answer, message));
                 let check = await onTopic(message, text);
                 if (!check.ok && !cancel.signal.aborted) {
                   deepReport.retried += 1;
-                  send({ status: say("parteRefeita", { label }) });
+                  send({ status: say("parteRefeita", { label }), step: `parte-${i}-refeita` });
                   text = await writePart(partPrompt(base, plan, i, answer, message, true));
                   check = await onTopic(message, text);
                 }
@@ -747,7 +755,7 @@ export async function POST(request: Request, context: EnvContext) {
         send({ error: cause instanceof AiError ? cause.message : "A resposta foi interrompida. Tente novamente." });
       } finally {
         // Só conversas salvas guardam a resposta (mesmo parcial).
-        if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
+        if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", latexToText(answer.trim()), sources).catch(() => undefined);
         if (conversationId) markDone(conversationId);
         try {
           controller.close();

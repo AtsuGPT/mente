@@ -1,3 +1,5 @@
+import { latexToText } from "@/lib/math-text";
+
 /**
  * Texto que a Kally entrega ao editor: guardado em memória só até o editor abrir e
  * pegá-lo (uma vez). Com postId, vale só para o editor daquele pensamento (revisão
@@ -7,7 +9,8 @@ type Draft = { title: string; content: string; postId?: string };
 let pending: Draft | null = null;
 
 export function handOffDraft(draft: Draft) {
-  pending = draft;
+  // O editor não desenha LaTeX: as fórmulas vão como texto com símbolos (lib/math-text.ts).
+  pending = { ...draft, content: latexToText(draft.content) };
 }
 
 export function takeDraft(postId?: string) {
@@ -34,7 +37,7 @@ export function extractDraft(text: string): { before: string; draft: { title: st
   if (cats) body = body.slice(cats[0].length).trim();
   // O modelo às vezes copia a linha do formato pedido ("Corpo em Markdown").
   body = body.replace(/^corpo em markdown:?\s*\n+/i, "").trim();
-  const draft = { title, content: body, categories };
+  const draft = { title, content: latexToText(body), categories };
   return { before: text.slice(0, match.index).trim(), draft: draft.content || draft.title ? draft : null, after: text.slice(match.index + match[0].length).trim() };
 }
 

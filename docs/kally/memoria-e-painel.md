@@ -89,3 +89,22 @@ entra na resposta (o log registra). Medido com o caso real de 11/11: a parte sob
 palavras, cosseno 0,92) e a parte sobre elasticidade-preço foi barrada (0 palavras, 0,35). As partes não levam os
 exemplos de referência (a causa do desvio) e repetem o pedido. Entre as partes, o app mostra a etapa em andamento
 abaixo do texto.
+
+## Andamento da resposta (etapas)
+
+O servidor manda cada etapa com uma chave (`{ status, step }`): a mesma chave atualiza a linha (a contagem de
+palavras do rascunho, a espera da Kally 32); uma chave nova fecha a etapa em andamento e acrescenta outra. O app
+acumula as etapas (`mobile/src/lib/progress-steps.ts`) e mostra a lista: concluídas com a marca de feito e o tempo
+que levaram, a atual com as letras pulando, um ponto pulsando e o tempo correndo, e o total no topo, em m:ss,
+segundo a segundo. O relógio é um componente isolado, alinhado à virada do segundo e calculado pelo relógio do
+aparelho (não atrasa nem acumula erro em segundo plano); só ele redesenha a cada segundo. Pronta a resposta, a
+lista vira "Feito em 3:12 · 6 etapas", que se expande ao tocar. As etapas citam o que é deste pedido: os títulos
+do plano no modo em partes, os sites das fontes, os termos pesquisados do post.
+
+## Fórmulas e formatação
+
+O app e o editor não desenham LaTeX. As regras pedem fórmulas em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ) e
+nada de HTML; o que escapar é convertido por `latexToText` (`mobile/src/lib/math-text.ts`, com cópia em
+`src/server/kally/math-text.ts`): $…$, $$…$$, \(…\), \[…\], blocos ```math, comandos soltos (\cdot, \beta…) e
+<br>, <sup>, <b>. Converte na tela enquanto o texto chega, no rascunho antes de publicar ou abrir no editor e no
+texto salvo. Não toca em código nem em valores como "R$ 5.000".

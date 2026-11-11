@@ -11,6 +11,7 @@ import { colors, fonts, radius, space, type } from "@/theme/tokens";
 import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
 import { enter, exit, layoutTransition, spring } from "@/theme/motion";
 import { splitDetails, type Segment } from "./details";
+import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
@@ -371,7 +372,8 @@ function SegmentList({ segments }: { segments: Segment[] }) {
 }
 
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
-  const segments = useMemo(() => splitDetails(children ?? ""), [children]);
+  // LaTeX e HTML que escaparam viram texto com símbolos (o app não desenha fórmulas): lib/math-text.ts.
+  const segments = useMemo(() => splitDetails(latexToText(children ?? "")), [children]);
   return (
     <View>
       <SegmentList segments={segments} />
