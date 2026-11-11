@@ -3,7 +3,7 @@
 ## Arquitetura
 
 1. **Conversa temporária por padrão.** Nada é gravado, como o app promete ("Temporária: nada fica guardado").
-2. **Pedido maior → oferta de salvar.** Numa conversa temporária, uma resposta grande (competência, modo diferente
+2. **Pedido maior → oferta de salvar** (no Modo aprofundado, com esforço Aprofundado ou Máximo, a conversa é salva sozinha desde a primeira mensagem, sem perguntar). Numa conversa temporária, uma resposta grande (competência, modo diferente
    de conversa ou texto longo) termina com o cartão "Salvar esta conversa?". Só com o "Salvar" o app chama
    `POST /api/mobile/env/[env]/kally/salvar`, que grava as mensagens que ele tem; dali em diante a conversa
    continua salva.

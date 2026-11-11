@@ -330,7 +330,8 @@ export async function POST(request: Request, context: EnvContext) {
   }
   ensureGpuWatcher();
 
-  if (!conversation && body.save === true) {
+  // Modo aprofundado (esforço acima do normal): a conversa é salva sozinha, sem perguntar (pedido do dono do projeto).
+  if (!conversation && (body.save === true || effort !== "normal")) {
     const created = await createConversation(access.environment.id, userId, mode, review?.text.split("\n")[0].replace(/^#\s*/, "Revisão: ") || message);
     conversation = { ...created, owner: null, messages: [] };
   }

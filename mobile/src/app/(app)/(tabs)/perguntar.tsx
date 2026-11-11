@@ -542,11 +542,15 @@ function Kally() {
     setDraft("");
     setTranscribed(false);
     setLoading(true);
+    const deepSave = answerCfg.effort !== "normal";
+    if (deepSave && !conversationId) setSave(true);
     const payload = {
       message,
       mode,
       conversationId,
-      save: !conversationId && save,
+      // Modo aprofundado (esforço acima do normal): a conversa é salva sozinha desde a primeira mensagem, sem o
+      // "Salvar esta conversa?" (pedido do dono do projeto); assim a resposta longa também continua se a pessoa sair.
+      save: !conversationId && (save || deepSave),
       history: temporaryHistory,
       web,
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
@@ -655,7 +659,7 @@ function Kally() {
       update((m) => ({ ...m, failed: true, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
     } finally {
       setLoading(false);
-      if (save || conversationId) void loadHistory();
+      if (save || deepSave || conversationId) void loadHistory();
     }
   }
 
@@ -1036,6 +1040,7 @@ function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; va
         </Touchable>
       ))}
       <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Esforço</AppText>
+      <AppText variant="small" color={colors.faint}>No Aprofundado e no Máximo, a conversa é salva automaticamente no seu histórico.</AppText>
       {(Object.keys(EFFORT_LABEL) as AnswerConfig["effort"][]).map((e) => (
         <Touchable key={e} onPress={() => setForm({ ...form, effort: e })} style={[styles.modeRow, form.effort === e && styles.modeRowOn]}>
           <View style={{ flex: 1 }}>
