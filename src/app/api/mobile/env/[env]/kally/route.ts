@@ -372,7 +372,7 @@ export async function POST(request: Request, context: EnvContext) {
         });
         while (!cancel.signal.aborted && Date.now() - began < remoteWaitMs()) {
           const s = Math.round((Date.now() - began) / 1000);
-          send({ status: `Ligando a Kally remota (32B) para este pedido… ${s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`}` });
+          send({ status: `Estou ligando a Kally remota (32B), que dá conta melhor de um pedido assim. Na primeira vez leva uns minutos; já foram ${s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`}.` });
           await new Promise((resolve) => setTimeout(resolve, 5_000));
           if (failed) break;
           const h = await remoteHealth(true);
@@ -389,10 +389,23 @@ export async function POST(request: Request, context: EnvContext) {
         if (route.target !== "remote") {
           remoteFallback = failed ? `GPU não ligou: ${failed}` : `GPU não ficou pronta em ${Math.round(remoteWaitMs() / 1000)} s`;
           route = { target: "local", reason: `${waitRemote.reason}; ${remoteFallback}` };
-          send({ status: "A Kally remota não ficou pronta a tempo; respondendo com a local (8B)…" });
+          send({ status: "A Kally remota demorou mais que o normal para ligar, então vou responder com a local, para você não ficar esperando." });
         }
       }
       send({ sources });
+      // O que a Kally já fez antes de escrever, em uma frase amistosa: a pessoa sabe de onde vem a resposta.
+      if (!casual) {
+        const done = [
+          posts.length ? `encontrei ${posts.length === 1 ? "um pensamento" : `${posts.length} pensamentos`} do ambiente sobre isso` : "",
+          documents.length ? `olhei ${documents.length === 1 ? "um trecho" : `${documents.length} trechos`} dos seus documentos` : "",
+          web.length ? `consultei ${web.length} ${web.length === 1 ? "fonte" : "fontes"}${answerHunt ? ` (entre ${answerHunt.consulted} páginas de ${answerHunt.sites} sites)` : ""}, para te responder com base e não de cabeça` : "",
+          memories.length ? "lembrei do que você já me contou, para deixar a resposta do seu jeito" : "",
+        ].filter(Boolean);
+        if (done.length) {
+          const text = done.length === 1 ? done[0] : `${done.slice(0, -1).join(", ")} e ${done[done.length - 1]}`;
+          send({ status: `${text.charAt(0).toUpperCase()}${text.slice(1)}. Agora escrevo a resposta…` });
+        }
+      }
       let answer = "";
       let postWeb: WebResult[] = [];
       let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number } | null = null;
@@ -422,17 +435,17 @@ export async function POST(request: Request, context: EnvContext) {
           // sobre os conceitos gerais do tema, citadas com link. Só os termos gerais saem do servidor (post-sources.ts);
           // a pessoa vê cada etapa enquanto espera.
           if (route.target === "remote" && competence === "post" && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
-            send({ status: "Escolhendo o que pesquisar para o seu post…" });
+            send({ status: "Vou buscar fontes para dar base ao seu post. Escolho só os conceitos gerais do tema; nada pessoal seu sai daqui." });
             const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
             if (terms.pt.length && !cancel.signal.aborted) {
-              send({ status: `Pesquisando ${terms.pt.join(", ")} em notícias, redes sociais e sites…` });
+              send({ status: `Pesquisando ${terms.pt.join(", ")} em notícias, redes sociais e sites de referência…` });
               const hunt = await findPostSources(terms);
               // Segundo filtro: o 32B confere se cada fonte trata do que ela escreveu (post-sources.ts).
               const filtered = await filterRelevant(ownWords, hunt.picked);
               sourceHunt = { terms: terms.pt, consulted: hunt.consulted, sites: hunt.sites, byKind: hunt.byKind, picked: filtered.kept.length, removed: filtered.removed, ms: hunt.ms };
               const found = filtered.kept.filter((f) => !web.some((w) => w.url === f.url));
               if (found.length) {
-                send({ status: `Li ${hunt.consulted} fontes em ${hunt.sites} sites. Escrevendo o rascunho…` });
+                send({ status: `Li ${hunt.consulted} páginas em ${hunt.sites} sites e separei as mais confiáveis. Agora escrevo o rascunho com a sua voz…` });
                 postWeb = found;
                 web = [...web, ...found].slice(0, 16);
                 sources = toSources(posts, web, documents);
@@ -531,7 +544,7 @@ export async function POST(request: Request, context: EnvContext) {
             const collect = isPost && postReviewEnabled();
             let draft = "";
             let lastStatus = 0;
-            if (thinks) send({ status: "Conferindo o raciocínio antes de escrever…" });
+            if (thinks) send({ status: "Vou conferir o raciocínio antes de escrever, porque conta ou código errado não ajudam ninguém…" });
             try {
               // Post a 0,2 (a 0,4 saíam palavras truncadas como "escre-las" e mais detalhes inventados); o resto a 0,4 ou mais.
               const chunks = await openChatStream(remotePrompt, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", think: thinks, signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
@@ -550,12 +563,12 @@ export async function POST(request: Request, context: EnvContext) {
                 draft += part;
                 if (Date.now() - lastStatus > 1_500) {
                   lastStatus = Date.now();
-                  send({ status: `Escrevendo o rascunho… ${draft.split(/\s+/).filter(Boolean).length} palavras` });
+                  send({ status: `Escrevendo o seu rascunho… ${draft.split(/\s+/).filter(Boolean).length} palavras até agora` });
                 }
               }
               if (collect) {
                 draft += cleaner.flush();
-                send({ status: "Conferindo se tudo veio de você e das fontes…" });
+                send({ status: "Rascunho pronto. Estou conferindo frase por frase se tudo veio de você ou das fontes, para não colocar nada na sua boca…" });
                 const checked = await reviewPostFidelity({ ownWords, sources: web, draft });
                 postReview = { applied: checked.applied, proposed: checked.proposed, ms: checked.ms, ok: checked.ok };
                 firstText = Date.now();
@@ -587,10 +600,10 @@ export async function POST(request: Request, context: EnvContext) {
             const own = competenceArgs ? withMemory(buildCompetencePrompt({ ...competenceArgs, examples: [], web: remote ? web : localSources(web) })) : remote ? fullPrompt : prompt;
             const lastMsg = own[own.length - 1];
             const base = !style ? own : lastMsg?.role === "system" ? [...own.slice(0, -1), { ...lastMsg, content: `${lastMsg.content}\n\n${style}` }] : [...own, { role: "system" as const, content: style }];
-            send({ status: `Planejando a resposta em ${deep.parts} partes…` });
+            send({ status: `Vou planejar a resposta em ${deep.parts} partes, para ela ficar completa e bem amarrada. Demora um pouco mais, mas vale a pena…` });
             const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
             if (!plan || cancel.signal.aborted) {
-              send({ status: "Não consegui planejar em partes; respondendo direto…" });
+              send({ status: "Desta vez não consegui dividir em partes; vou responder direto, para não te deixar esperando." });
               return false;
             }
             deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local", retried: 0, dropped: 0 };
@@ -611,14 +624,14 @@ export async function POST(request: Request, context: EnvContext) {
               for (const [i, part] of plan.partes.entries()) {
                 if (cancel.signal.aborted) break;
                 const label = `parte ${i + 1} de ${plan.partes.length}: ${part.titulo}`;
-                send({ status: `Escrevendo a ${label}…` });
+                send({ status: i === 0 ? `Plano pronto. Escrevendo a ${label}…` : `Escrevendo a ${label}. Confiro cada parte antes de mostrar, para não sair do assunto…` });
                 // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez e,
                 // se continuar fora, não entra na resposta.
                 let text = await writePart(partPrompt(base, plan, i, answer, message));
                 let check = await onTopic(message, text);
                 if (!check.ok && !cancel.signal.aborted) {
                   deepReport.retried += 1;
-                  send({ status: `A ${label} saiu do assunto; reescrevendo…` });
+                  send({ status: `A ${label} fugiu um pouco do que você perguntou, então estou reescrevendo para ficar no ponto…` });
                   text = await writePart(partPrompt(base, plan, i, answer, message, true));
                   check = await onTopic(message, text);
                 }
