@@ -555,6 +555,7 @@ function Kally() {
     const update = (change: (m: Message) => Message) => setMessages((current) => current.map((m) => (m.id === assistant.id ? change(m) : m)));
     /** conversa salva desta mensagem (já existente ou criada agora): com ela, a resposta continua mesmo se a conexão cair */
     let savedId: string | null = conversationId;
+    let textStarted = false;
     // Texto em ritmo de digitação: o que chega entra numa fila e aparece letra a letra, numa velocidade que
     // acompanha a de chegada (a local manda ~30 letras/s, a remota ~200, o post revisado chega pronto de uma vez).
     // Assim a escrita não dá saltos nem para e volta, mesmo quando a frase já chegou inteira.
@@ -618,7 +619,7 @@ function Kally() {
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
-        if (event.status) update((m) => ({ ...m, status: event.status }));
+        if (event.status !== undefined) update((m) => ({ ...m, status: event.status || undefined }));
         if (event.remembered?.length) update((m) => ({ ...m, remembered: event.remembered }));
         if (event.offerSave) update((m) => ({ ...m, offerSave: true }));
         const extra = event as { model?: string; stats?: DevStats };
@@ -626,6 +627,11 @@ function Kally() {
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
         if (event.text) {
           kick();
+          // A etapa de antes do texto ("Procurando fontes…") sai quando o texto começa; as do modo em partes voltam depois.
+          if (!textStarted) {
+            textStarted = true;
+            update((m) => ({ ...m, status: undefined }));
+          }
           typeIn(event.text);
         }
       });
@@ -1118,6 +1124,7 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: 
           {before ? <Markdown>{before}</Markdown> : null}
           {draft ? <DraftCard draft={draft} pending={pending} /> : null}
           {after ? <Markdown>{after}</Markdown> : null}
+          {pending && item.status ? <View style={{ marginTop: space.sm }}><Shimmer>{item.status}</Shimmer></View> : null}
         </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}

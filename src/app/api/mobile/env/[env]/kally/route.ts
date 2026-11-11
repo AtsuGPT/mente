@@ -8,7 +8,7 @@ import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
-import { EFFORTS, effortFrom, partPrompt, planAnswer } from "@/server/kally/deep";
+import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer } from "@/server/kally/deep";
 import { markDone, markRunning } from "@/server/kally/running";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
@@ -395,7 +395,7 @@ export async function POST(request: Request, context: EnvContext) {
       send({ sources });
       let answer = "";
       let postWeb: WebResult[] = [];
-      let deepReport: { effort: string; parts: number; target: string } | null = null;
+      let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number } | null = null;
       let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
@@ -593,36 +593,47 @@ export async function POST(request: Request, context: EnvContext) {
               send({ status: "Não consegui planejar em partes; respondendo direto…" });
               return false;
             }
-            deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local" };
-            const pacer = createPacer(emit, cancel.signal);
+            deepReport = { effort, parts: plan.partes.length, target: remote ? "remote" : "local", retried: 0, dropped: 0 };
+            /** Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). */
+            const writePart = async (messages: AiMessage[]) => {
+              let text = "";
+              if (remote) {
+                const thinkPart = deep.think || remoteThinks({ competence, mode, message, brief: false });
+                const chunks = await openChatStream(messages, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st) });
+                modelName = remoteConfig().model;
+                for await (const chunk of chunks) text += cleaner.push(chunk);
+              } else {
+                for await (const chunk of streamChat(messages, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) text += cleaner.push(chunk);
+              }
+              return (text + cleaner.flush()).trim();
+            };
             try {
               for (const [i, part] of plan.partes.entries()) {
                 if (cancel.signal.aborted) break;
-                if (!answer) send({ status: `Escrevendo a parte ${i + 1} de ${plan.partes.length}: ${part.titulo}…` });
-                const messages = partPrompt(base, plan, i, answer, message);
-                if (i > 0) emit("\n\n");
-                if (remote) {
-                  const thinkPart = deep.think || remoteThinks({ competence, mode, message, brief: false });
-                  const chunks = await openChatStream(messages, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st) });
-                  modelName = remoteConfig().model;
-                  for await (const chunk of chunks) {
-                    if (!firstText) firstText = Date.now();
-                    pacer.push(cleaner.push(chunk));
-                  }
-                  pacer.push(cleaner.flush());
-                  await pacer.finish();
-                } else {
-                  for await (const chunk of streamChat(messages, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) {
-                    if (!firstText) firstText = Date.now();
-                    emit(cleaner.push(chunk));
-                  }
-                  emit(cleaner.flush());
+                const label = `parte ${i + 1} de ${plan.partes.length}: ${part.titulo}`;
+                send({ status: `Escrevendo a ${label}…` });
+                // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez e,
+                // se continuar fora, não entra na resposta.
+                let text = await writePart(partPrompt(base, plan, i, answer, message));
+                let check = await onTopic(message, text);
+                if (!check.ok && !cancel.signal.aborted) {
+                  deepReport.retried += 1;
+                  send({ status: `A ${label} saiu do assunto; reescrevendo…` });
+                  text = await writePart(partPrompt(base, plan, i, answer, message, true));
+                  check = await onTopic(message, text);
                 }
+                if (!check.ok || !text) {
+                  deepReport.dropped += 1;
+                  console.warn("Kally em partes: parte fora do assunto descartada:", part.titulo, check);
+                  continue;
+                }
+                if (!firstText) firstText = Date.now();
+                await typeOut(`${answer ? "\n\n" : ""}${text}`, emit, cancel.signal);
               }
+              send({ status: "" });
               if (remote) noteRemoteUse();
               return true;
             } catch (cause) {
-              pacer.flushNow();
               // Já há texto na tela: a falha vira erro (a resposta parcial não passa por completa). Sem texto, cai para o normal.
               if (cancel.signal.aborted || answer) throw cause;
               remoteFallback = `em partes falhou: ${cause instanceof Error ? cause.message : String(cause)}`;

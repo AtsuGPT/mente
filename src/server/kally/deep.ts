@@ -1,5 +1,47 @@
 import "server-only";
-import { completeChat, type AiMessage } from "@/server/ai";
+import { completeChat, embedDocuments, embedQueries, type AiMessage } from "@/server/ai";
+
+/* ------------------------------ fora do assunto ------------------------------ */
+
+const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const STOP = new Set(
+  "como funciona funcionam porque quando quanto quais qual onde quem sobre sobre isso essa esse este esta para pela pelo pelos pelas entre mais menos muito muita muitos muitas fazer faz feito pode poderia queria quero gostaria explica explique explicar entender saber dizer coisa coisas forma jeito ainda tambem sempre nunca depois antes agora hoje voce voces minha minhas meus meu seus suas nossa nosso".split(" "),
+);
+/** Raízes (5 letras) das palavras de conteúdo do pedido: "inflação" → "infla", "salário" → "salar". */
+export function topicRoots(request: string) {
+  return [...new Set(fold(request).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w)).map((w) => w.slice(0, 5)))];
+}
+
+/**
+ * A parte trata do pedido? Duas checagens que não dependem do modelo: palavras do pedido presentes na parte e
+ * significado próximo (o mesmo embedder do RAG, na CPU). Basta uma passar com folga, ou as duas passarem juntas.
+ * Medido em 11/11: a parte sobre "elasticidade-preço" numa pergunta sobre inflação não tinha nenhuma palavra do
+ * pedido. Sem embedder, vale só a checagem de palavras.
+ */
+export async function onTopic(request: string, text: string): Promise<{ ok: boolean; hits: number; score: number | null }> {
+  const roots = topicRoots(request);
+  const body = fold(text);
+  const hits = roots.filter((r) => body.includes(r)).length;
+  let score: number | null = null;
+  try {
+    const [[q], [d]] = await Promise.all([embedQueries([request.slice(0, 1_000)]), embedDocuments([text.slice(0, 2_000)])]);
+    let dot = 0;
+    let na = 0;
+    let nb = 0;
+    for (let i = 0; i < Math.min(q.length, d.length); i++) {
+      dot += q[i] * d[i];
+      na += q[i] * q[i];
+      nb += d[i] * d[i];
+    }
+    score = na && nb ? dot / Math.sqrt(na * nb) : null;
+  } catch {
+    score = null;
+  }
+  const words = roots.length === 0 || hits >= Math.min(2, roots.length);
+  const meaning = score === null ? words : score >= 0.5;
+  const ok = (words && (score === null || score >= 0.35)) || (meaning && hits >= 1);
+  return { ok, hits, score };
+}
 
 /**
  * Resposta em partes (níveis de esforço). Em vez de uma resposta só, a Kally:
@@ -62,7 +104,7 @@ function tail(text: string, max = 6_000) {
 }
 
 /** Prompt de uma parte: o mesmo da Kally (material, regras, memória) + plano + o que já foi escrito + a tarefa. */
-export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string, request: string): AiMessage[] {
+export function partPrompt(base: AiMessage[], plan: Plan, index: number, written: string, request: string, retry = false): AiMessage[] {
   const part = plan.partes[index];
   const last = index === plan.partes.length - 1;
   const outline = plan.partes.map((p, i) => `${i + 1}. ${p.titulo}: ${p.objetivo}`).join("\n");
@@ -77,6 +119,7 @@ export function partPrompt(base: AiMessage[], plan: Plan, index: number, written
     `O que esta parte entrega: ${part.objetivo}`,
     "Desenvolva de verdade (explicação, exemplo concreto, nuance), com tabela, diagrama ```mermaid, lista ou exemplo quando a parte pedir. Não anuncie as próximas partes, não diga \"nesta parte\" e não volte ao que já foi escrito.",
     last ? "É a última parte: feche com aplicação prática e 2 ou 3 próximos passos concretos, sem resumir tudo de novo." : "Não escreva conclusão: a resposta continua na próxima parte.",
+    retry ? `ATENÇÃO: a versão anterior desta parte saiu do assunto e foi descartada. Escreva de novo tratando só do pedido da pessoa ("${request.slice(0, 300)}"), usando os termos dele.` : "",
   ].filter(Boolean);
   return [...base, { role: "system", content: task.join("\n") }];
 }

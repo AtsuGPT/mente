@@ -79,3 +79,13 @@ post seguem normalmente. Quem reabre a conversa recebe `generating: true` no GET
 ainda está escrevendo esta resposta…" e confere a cada 4 s até ela aparecer. Se a conexão cair com a tela aberta,
 o app mostra o mesmo aviso em vez do erro. Na conversa temporária, sair continua parando a resposta (nada seria
 guardado). Um reinício do servidor interrompe o que estava em andamento.
+
+### Sem sair do assunto
+
+Cada parte é escrita inteira, conferida e só então aparece (`onTopic` em `deep.ts`), por duas checagens que não
+dependem do modelo: as palavras de conteúdo do pedido presentes na parte e o significado próximo (o embedder do RAG,
+na CPU). Fora do assunto, a parte é refeita uma vez com a ordem de tratar só do pedido; se continuar fora, não
+entra na resposta (o log registra). Medido com o caso real de 11/11: a parte sobre a inflação passou (5 de 5
+palavras, cosseno 0,92) e a parte sobre elasticidade-preço foi barrada (0 palavras, 0,35). As partes não levam os
+exemplos de referência (a causa do desvio) e repetem o pedido. Entre as partes, o app mostra a etapa em andamento
+abaixo do texto.
