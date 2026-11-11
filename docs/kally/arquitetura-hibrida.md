@@ -74,7 +74,8 @@ O que mudou, em ordem dos commits:
 | `SEARXNG_URL` | — | buscador SearXNG local (`http://127.0.0.1:8888`, contêiner `kally-searxng`); sem ele, `BRAVE_API_KEY` |
 | `KALLY_VAST_ENABLED` | desligado | `"1"` liga o controlador da GPU |
 | `KALLY_VAST_API_KEY` / `KALLY_VAST_INSTANCE_ID` | — | chave e instância do Vast.ai |
-| `KALLY_GPU_AUTOSTART` | desligado | `"1"`: um pedido que precisa do remoto liga a GPU (a resposta dele sai no local) |
+| `KALLY_GPU_AUTOSTART` | desligado | `"1"`: um pedido que precisa do remoto liga a GPU |
+| `KALLY_REMOTE_WAIT_MS` | 360000 | pedido grande (post, estudo, análise, revisão, material longo, "só 32B") espera a GPU ligar até esse tempo, com o andamento na tela, em vez de ir para o 8B; papo e pedidos simples respondem no 8B na hora; `"0"` desliga a espera |
 | `KALLY_GPU_IDLE_MINUTES` | 20 | desliga o que o controlador ligou depois de N min sem uso remoto |
 | `KALLY_GPU_MAX_USD_PER_DAY` | 5 | gasto máximo de GPU por dia (pelo `dph_total` do Vast.ai) |
 | `KALLY_GPU_MAX_STARTS_PER_DAY` | 6 | tentativas de ligar por dia |

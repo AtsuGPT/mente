@@ -51,6 +51,15 @@ function namesAuthor(message: string, author: string | null | undefined) {
   return fold(author).split(/[^\p{L}\p{N}]+/u).some((w) => w.length >= 3 && text.includes(` ${w} `));
 }
 
+/**
+ * Quanto um pedido grande espera a GPU ligar antes de ir para o 8B (KALLY_REMOTE_WAIT_MS, padrão 6 min; "0" desliga
+ * a espera). Em 10/11 a instância levou ~5 min do pedido até a primeira resposta remota.
+ */
+const remoteWaitMs = () => {
+  const v = Number(process.env.KALLY_REMOTE_WAIT_MS);
+  return process.env.KALLY_REMOTE_WAIT_MS !== undefined && process.env.KALLY_REMOTE_WAIT_MS !== "" && Number.isFinite(v) && v >= 0 ? v : 360_000;
+};
+
 // Limite por pessoa, em memória: protege o provedor de IA de uso excessivo.
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_WINDOW = 40;
@@ -272,6 +281,8 @@ export async function POST(request: Request, context: EnvContext) {
   const choice = modelChoiceFrom(body.model, platformAdmin || access.role === "OWNER");
   let route: RouteDecision = { target: "local", reason: "fora do pipeline" };
   let remoteFallback: string | null = null;
+  /** pedido grande com a GPU desligada ou ligando: espera o 32B (dentro da resposta) em vez de ir para o 8B */
+  let waitRemote: { reason: string; started: Promise<{ ok: boolean; detail: string }> | null } | null = null;
   if (pipeline && !dev && review?.kind !== "textual" && remoteConfig().enabled) {
     route = routeModel(
       { mode, competence, casual, interpretation, message, materialChars, sources: posts.length + documents.length, canDraft, thinMaterial, brief: BRIEF.test(message) },
@@ -286,11 +297,21 @@ export async function POST(request: Request, context: EnvContext) {
       const health = await remoteHealth();
       if (health.state !== "disponivel") {
         remoteFallback = `remoto ${health.state}${health.detail ? `: ${health.detail}` : ""}`;
-        // GPU sob demanda: só com KALLY_GPU_AUTOSTART, e nunca bloqueia esta resposta (sai no local).
-        if (gpuConfig().autostart && (health.state === "indisponivel" || health.state === "desligado")) {
-          void startGpu(`pedido de ${competence ?? mode} (${route.reason})`).then((r) => {
+        // GPU sob demanda: só com KALLY_GPU_AUTOSTART.
+        const gpu = gpuConfig();
+        let started: Promise<{ ok: boolean; detail: string }> | null = null;
+        if (gpu.autostart && (health.state === "indisponivel" || health.state === "desligado")) {
+          started = startGpu(`pedido de ${competence ?? mode} (${route.reason})`).then((r) => {
             if (!r.ok) console.info("Kally GPU: não liguei:", r.detail);
+            return r;
           });
+        }
+        // Pedido grande (post, estudo, análise, revisão, material longo, ou "só 32B" do dev) espera a GPU ligar em vez
+        // de gastar o pedido no 8B; o resto responde no local na hora. A espera acontece dentro da resposta, com o
+        // andamento na tela (waitForRemote, abaixo).
+        const big = choice === "remote" || competence === "post" || competence === "estudo" || competence === "analise" || mode === "revisar" || mode === "ideia" || materialChars > 6_000;
+        if (gpu.enabled && gpu.autostart && big && remoteWaitMs() > 0 && (started || health.state === "inicializando")) {
+          waitRemote = { reason: route.reason, started };
         }
         route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
       }
@@ -322,6 +343,36 @@ export async function POST(request: Request, context: EnvContext) {
         }
       };
       send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
+      // Esperando a GPU: confere a cada 5 s e mostra o andamento (isso também mantém a conexão viva).
+      // Pronta: responde o 32B. Não ligou (limite do dia, erro) ou passou de KALLY_REMOTE_WAIT_MS: responde o 8B.
+      if (waitRemote) {
+        const began = Date.now();
+        let failed: string | null = null;
+        void waitRemote.started?.then((r) => {
+          if (!r.ok && !/em andamento/.test(r.detail)) failed = r.detail;
+        });
+        while (!cancel.signal.aborted && Date.now() - began < remoteWaitMs()) {
+          const s = Math.round((Date.now() - began) / 1000);
+          send({ status: `Ligando a Kally remota (32B) para este pedido… ${s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`}` });
+          await new Promise((resolve) => setTimeout(resolve, 5_000));
+          if (failed) break;
+          const h = await remoteHealth(true);
+          if (h.state === "disponivel") {
+            route = { target: "remote", reason: `${waitRemote.reason}; esperou a GPU ${Math.round((Date.now() - began) / 1000)} s` };
+            remoteFallback = null;
+            break;
+          }
+          if (h.state === "erro") {
+            failed = h.detail;
+            break;
+          }
+        }
+        if (route.target !== "remote") {
+          remoteFallback = failed ? `GPU não ligou: ${failed}` : `GPU não ficou pronta em ${Math.round(remoteWaitMs() / 1000)} s`;
+          route = { target: "local", reason: `${waitRemote.reason}; ${remoteFallback}` };
+          send({ status: "A Kally remota não ficou pronta a tempo; respondendo com a local (8B)…" });
+        }
+      }
       send({ sources });
       let answer = "";
       let postWeb: WebResult[] = [];
