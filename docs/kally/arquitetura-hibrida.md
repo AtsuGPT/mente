@@ -223,6 +223,8 @@ assim na main). A checagem de tipos (`tsc --noEmit`) passa.
 
 Antes de procurar material (posts, documentos, memória, internet e o filtro das fontes), o modelo escreve o essencial da mensagem: o assunto e o que a pessoa quer saber, numa frase de até 15 palavras que se entende sozinha (`src/server/kally/essential.ts`). A resposta continua lendo a mensagem inteira; só as buscas usam o essencial.
 
+**Só nos pedidos grandes** (esforço Aprofundado ou Máximo; decisão de 11/11/2026). No Normal o filtro não entra: a busca usa a mensagem, como antes (curta, junto com a anterior), sem os ~3,5 s do 8B.
+
 - **Quem escreve:** a Kally 32, se já estiver no ar (não liga a GPU por isso); senão, o modelo local que vai responder.
 - **Mesmo começo de prompt:** no local, a chamada usa o mesmo começo da resposta (`chatHead`/`competenceHead`: regras + histórico) e o mesmo `num_ctx`. O Ollama atende um pedido por vez e guarda só o último começo lido: com um prompt próprio, esta chamada apagaria o que a resposta reaproveita.
 - **Reserva:** se o modelo falhar, demorar ou escrever algo sem nenhuma palavra da conversa, valem as regras de `focus.ts` (tiram cumprimento, forma de pedir e formato). Mensagem curta sem conversa antes (até 6 palavras) vai direto, sem modelo.
