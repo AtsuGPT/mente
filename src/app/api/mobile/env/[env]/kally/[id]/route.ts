@@ -1,5 +1,5 @@
 import { deleteConversation, getConversation } from "@/server/kally";
-import { isRunning } from "@/server/kally/running";
+import { isRunning, stopRunning } from "@/server/kally/running";
 import { envAccess, error, json } from "../../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -21,7 +21,10 @@ export async function DELETE(_request: Request, context: Context) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
-  const deleted = await deleteConversation(access.environment.id, access.userId, (await context.params).id);
+  const id = (await context.params).id;
+  // Conversa excluída com resposta em andamento: a geração para junto (nada de gastar modelo à toa).
+  if (await getConversation(access.environment.id, access.userId, id)) stopRunning(id);
+  const deleted = await deleteConversation(access.environment.id, access.userId, id);
   return deleted ? json({ ok: true }) : error("Conversa não encontrada.", 404);
 }
 

@@ -146,7 +146,11 @@ export function todayLine(now = new Date()) {
   return `Hoje é ${date}. Só use essa data quando a pessoa perguntar quanto falta para algo ou se um prazo já passou; nunca crie datas que não estão no ambiente.`;
 }
 
-const identity = (environmentName: string, toneExamples = true) => [
+/** Exemplos do tom do papo casual: variam com o pedido, então ficam fora do começo fixo do prompt (buildPrompt). */
+const TONE_EXAMPLES = "Exemplos do tom em papo casual — Pessoa: \"estou cansado hoje\" / Kally: \"Dia puxado, né? Às vezes o melhor é desacelerar um pouco. Se quiser desabafar, tô aqui.\" — Pessoa: \"bom dia!\" / Kally: \"Bom dia! Como começou o seu dia?\"";
+
+/** Começo fixo do prompt da conversa: igual em todos os pedidos do ambiente (o modelo reaproveita sem reler). */
+const identity = (environmentName: string) => [
   `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
   todayLine(),
   `${PERSONALITY_SHORT} Fale português brasileiro natural, como gente, nunca como um sistema de análise.`,
@@ -157,9 +161,6 @@ const identity = (environmentName: string, toneExamples = true) => [
   "Tamanho proporcional à mensagem: frases curtas em conversa casual; títulos e listas só quando organizarem um conteúdo de fato. Faça no máximo uma pergunta, e só se for natural.",
   "Em contas com os números da pessoa, use só os números que ela deu e na unidade em que deu (por ciclo não é por mês, total não é por unidade); se faltar um dado para a resposta, diga qual falta e faça a conta até onde der, sem supor o resto.",
   "Quando a pessoa pergunta algo do ambiente, responda primeiro exatamente o que ela perguntou; depois, se ajudar, acrescente em uma ou duas frases um contexto útil ou um próximo passo (como usar a informação, o que fazer em seguida). Não repita a pergunta e não encha.",
-  ...(toneExamples
-    ? ["Exemplos do tom em papo casual — Pessoa: \"estou cansado hoje\" / Kally: \"Dia puxado, né? Às vezes o melhor é desacelerar um pouco. Se quiser desabafar, tô aqui.\" — Pessoa: \"bom dia!\" / Kally: \"Bom dia! Como começou o seu dia?\""]
-    : []),
   ...MATERIAL_RULES,
 ];
 
@@ -266,21 +267,23 @@ export function buildPrompt(input: {
 }): AiMessage[] {
   const found = input.posts.some((p) => p.kind !== "conversa");
   const documents = input.documents ?? [];
-  const system = input.dev
-    ? [
-        devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`),
-        // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
-        ...(input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)),
-      ]
+  // Começo fixo (igual entre pedidos) e, numa mensagem logo antes da pergunta, o que muda a cada pedido: o Ollama e o
+  // vLLM reaproveitam o começo igual ao do pedido anterior, inclusive o histórico, e só leem o resto (log de 11/11:
+  // só 23 de 6.319 tokens eram reaproveitados, e o 8B relia tudo a cada mensagem, de 25 a 40 s).
+  const system = input.dev ? [devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`)] : identity(input.environmentName);
+  const late: string[] = input.dev
+    ? // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
+      input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)
     : [
-        ...identity(input.environmentName, input.toneExamples ?? true),
+        ...(input.toneExamples ?? true ? [TONE_EXAMPLES] : []),
         // Tabelas, diagramas e código: fora do papo casual, ou quando a mensagem pede estrutura.
         ...(input.toneExamples === false || (input.mode !== "chat" && input.mode !== "auto") || WANTS_STRUCTURE.test(input.message) ? [FORMAT_RULE] : []),
         ...modeInstructions(input.mode, found, input.categories),
       ];
-  if (input.guide) system.push(input.guide);
-  if (documents.length) system.push(DOCUMENT_RULE);
-  if (input.userName) system.push(speakerRule(input.userName));
+  if (input.guide) late.push(input.guide);
+  if (documents.length) late.push(DOCUMENT_RULE);
+  if (input.userName) late.push(speakerRule(input.userName));
+  const lateMessage = (): AiMessage[] => (late.filter(Boolean).length ? [{ role: "system", content: late.filter(Boolean).join(" ") }] : []);
   // Histórico com limite de tamanho (as respostas antigas entram pelo fim, cortadas): numa conversa salva com respostas
   // longas do modo aprofundado, o prompt do 8B chegou a 6.319 tokens (54 s só de leitura) e a resposta era cortada.
   const history = recentHistory(input.history, CHAT_HISTORY_CHARS);
@@ -290,24 +293,24 @@ export function buildPrompt(input: {
   // pequeno chega a repeti-lo). Vão só títulos, como referências internas para sugerir.
   if (input.mode === "ideia") {
     const internal = input.posts.filter((p) => p.kind !== "conversa");
-    if (internal.length) system.push(`Referências internas que talvez se relacionem (só títulos; NÃO são falas da pessoa): ${internal.map((p) => `"${p.title}" (${p.categories.join(", ") || "sem pasta"})`).join("; ")}.`);
+    if (internal.length) late.push(`Referências internas que talvez se relacionem (só títulos; NÃO são falas da pessoa): ${internal.map((p) => `"${p.title}" (${p.categories.join(", ") || "sem pasta"})`).join("; ")}.`);
     if (/rascunho|escrev[ae] (o|um) (texto|post|pensamento)|pode escrever|monte o texto|cri(e|a|ar) (um |o |uma )?(post|pensamento)|publi(que|car|ca)|postar/i.test(input.message)) {
-      system.push("A pessoa pediu o rascunho AGORA: escreva-o nesta resposta, no formato <rascunho> indicado, com o que ela já contou.");
+      late.push("A pessoa pediu o rascunho AGORA: escreva-o nesta resposta, no formato <rascunho> indicado, com o que ela já contou.");
     }
     const extra = [input.attachment ? materialBlock([], [], input.attachment, null, false) : "", input.web?.length ? materialBlock([], input.web, null, null, false) : ""].filter(Boolean).join("\n\n");
-    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }, ...closing];
+    return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }, ...closing];
   }
 
   // Conversa solta sem nada relacionado: sem bloco de material (senão a Kally comenta o vazio).
   if (input.mode === "chat" && !input.posts.length && !input.web?.length && !input.attachment && !documents.length) {
-    return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: input.message }, ...closing];
+    return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: input.message }, ...closing];
   }
   const material = materialBlock(input.posts, input.web ?? [], input.attachment ?? null, input.reviewText ?? null, true, documents, input.userName);
   // Pergunta sobre o ambiente com material encontrado: a regra de orientação da identidade ficava longe do fim do
   // prompt e o modelo de 4B quase não a seguia (2 de 40 respostas da v6 orientavam). Na calibração humana, "curto
   // demais" foi a queixa mais comum em respostas certas. O lembrete vai por último, onde o qwen3 segue melhor.
   if (input.mode === "chat" && (found || documents.length) && closing.length) closing[0].content += ` ${ORIENTATION_REMINDER}`;
-  return [{ role: "system", content: system.join(" ") }, ...history, { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
+  return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
 }
 
 const ORIENTATION_REMINDER =
@@ -370,23 +373,28 @@ export function buildCompetencePrompt(input: {
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
-    `\nFORMATO:\n${c.formato({ canDraft: input.canDraft, categories: input.categories }).map((i) => `- ${i}`).join("\n")}`,
+  ];
+  // O que muda a cada pedido vai numa mensagem própria, logo antes da pergunta, e não no começo: o Ollama e o vLLM
+  // reaproveitam a parte do prompt igual à do pedido anterior e só leem o resto. Com os exemplos e o formato no meio
+  // das regras, só 23 tokens de 6.319 eram reaproveitados (log do Ollama, 11/11) e o 8B relia tudo (25 a 40 s).
+  const late: string[] = [
+    `FORMATO:\n${c.formato({ canDraft: input.canDraft, categories: input.categories }).map((i) => `- ${i}`).join("\n")}`,
     // Sem alvo, o qwen3 escrevia o dobro dos exemplos e era cortado no limite de tokens, no meio da frase.
     `- Tamanho: ${c.tamanho[input.depth ?? "media"]}. Termine sempre o texto: se estiver ficando longo, condense o final em vez de parar no meio.`,
   ];
   if (input.examples.length) {
-    system.push(
+    late.push(
       "\nEXEMPLOS DE REFERÊNCIA. Mostram o nível esperado de precisão, profundidade e organização. O tema e os detalhes deles são outros: não copie frases nem conteúdo; o formato de entrega segue as regras de FORMATO acima.",
       ...input.examples.map((e, i) => `\n### Exemplo ${i + 1}\nPedido: ${e.pedido}\n\nResposta:\n${e.resposta}`),
     );
   }
-  if (documents.length) system.push(`\n${DOCUMENT_RULE}`);
-  if (input.userName) system.push(`\n${speakerRule(input.userName)}`);
-  if (input.guide) system.push(`\n${input.guide}`);
+  if (documents.length) late.push(`\n${DOCUMENT_RULE}`);
+  if (input.userName) late.push(`\n${speakerRule(input.userName)}`);
+  if (input.guide) late.push(`\n${input.guide}`);
   // Medido: com "/post <tema>" (que pede o post agora) e nada mais, o modelo inventava a vida da pessoa.
   const holdDraft = c.id === "post" && input.thinMaterial;
   const hold = "A pessoa ainda não contou nada além do tema. Não escreva rascunho, mesmo que ela peça para criar agora: sem a história dela, o texto seria inventado. Responda só com a frase de entendimento e uma única pergunta que traga a matéria do texto.";
-  if (holdDraft) system.push(`\nAGORA: ${hold}`);
+  if (holdDraft) late.push(`\nAGORA: ${hold}`);
   const history = recentHistory(input.history, COMPETENCE_HISTORY_CHARS);
 
   // Post da pessoa: outros pensamentos entram só como títulos (o texto deles se misturaria aos argumentos dela).
@@ -407,6 +415,7 @@ export function buildCompetencePrompt(input: {
   return [
     { role: "system", content: system.join("\n") },
     ...history,
+    { role: "system", content: late.join("\n") },
     { role: "user", content: material ? `${input.message}\n\n---\n${material}` : input.message },
     { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}${structureReminder(input.message)}` },
   ];
@@ -521,6 +530,12 @@ export async function addMessage(conversationId: string, role: "user" | "assista
     db.kallyMessage.create({ data: { conversationId, role, content, sources: JSON.stringify(sources) } }),
     db.kallyConversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
   ]);
+}
+
+/** Refazer: tira a última resposta da Kally da conversa (se a última mensagem for dela), para gerar de novo. */
+export async function dropLastAnswer(conversationId: string) {
+  const last = await db.kallyMessage.findFirst({ where: { conversationId }, orderBy: { createdAt: "desc" }, select: { id: true, role: true } });
+  if (last?.role === "assistant") await db.kallyMessage.delete({ where: { id: last.id } });
 }
 
 export async function deleteConversation(environmentId: string, userId: string, id: string) {

@@ -73,6 +73,10 @@ type Message = {
   offerSave?: boolean;
   /** resposta à oferta: salva ou dispensada */
   saveAnswered?: "salva" | "dispensada";
+  /** mensagem da pessoa esperando a vez (enviada enquanto a Kally respondia) */
+  queued?: boolean;
+  /** resposta interrompida pelo botão Parar */
+  stopped?: boolean;
 };
 type DevStats = {
   loadSeconds?: number;
@@ -195,6 +199,11 @@ function Kally() {
   const [devSheet, setDevSheet] = useState(false);
   const [answerCfg, setAnswerCfgState] = useState<AnswerConfig>(ANSWER_DEFAULT);
   const [answerSheet, setAnswerSheet] = useState(false);
+  // Resposta em andamento (para o botão Parar) e mensagens na fila (enviadas enquanto a Kally respondia).
+  const abortRef = useRef<AbortController | null>(null);
+  const stopRequested = useRef(false);
+  const activeConversation = useRef<string | null>(null);
+  const queueRef = useRef<{ text: string; userId: string }[]>([]);
   /**
    * Abre outra folha a partir do menu de modo só depois que ele fecha: cada folha é um Modal, e o sistema (no iPhone,
    * sobretudo) não apresenta um Modal enquanto outro ainda está saindo; o toque parecia não fazer nada.
@@ -409,6 +418,30 @@ function Kally() {
     }
   }
 
+  /** Botão Parar: corta a resposta na tela e no servidor (para não gastar modelo à toa). */
+  const stop = useCallback(() => {
+    stopRequested.current = true;
+    const id = activeConversation.current;
+    abortRef.current?.abort();
+    if (id) void api.stopKally(id).catch(() => undefined);
+  }, [api]);
+  /** Tira da fila uma mensagem que ainda não foi enviada. */
+  const cancelQueued = useCallback((id: string) => {
+    queueRef.current = queueRef.current.filter((q) => q.userId !== id);
+    setMessages((current) => current.filter((m) => m.id !== id));
+  }, []);
+  /** Refazer a última resposta: a pergunta fica, a resposta sai e é gerada de novo. */
+  const retry = useCallback((assistantId: string) => {
+    const list = messagesRef.current;
+    const at = list.findIndex((m) => m.id === assistantId);
+    const question = at > 0 ? list[at - 1] : null;
+    if (!question || question.role !== "user") return;
+    setMessages((current) => current.filter((m) => m.id !== assistantId));
+    setTimeout(() => void sendRef.current?.(question.content, { userId: question.id, retry: true }), 30);
+  }, []);
+  const sendRef = useRef<typeof send | null>(null);
+  sendRef.current = send;
+
   // Mensagens atuais para o salvar (o cartão fica dentro das bolhas, que não redesenham a cada mudança).
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
@@ -522,9 +555,19 @@ function Kally() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queued, attachment?.status]);
 
-  async function send(raw: string) {
+  async function send(raw: string, options: { userId?: string; retry?: boolean } = {}) {
     const content = raw.trim();
-    if (loading || readingOwner) return;
+    if (readingOwner) return;
+    // A Kally ainda está respondendo: a mensagem entra na fila e sai quando chegar a vez (com as anteriores no histórico).
+    if (loading && !options.userId) {
+      if (!content || /^\/dev(?:\s|$)/i.test(content)) return;
+      const id = newId();
+      queueRef.current.push({ text: raw, userId: id });
+      setMessages((current) => [...current, { id, role: "user", content, queued: true }]);
+      setDraft("");
+      goToEnd(true);
+      return;
+    }
     if (/^\/dev(?:\s|$)/i.test(content)) {
       setDraft("");
       return devCommand(content);
@@ -539,11 +582,25 @@ function Kally() {
     const ready = attachment?.status === "ready" ? attachment : null;
     const message = content || `Revise "${reviewTarget?.title}"`;
 
-    const user: Message = { id: newId(), role: "user", content: message, attachmentName: ready?.name, imageUri: ready?.localUri, reviewSource: reviewing && !reviewTarget ? content : undefined };
+    const user: Message = { id: options.userId ?? newId(), role: "user", content: message, attachmentName: ready?.name, imageUri: ready?.localUri, reviewSource: reviewing && !reviewTarget ? content : undefined };
     const assistant: Message = { id: newId(), role: "assistant", content: "", reviewSource: user.reviewSource, startedAt: Date.now() };
-    // Temporária: o app manda o histórico (o servidor não guarda nada).
-    const temporaryHistory = conversationId ? undefined : messages.filter((m) => !m.local).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
-    setMessages((current) => [...current, user, assistant]);
+    // Temporária: o app manda o histórico (o servidor não guarda nada). Só o que veio antes desta mensagem e já foi
+    // respondido; as que ainda estão na fila ficam de fora.
+    const known = messagesRef.current;
+    const upTo = options.userId ? known.findIndex((m) => m.id === options.userId) : known.length;
+    const temporaryHistory = conversationId ? undefined : known.slice(0, upTo < 0 ? known.length : upTo).filter((m) => !m.local && !m.queued).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
+    if (options.userId) {
+      // Da fila ou refazer: a bolha da pessoa já existe; a resposta entra logo depois dela.
+      setMessages((current) => {
+        const at = current.findIndex((m) => m.id === options.userId);
+        if (at < 0) return [...current, user, assistant];
+        const next = current.map((m) => (m.id === options.userId ? { ...m, queued: false } : m));
+        next.splice(at + 1, 0, assistant);
+        return next;
+      });
+    } else {
+      setMessages((current) => [...current, user, assistant]);
+    }
     goToEnd(true);
     setDraft("");
     setTranscribed(false);
@@ -562,6 +619,7 @@ function Kally() {
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
       dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
+      retry: options.retry || undefined,
       // Modo aprofundado: o modelo e o esforço que a pessoa escolheu (no menu de modo).
       model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
       effort: answerCfg.effort !== "normal" ? answerCfg.effort : undefined,
@@ -574,6 +632,10 @@ function Kally() {
     /** conversa salva desta mensagem (já existente ou criada agora): com ela, a resposta continua mesmo se a conexão cair */
     let savedId: string | null = conversationId;
     let textStarted = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    stopRequested.current = false;
+    activeConversation.current = savedId;
     // Texto em ritmo de digitação: o que chega entra numa fila e aparece letra a letra, numa velocidade que
     // acompanha a de chegada (a local manda ~30 letras/s, a remota ~200, o post revisado chega pronto de uma vez).
     // Assim a escrita não dá saltos nem para e volta, mesmo quando a frase já chegou inteira.
@@ -633,6 +695,7 @@ function Kally() {
         if (event.conversationId) {
           setConversationId(event.conversationId);
           savedId = event.conversationId;
+          activeConversation.current = event.conversationId;
         }
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
@@ -658,10 +721,15 @@ function Kally() {
           }
           typeIn(event.text);
         }
-      });
+      }, controller.signal);
       await drain();
     } catch (cause) {
       flushAll();
+      // Parada pelo botão: fica o que já foi escrito, marcado como interrompido (o servidor também parou).
+      if (stopRequested.current) {
+        update((m) => ({ ...m, stopped: true, status: undefined, steps: addStep(m.steps, "Interrompida por você.", "parado", Date.now()) }));
+        return;
+      }
       // Conversa salva: a conexão caiu, mas a Kally continua escrevendo no servidor. Em vez do erro, espera a resposta.
       if (savedId) {
         const text = "A conexão caiu, mas a Kally continua escrevendo. A resposta aparece aqui assim que ficar pronta.";
@@ -673,14 +741,34 @@ function Kally() {
     } finally {
       const end = Date.now();
       update((m) => ({ ...m, finishedAt: end, steps: closeStep(m.steps, end) }));
+      abortRef.current = null;
+      activeConversation.current = null;
       setLoading(false);
+      // Próxima da fila, depois que a tela registrar o fim desta resposta (ela entra no histórico da próxima).
+      if (queueRef.current.length) setTimeout(() => {
+        const next = queueRef.current.shift();
+        if (next) void send(next.text, { userId: next.userId });
+      }, 60);
       if (save || deepSave || conversationId) void loadHistory();
     }
   }
 
   const available = MODES.filter((m) => !m.needsPublish || permissions.publish);
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
-  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} technical={technical} onSaveAnswer={answerSave} />, [loading, messages.length, technical, answerSave]);
+  const lastAnswerId = [...messages].reverse().find((m) => m.role === "assistant" && !m.local)?.id;
+  const renderItem = useCallback(
+    ({ item }: { item: Message; index: number }) => (
+      <Bubble
+        item={item}
+        pending={loading && item.role === "assistant" && item.finishedAt === undefined && !!item.startedAt && !item.stopped}
+        technical={technical}
+        onSaveAnswer={answerSave}
+        onCancelQueued={cancelQueued}
+        onRetry={!loading && item.id === lastAnswerId ? retry : undefined}
+      />
+    ),
+    [loading, technical, answerSave, cancelQueued, retry, lastAnswerId],
+  );
   const lastMessage = messages[messages.length - 1];
   useEffect(() => {
     chaseLive.value = false;
@@ -694,7 +782,8 @@ function Kally() {
   // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
   // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
   const orbit = useOrbitDock({ keyboardInset, composerFocus, answering: loading, gutter });
-  const sendDisabled = loading || queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
+  // Respondendo: com a caixa vazia o botão é Parar; com texto, a mensagem vai para a fila.
+  const sendDisabled = loading ? false : queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
     <KeyboardScreen insetMirror={keyboardInset}>
@@ -885,7 +974,7 @@ function Kally() {
               setTranscribed(true);
             }}
           />
-          <SendButton disabled={sendDisabled} busy={loading || queued !== null} onPress={() => void send(draft)} />
+          <SendButton disabled={sendDisabled} busy={queued !== null} stop={loading && !draft.trim()} onPress={() => (loading && !draft.trim() ? stop() : void send(draft))} />
         </View>
       </ComposerFrame>
       </View>
@@ -1115,7 +1204,7 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
 /** Mensagens criadas nesta sessão entram animadas uma única vez (rolar e voltar não repete). */
 const entered = new Set<string>();
 
-const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: { item: Message; pending: boolean; technical: boolean; onSaveAnswer?: (id: string, yes: boolean) => void }) {
+const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer, onCancelQueued, onRetry }: { item: Message; pending: boolean; technical: boolean; onSaveAnswer?: (id: string, yes: boolean) => void; onCancelQueued?: (id: string) => void; onRetry?: (id: string) => void }) {
   const isUser = item.role === "user";
   const [animate] = useState(() => {
     if (!item.id.startsWith("local-") || entered.has(item.id)) return false;
@@ -1159,7 +1248,18 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: 
           <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.status ?? (item.mode === "revisar" ? "Revisando…" : "Pensando…")}</Shimmer></View>
         )
       ) : isUser ? (
-        <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
+        <>
+          <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
+          {item.queued ? (
+            <View style={styles.queuedRow}>
+              <Icon name="clock" size={12} color={colors.violet200} />
+              <AppText variant="small" color={colors.violet200} style={{ flex: 1 }}>Na fila: a Kally responde assim que terminar a anterior.</AppText>
+              <Touchable onPress={() => onCancelQueued?.(item.id)} accessibilityRole="button" accessibilityLabel="Tirar esta mensagem da fila">
+                <AppText variant="small" color="#FFFFFF" style={{ textDecorationLine: "underline" }}>Cancelar</AppText>
+              </Touchable>
+            </View>
+          ) : null}
+        </>
       ) : (
         <Animated.View entering={animate ? enter.fade : undefined}>
           {before ? <Markdown>{before}</Markdown> : null}
@@ -1173,6 +1273,13 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: 
         </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
+      {item.stopped && !pending ? <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>Interrompida. O que já tinha sido escrito ficou aqui.</AppText> : null}
+      {onRetry && !isUser && !pending && !item.local ? (
+        <Touchable onPress={() => onRetry(item.id)} accessibilityRole="button" accessibilityLabel="Refazer esta resposta" pressScale={0.96} style={styles.retry}>
+          <Icon name="refresh" size={14} color={colors.violet300} />
+          <AppText variant="small" color={colors.violet300}>Refazer</AppText>
+        </Touchable>
+      ) : null}
       {item.remembered?.length && !pending ? (
         <View style={styles.memoryNote}>
           <Icon name="brain" size={13} color={colors.violet300} />
@@ -1469,16 +1576,20 @@ function ImagePickerSheet({ visible, query, onClose, onInsert }: { visible: bool
  * Enviar: círculo em gradiente que acende e cresce com mola quando há o que enviar; apagado e
  * menor quando não há. Ocupado troca a seta pelo indicador, no mesmo lugar.
  */
-function SendButton({ disabled, busy, onPress }: { disabled: boolean; busy: boolean; onPress: () => void }) {
+function SendButton({ disabled, busy, stop, onPress }: { disabled: boolean; busy: boolean; stop?: boolean; onPress: () => void }) {
   const ready = useSharedValue(disabled ? 0 : 1);
   useEffect(() => {
     ready.value = withSpring(disabled ? 0 : 1, spring.selection);
   }, [disabled, ready]);
   const look = useAnimatedStyle(() => ({ opacity: 0.35 + ready.value * 0.65, transform: [{ scale: 0.9 + ready.value * 0.1 }] }));
   return (
-    <Touchable accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.88} style={[styles.send, elevation.glow, look]}>
+    <Touchable accessibilityRole="button" accessibilityLabel={stop ? "Parar a resposta" : "Enviar"} accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} haptic pressScale={0.88} style={[styles.send, elevation.glow, look]}>
       <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.sendFill]} />
-      {busy ? (
+      {stop ? (
+        <Animated.View key="stop" entering={enter.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.sendCenter]}>
+          <Icon name="stop" size={18} color="#FFFFFF" />
+        </Animated.View>
+      ) : busy ? (
         <Animated.View key="busy" entering={enter.fade} exiting={exit.fade} style={[StyleSheet.absoluteFill, styles.sendCenter]}>
           <ActivityIndicator color="#FFFFFF" />
         </Animated.View>
@@ -1784,6 +1895,8 @@ const styles = StyleSheet.create({
   bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.glass },
   typing: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 36 },
   bounceRow: { flexDirection: "row", flexWrap: "wrap", flexShrink: 1 },
+  queuedRow: { flexDirection: "row", alignItems: "center", gap: space.xs + 2, marginTop: space.xs },
+  retry: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: space.sm, paddingVertical: 4, paddingRight: space.sm },
   typingColumn: { gap: space.sm },
   steps: { gap: space.xs + 2, paddingLeft: space.xs },
   stepTotal: { marginBottom: 2 },

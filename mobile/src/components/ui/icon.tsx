@@ -13,6 +13,8 @@ export type IconName =
   | "minus"
   | "back"
   | "close"
+  | "stop"
+  | "refresh"
   | "edit"
   | "image"
   | "trash"
@@ -79,6 +81,8 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
       {name === "minus" && <Path d="M5 12h14" {...p} />}
       {name === "back" && <Path d="M15 5 8 12l7 7" {...p} />}
       {name === "close" && <Path d="M6 6l12 12M18 6 6 18" {...p} />}
+      {name === "stop" && <Rect x={7} y={7} width={10} height={10} rx={2} fill={color} stroke="none" />}
+      {name === "refresh" && <Path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2" {...p} />}
       {name === "edit" && <Path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4" {...p} />}
       {name === "image" && (
         <>

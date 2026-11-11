@@ -180,6 +180,8 @@ export function envApi(environmentId: string) {
     /** Salva uma conversa temporária depois que a pessoa confirma (pedidos maiores). */
     saveKallyConversation: (input: { mode?: string; messages: { role: "user" | "assistant"; content: string }[] }) =>
       request<{ id: string; title: string }>(`${base}/kally/salvar`, { method: "POST", json: input }),
+    /** Botão "Parar": cancela no servidor a resposta em andamento de uma conversa salva. */
+    stopKally: (conversationId: string) => request<{ stopped: boolean }>(`${base}/kally/parar`, { method: "POST", json: { conversationId } }),
     /** Memória da Kally da própria pessoa neste ambiente. */
     kallyMemories: () => request<{ enabled: boolean; memories: KallyMemoryItem[] }>(`${base}/kally/memoria`),
     deleteKallyMemory: (id: string) => request<{ ok: true; deleted: number }>(`${base}/kally/memoria${query({ id })}`, { method: "DELETE" }),

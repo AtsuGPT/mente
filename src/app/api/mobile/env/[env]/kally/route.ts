@@ -24,6 +24,7 @@ import {
   buildCompetencePrompt,
   buildPrompt,
   createConversation,
+  dropLastAnswer,
   detectIntent,
   findRelevantPosts,
   getConversation,
@@ -359,7 +360,9 @@ export async function POST(request: Request, context: EnvContext) {
     conversation = { ...created, owner: null, messages: [] };
   }
   const conversationId = conversation?.id ?? null;
-  if (conversationId) await addMessage(conversationId, "user", message);
+  // Refazer (botão do app): a pergunta já está gravada; sai só a última resposta, que vai ser gerada de novo.
+  if (conversationId && body.retry === true) await dropLastAnswer(conversationId);
+  else if (conversationId) await addMessage(conversationId, "user", message);
 
   const encoder = new TextEncoder();
   // A pessoa fechou a conversa ou saiu. Conversa temporária: a geração para e libera o modelo (nada seria guardado).
@@ -377,7 +380,7 @@ export async function POST(request: Request, context: EnvContext) {
       cancel.abort();
     },
     async start(controller) {
-      if (conversationId) markRunning(conversationId);
+      if (conversationId) markRunning(conversationId, cancel);
       // Sinal de vida a cada 15 s (comentário SSE, que o app ignora): enquanto a Kally pensa ou escreve uma parte
       // sem mandar texto, o Cloudflare (corta após 100 s parado) e o iPhone (desiste após 60 s sem dados) não
       // derrubam a conversa. Antes, as respostas em partes caíam no meio.
@@ -513,7 +516,14 @@ export async function POST(request: Request, context: EnvContext) {
             ? { competence: spec, examples, canDraft, depth: shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
             : null;
           // Memória da pessoa (só os itens ligados a esta mensagem) logo depois das regras do sistema.
-          const withMemory = (p: AiMessage[]): AiMessage[] => (memories.length ? [p[0], { role: "system", content: memoryBlock(memories) }, ...p.slice(1)] : p);
+          // Memória logo antes da pergunta (e não no começo): o começo do prompt e o histórico ficam iguais entre pedidos,
+          // e o modelo os reaproveita sem reler.
+          const withMemory = (p: AiMessage[]): AiMessage[] => {
+            if (!memories.length) return p;
+            const at = p.map((m) => m.role).lastIndexOf("user");
+            const cut = at < 0 ? p.length : at;
+            return [...p.slice(0, cut), { role: "system", content: memoryBlock(memories) }, ...p.slice(cut)];
+          };
           const promptWith = (w: WebResult[]) =>
             withMemory(competenceArgs
               ? buildCompetencePrompt({ ...competenceArgs, web: w })
