@@ -44,6 +44,11 @@ export default function FeedScreen() {
   const author = environment.name;
   // Cada cartão entra animado uma vez; rolar a lista e voltar não repete a entrada.
   const entered = useRef(new Set<string>());
+  // Onde começa a última página carregada: os cartões novos (rolar até o fim) também entram em sequência,
+  // contando a partir do primeiro deles, e não só os 8 primeiros da lista.
+  const pages = useRef({ length: 0, start: 0 });
+  const count = feed.loading ? 0 : feed.posts.length;
+  if (count !== pages.current.length) pages.current = { length: count, start: count > pages.current.length ? pages.current.length : 0 };
 
   return (
     <View style={{ flex: 1 }}>
@@ -82,8 +87,9 @@ export default function FeedScreen() {
         renderItem={({ item, index }) => {
           const first = !entered.current.has(item.id);
           entered.current.add(item.id);
+          const slot = index - pages.current.start;
           return (
-          <Animated.View entering={first && index < 8 ? enter.stagger(index) : undefined}>
+          <Animated.View entering={first && slot >= 0 && slot < 8 ? enter.stagger(slot) : undefined}>
             {/* Destaque ocasional: só o mais recente, e só no feed completo. */}
             <PostCard post={item} author={author} avatar={session.image} featured={index === 0 && !selected} />
           </Animated.View>

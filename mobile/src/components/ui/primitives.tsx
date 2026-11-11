@@ -35,13 +35,23 @@ import { colors, elevation, fonts, gradients, radius, space, tint, type } from "
 import { Surface } from "./surface";
 import { duration, easing, enter, spring, timing } from "@/theme/motion";
 import { Icon, type IconName } from "./icon";
+import { useTypeScale } from "@/theme/type-scale";
 
 /* ------------------------------- Texto -------------------------------- */
 
 type Variant = keyof typeof type;
 
 export function AppText({ variant = "ui", color, style, ...props }: TextProps & { variant?: Variant; color?: string }) {
-  return <Text {...props} style={[type[variant], { color: color ?? colors.text }, style]} />;
+  const scale = useTypeScale();
+  const base = [type[variant], { color: color ?? colors.text }, style];
+  // Na maioria dos celulares a escala é 1 e o estilo passa direto, sem custo extra.
+  if (scale === 1) return <Text {...props} style={base} />;
+  const flat = StyleSheet.flatten(base) as TextStyle;
+  const scaled: TextStyle = {
+    ...(typeof flat.fontSize === "number" ? { fontSize: Math.round(flat.fontSize * scale * 2) / 2 } : null),
+    ...(typeof flat.lineHeight === "number" ? { lineHeight: Math.round(flat.lineHeight * scale) } : null),
+  };
+  return <Text {...props} style={[flat, scaled]} />;
 }
 
 /* ------------------------- Toque com resposta -------------------------- */

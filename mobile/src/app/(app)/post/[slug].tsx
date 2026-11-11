@@ -73,26 +73,32 @@ export default function PostScreen() {
           contentContainerStyle={[styles.content, container]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
         >
-          <Animated.View entering={enter.rise}>
-            {primary ? <LinearGradient colors={[primary.color, `${primary.color}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rule} /> : null}
-            <View style={styles.meta}>
-              {post.categories.map((category) => (
-                <CategoryTag key={category.id} category={category} onPress={() => router.push({ pathname: "/categoria/[slug]", params: { slug: category.slug } })} />
-              ))}
-            </View>
-            <AppText variant="display" accessibilityRole="header" style={[styles.title, size === "expanded" && styles.titleWide]}>{post.title}</AppText>
-            <AppText variant="small" color={colors.muted}>
-              {formatDateLong(post.publishedAt)} · {readingMinutes(post.content)} min de leitura
-            </AppText>
-
-            <Divider style={{ marginVertical: space.xl }} />
-            <Markdown>{post.content}</Markdown>
+          {/* O post aparece aos poucos, de cima para baixo: pastas, título, data e então cada bloco do texto. */}
+          <View>
+            <Animated.View entering={enter.reveal(0)}>
+              {primary ? <LinearGradient colors={[primary.color, `${primary.color}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rule} /> : null}
+              <View style={styles.meta}>
+                {post.categories.map((category) => (
+                  <CategoryTag key={category.id} category={category} onPress={() => router.push({ pathname: "/categoria/[slug]", params: { slug: category.slug } })} />
+                ))}
+              </View>
+            </Animated.View>
+            <Animated.View entering={enter.reveal(1)}>
+              <AppText variant="display" accessibilityRole="header" style={[styles.title, size === "medium" && styles.titleMedium, size === "expanded" && styles.titleWide]}>{post.title}</AppText>
+            </Animated.View>
+            <Animated.View entering={enter.reveal(2)}>
+              <AppText variant="small" color={colors.muted}>
+                {formatDateLong(post.publishedAt)} · {readingMinutes(post.content)} min de leitura
+              </AppText>
+              <Divider style={{ marginVertical: space.xl }} />
+            </Animated.View>
+            <Markdown reveal={4}>{post.content}</Markdown>
 
             {/* A leitura assistida (IA) não foi alterada nesta etapa: vale só para o ambiente original. */}
             {environment.id === "mente" && stripMarkdown(post.content).length > 100 ? <ThoughtAssistant slug={post.slug} revision={post.updatedAt} /> : null}
 
             {related.length ? (
-              <View style={{ marginTop: space.xxxl }}>
+              <Animated.View entering={enter.reveal(12)} style={{ marginTop: space.xxxl }}>
                 <SectionLabel>Continue lendo</SectionLabel>
                 {related.map((item) => (
                   <Touchable key={item.id} onPress={() => router.push({ pathname: "/post/[slug]", params: { slug: item.slug } })} style={styles.related}>
@@ -100,9 +106,9 @@ export default function PostScreen() {
                     <AppText variant="label" color={colors.faint}>{formatDateShort(item.publishedAt)}</AppText>
                   </Touchable>
                 ))}
-              </View>
+              </Animated.View>
             ) : null}
-          </Animated.View>
+          </View>
         </ScrollView>
       )}
     </>
@@ -114,6 +120,7 @@ const styles = StyleSheet.create({
   rule: { width: 96, height: 3, borderRadius: radius.pill, marginBottom: space.lg },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: space.lg },
   title: { marginTop: space.md, marginBottom: space.md, fontSize: 34, lineHeight: 40 },
+  titleMedium: { fontSize: 38, lineHeight: 44, letterSpacing: -0.8 },
   titleWide: { fontSize: 44, lineHeight: 50, letterSpacing: -1 },
   related: { flexDirection: "row", alignItems: "baseline", gap: space.lg, padding: space.lg, marginTop: space.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
 });

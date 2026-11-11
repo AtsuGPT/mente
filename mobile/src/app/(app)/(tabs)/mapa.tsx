@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     ...elevation.float,
   },
   // Em telas largas o painel vira um cartão no canto, sem cobrir o mapa de ponta a ponta.
-  panelWide: { left: space.lg, right: undefined, bottom: space.lg, width: 420 },
+  panelWide: { left: space.lg, right: undefined, bottom: space.lg, width: 420, maxWidth: "46%" },
   panelHeader: { flexDirection: "row", alignItems: "center", gap: space.sm },
   viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.96)", alignItems: "center", justifyContent: "center" },
 });

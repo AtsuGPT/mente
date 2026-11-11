@@ -86,6 +86,18 @@ export const enter = {
         .reduceMotion(ReduceMotion.System),
       10,
     ),
+  /**
+   * Leitura que aparece aos poucos (página do post): cada bloco sobe e surge um pouco depois do
+   * anterior, mais devagar que a lista. O atraso para no 12º bloco: o resto chega junto.
+   */
+  reveal: (index: number) =>
+    lift(
+      FadeInDown.duration(480)
+        .delay(40 + Math.min(index, 12) * 70)
+        .easing(easing.decelerate)
+        .reduceMotion(ReduceMotion.System),
+      14,
+    ),
 } as const;
 
 export const exit = {

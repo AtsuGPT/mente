@@ -17,17 +17,22 @@ const tabs: { name: string; title: string; icon: IconName }[] = [
 const icons = Object.fromEntries(tabs.map((tab) => [tab.name, tab.icon])) as Record<string, IconName>;
 
 /**
- * Troca de aba em transição cruzada (~220 ms): a tela que sai se apaga enquanto a nova acende,
+ * Troca de aba em transição cruzada (~260 ms): a tela que sai se apaga enquanto a nova acende,
  * no mesmo ritmo (a soma das opacidades fica em 1, então o preto do fundo nunca pisca entre
- * as duas). Sem deslocamento: só a luz muda.
+ * as duas). As duas deslizam um pouco na direção da aba escolhida (a da direita chega pela
+ * direita) e a que sai recua levemente: dá o sentido do caminho sem parecer uma página virando.
  */
 const sceneStyleInterpolator = ({ current }: { current: { progress: Animated.AnimatedInterpolation<number> } }) => ({
   sceneStyle: {
     opacity: current.progress.interpolate({ inputRange: [-1, -0.85, -0.15, 0, 0.15, 0.85, 1], outputRange: [0, 0, 1, 1, 1, 0, 0] }),
+    transform: [
+      { translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-18, 0, 18] }) },
+      { scale: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.985, 1, 0.985] }) },
+    ],
   },
 });
 
-const crossfade = { animation: "timing" as const, config: { duration: 220, easing: Easing.bezier(0.2, 0, 0, 1) } };
+const crossfade = { animation: "timing" as const, config: { duration: 260, easing: Easing.bezier(0.2, 0, 0, 1) } };
 
 /**
  * As abas montam na primeira visita; se a nova ainda não está pronta quando a antiga se apaga,

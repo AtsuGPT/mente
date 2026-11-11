@@ -161,7 +161,9 @@ export default function KallyScreen() {
 
 function Kally() {
   const insets = useSafeAreaInsets();
-  const { gutter } = useLayout();
+  const { gutter, width, short, size } = useLayout();
+  // Órbita da tela vazia: menor em celulares estreitos e em telas baixas (celular deitado), maior em tablets.
+  const orbSize = short ? 112 : width < 360 ? 132 : size === "compact" ? 156 : 184;
   const column = { flex: 1, width: "100%" as const, maxWidth: maxWidths.content + gutter * 2, alignSelf: "center" as const };
   const { api, environment, permissions, role } = useCurrentEnvironment();
   const [mode, setMode] = useState<KallyMode>("auto");
@@ -838,7 +840,7 @@ function Kally() {
         windowSize={9}
         ListEmptyComponent={
           <Animated.View entering={enter.rise} exiting={exit.fade} style={styles.empty}>
-            <KallyOrbital size={156} state={orbState} activity={activity} level={voiceLevel} interactive announce />
+            <KallyOrbital size={orbSize} state={orbState} activity={activity} level={voiceLevel} interactive announce />
             <AppText variant="hero" style={{ textAlign: "center", marginTop: space.lg }}>Oi! Sobre o que{"\n"}vamos conversar?</AppText>
             <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
               Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.

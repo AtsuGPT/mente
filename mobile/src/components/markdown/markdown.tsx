@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, createContext, memo, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
@@ -73,7 +73,7 @@ function PostImage({ href, alt }: { href: string; alt: string }) {
           source={{ uri: image.src }}
           style={{ width: "100%", maxWidth: image.width ?? undefined, aspectRatio: image.ratio }}
           contentFit="contain"
-          transition={180}
+          transition={{ duration: 320, effect: "cross-dissolve" }}
           accessibilityLabel={alt}
         />
       </Touchable>
@@ -156,7 +156,24 @@ function Paragraph({ token, textStyle }: { token: Tokens.Paragraph; textStyle?: 
 
 /* ------------------------------- Blocos -------------------------------- */
 
+/** Primeiro bloco da leitura gradual (0 = desligada): os blocos do topo entram em sequência a partir daí. */
+const RevealFrom = createContext(0);
+
 function Blocks({ tokens, depth = 0 }: { tokens: Token[]; depth?: number }) {
+  const from = useContext(RevealFrom);
+  // Só os blocos de primeiro nível entram em sequência (listas e citações entram inteiras).
+  if (from && depth === 0)
+    return (
+      <>
+        {tokens.map((token, index) =>
+          token.type === "space" ? null : (
+            <Animated.View key={index} entering={enter.reveal(from - 1 + index)}>
+              <Block token={token} depth={depth} index={index} />
+            </Animated.View>
+          ),
+        )}
+      </>
+    );
   return (
     <>
       {tokens.map((token, index) => (
@@ -371,13 +388,19 @@ function SegmentList({ segments }: { segments: Segment[] }) {
   );
 }
 
-export const Markdown = memo(function Markdown({ children }: { children: string }) {
+/**
+ * reveal: os blocos aparecem um a um, de cima para baixo (leitura de um post). O número é a posição do
+ * primeiro bloco na sequência da tela (1 = começa já; 3 = depois de dois elementos que entraram antes).
+ */
+export const Markdown = memo(function Markdown({ children, reveal = 0 }: { children: string; reveal?: number }) {
   // LaTeX e HTML que escaparam viram texto com símbolos (o app não desenha fórmulas): lib/math-text.ts.
   const segments = useMemo(() => splitDetails(latexToText(children ?? "")), [children]);
   return (
-    <View>
-      <SegmentList segments={segments} />
-    </View>
+    <RevealFrom.Provider value={reveal}>
+      <View>
+        <SegmentList segments={segments} />
+      </View>
+    </RevealFrom.Provider>
   );
 });
 

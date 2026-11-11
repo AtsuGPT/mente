@@ -21,6 +21,7 @@ import { ScreenBackdrop, ScreenFrame } from "@/components/ui/surface";
 import { AlertHost } from "@/components/ui/alert-host";
 import { colors, fonts, space } from "@/theme/tokens";
 import { duration, enter } from "@/theme/motion";
+import { TypeScaleProvider } from "@/theme/type-scale";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -75,6 +76,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemeProvider value={theme}>
+        <TypeScaleProvider>
         <AuthProvider>
           <EnvironmentProvider>
             <StatusBar style="light" />
@@ -84,6 +86,7 @@ export default function RootLayout() {
             </WebFrame>
           </EnvironmentProvider>
         </AuthProvider>
+        </TypeScaleProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
@@ -99,7 +102,10 @@ export const stackOptions = {
   headerBackButtonDisplayMode: "minimal" as const,
   contentStyle: { backgroundColor: colors.bg },
   headerTitleAlign: "center" as const,
-  animation: "slide_from_right" as const,
+  // Android: a mesma entrada do iOS (a tela nova cobre a anterior, que recua um pouco), no lugar
+  // do deslize simples. No iOS já é a nativa; o gesto de voltar vale na tela inteira, não só na borda.
+  animation: "ios_from_right" as const,
+  fullScreenGestureEnabled: true,
   // Android: duração da transição de pilha dentro da faixa de navegação (iOS usa a nativa).
   animationDuration: duration.navigation,
 };
