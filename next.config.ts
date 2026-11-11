@@ -15,6 +15,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
+  // Produção no PC do projeto (minha-mente-servicos/publicar.ps1): cada publicação compila numa pasta própria
+  // (NEXT_DIST_DIR=.next-a ou .next-b) enquanto o site atual continua no ar; depois só troca e reinicia.
+  // Sem a variável, o padrão de sempre (.next), que é o que o "next dev" e o Docker usam.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Sem compressão no Node: ela pode segurar os pedaços do streaming da Kally (text/event-stream) em vez de
+  // mandá-los na hora. Quem comprime para fora é o proxy (Cloudflare), que respeita o streaming.
+  compress: false,
   allowedDevOrigins: ["minhamente.space", "192.168.1.105", "192.168.1.108"],
   async headers() {
     return [

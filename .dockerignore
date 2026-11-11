@@ -7,6 +7,7 @@
 # Gerados no Windows; a imagem gera os seus próprios, para Linux.
 node_modules
 .next
+.next-*
 src/generated
 next-env.d.ts
 *.tsbuildinfo
