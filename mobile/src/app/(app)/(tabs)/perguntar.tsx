@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
@@ -1018,10 +1018,14 @@ function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; va
     if (visible) setForm(value);
   }, [visible, value]);
   const slow = form.effort !== "normal";
+  // As opções rolam numa área com altura limitada; Salvar e Cancelar ficam sempre visíveis embaixo
+  // (o conteúdo é mais alto que a folha no celular e o botão ficava fora da tela).
+  const { height } = useWindowDimensions();
   return (
     <Sheet visible={visible} onClose={onClose} style={{ gap: space.sm }}>
       <AppText variant="title">Modo aprofundado</AppText>
       <AppText variant="small" color={colors.faint}>Escolha quem responde e quanto a Kally se aprofunda.</AppText>
+      <ScrollView style={{ maxHeight: Math.max(260, Math.round(height * 0.55)) }} contentContainerStyle={{ gap: space.sm, paddingBottom: space.sm }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
       <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo</AppText>
       {(Object.keys(MODEL_LABEL) as AnswerConfig["model"][]).map((m) => (
         <Touchable key={m} onPress={() => setForm({ ...form, model: m })} style={[styles.modeRow, form.model === m && styles.modeRowOn]}>
@@ -1049,6 +1053,7 @@ function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; va
           </AppText>
         </View>
       ) : null}
+      </ScrollView>
       <View style={styles.actions}>
         <Button label="Salvar" icon="check" compact onPress={() => onSave(form)} />
         <Button label="Cancelar" variant="secondary" compact onPress={onClose} />
