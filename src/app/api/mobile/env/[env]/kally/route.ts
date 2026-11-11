@@ -1,4 +1,4 @@
-import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type AiMessage, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
@@ -7,6 +7,7 @@ import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remot
 import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
+import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -261,6 +262,8 @@ export async function POST(request: Request, context: EnvContext) {
   const documents = documentSearch?.hits ?? [];
   const retrievalMs = Date.now() - retrievalStarted;
   let sources = toSources(posts, web, documents);
+  // Memória da Kally: o que a pessoa contou em conversas salvas e tem a ver com esta mensagem (memory.ts).
+  const memories = await recallMemories(access.environment.id, userId, message, casual ? 3 : 6);
 
   const canDraft = wantsDraft(competence, message, access.permissions.publish);
   // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, anexo e
@@ -425,10 +428,12 @@ export async function POST(request: Request, context: EnvContext) {
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
             : null;
+          // Memória da pessoa (só os itens ligados a esta mensagem) logo depois das regras do sistema.
+          const withMemory = (p: AiMessage[]): AiMessage[] => (memories.length ? [p[0], { role: "system", content: memoryBlock(memories) }, ...p.slice(1)] : p);
           const promptWith = (w: WebResult[]) =>
-            competenceArgs
+            withMemory(competenceArgs
               ? buildCompetencePrompt({ ...competenceArgs, web: w })
-              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName });
+              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName }));
           // Local (8B): versão reduzida das fontes, para o prompt não pesar na placa (localSources). Remota: todas.
           const reducedWeb = localSources(web);
           const prompt = promptWith(reducedWeb);
@@ -487,7 +492,7 @@ export async function POST(request: Request, context: EnvContext) {
             const style = dev ? "" : remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial });
             // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
             // O formato vem do esqueleto do estilo.
-            const base = isPost && competenceArgs && examples.length > 1 ? buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) }) : fullPrompt;
+            const base = isPost && competenceArgs && examples.length > 1 ? withMemory(buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) })) : fullPrompt;
             const last = base[base.length - 1];
             const remotePrompt = !style ? base : last?.role === "system" ? [...base.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...base, { role: "system" as const, content: style }];
             const promptTokens = estimateTokens(remotePrompt.map((m) => m.content).join("\n"));
@@ -605,6 +610,15 @@ export async function POST(request: Request, context: EnvContext) {
             send({ stats: report });
           }
         }
+        // Conversa salva: o que a mensagem traz de duradouro sobre a pessoa vai para a memória (aviso na tela).
+        // A extração segue em segundo plano: se acabar em até 6 s, a tela avisa; senão guarda sem segurar o fim.
+        if (conversationId && answer) {
+          const remembering = rememberFrom({ environmentId: access.environment.id, userId, message: raw, conversationId, localModel: pipeline?.executor, timeoutMs: 45_000 });
+          const remembered = await Promise.race([remembering, new Promise<string[]>((resolve) => setTimeout(() => resolve([]), 6_000))]);
+          if (remembered.length) send({ remembered });
+        }
+        // Pedido maior numa conversa temporária: a Kally oferece salvar (o app pergunta; nada é salvo sem o sim).
+        if (!conversationId && !casual && answer.length >= 1_200 && (competence || mode !== "chat" || answer.length >= 2_500)) send({ offerSave: true });
         send({ done: true });
       } catch (cause) {
         failed = cancel.signal.aborted ? "cancelada por quem perguntou" : cause instanceof Error ? cause.message : String(cause);

@@ -155,4 +155,6 @@ export type KallyAttachment = { name: string; kind: "pdf" | "imagem" | "texto" |
 export type KallyImage = { title: string; url: string; thumb: string; author: string; license: string; page: string };
 /** owner: só nas conversas de outra pessoa, que o dev da plataforma pode ler (nas próprias é null). */
 export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string; owner?: { username: string; displayName: string } | null };
+/** Item da memória da Kally (o que a pessoa contou em conversas salvas). */
+export type KallyMemoryItem = { id: string; text: string; kind: "preferencia" | "fato" | "objetivo" | "contexto"; conversationId: string | null; uses: number; lastUsedAt: string | null; createdAt: string; updatedAt: string };
 export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };

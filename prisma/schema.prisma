@@ -46,6 +46,7 @@ model User {
   posts             Post[]
   kallyConversations KallyConversation[]
   kallyDocuments     KallyDocument[]
+  kallyMemories      KallyMemory[]
 }
 
 model Environment {
@@ -74,6 +75,7 @@ model Environment {
   categories Category[] // fase-b
   kallyConversations KallyConversation[]
   kallyChunks        KallyChunk[]
+  kallyMemories      KallyMemory[]
 }
 
 model Membership {
@@ -287,4 +289,30 @@ model KallyDocumentChunk {
   document KallyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
+}
+
+/// Memória da Kally: pedaços de informação que a própria pessoa deu numa conversa SALVA (preferências, fatos
+/// sobre ela, objetivos, contexto). Por pessoa e por ambiente; só ela vê e apaga. Entra no prompt só quando o
+/// significado da mensagem se aproxima (src/server/kally/memory.ts). Conversa temporária não gera memória.
+model KallyMemory {
+  id             String    @id @default(cuid())
+  environmentId  String
+  userId         String
+  text           String
+  /// "preferencia", "fato", "objetivo" ou "contexto".
+  kind           String    @default("fato")
+  /// Conversa de onde veio (nula se a conversa foi apagada).
+  conversationId String?
+  /// Vetor Float32 em bytes (4 bytes por dimensão), do mesmo modelo de embeddings das bases.
+  vector         Bytes
+  embedModel     String
+  uses           Int       @default(0)
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  environment Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([environmentId, userId])
 }

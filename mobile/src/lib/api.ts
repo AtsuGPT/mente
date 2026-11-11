@@ -18,6 +18,7 @@ import type {
   KallyConversation,
   KallyDocument,
   KallyImage,
+  KallyMemoryItem,
   KallyMessage,
   PostFull,
   User,
@@ -176,6 +177,13 @@ export function envApi(environmentId: string) {
     kallyConversation: (id: string) =>
       request<KallyConversation & { messages: KallyMessage[] }>(`${base}/kally/${encodeURIComponent(id)}`),
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    /** Salva uma conversa temporária depois que a pessoa confirma (pedidos maiores). */
+    saveKallyConversation: (input: { mode?: string; messages: { role: "user" | "assistant"; content: string }[] }) =>
+      request<{ id: string; title: string }>(`${base}/kally/salvar`, { method: "POST", json: input }),
+    /** Memória da Kally da própria pessoa neste ambiente. */
+    kallyMemories: () => request<{ enabled: boolean; memories: KallyMemoryItem[] }>(`${base}/kally/memoria`),
+    deleteKallyMemory: (id: string) => request<{ ok: true; deleted: number }>(`${base}/kally/memoria${query({ id })}`, { method: "DELETE" }),
+    clearKallyMemories: () => request<{ ok: true; deleted: number }>(`${base}/kally/memoria`, { method: "DELETE" }),
     transcribe: (form: FormData) => request<{ text: string }>(`${base}/kally/transcribe`, { method: "POST", form, timeoutMs: 6 * 60_000 }),
     kallyAttachment: (form: FormData) => request<KallyAttachment>(`${base}/kally/anexo`, { method: "POST", form, timeoutMs: 4 * 60_000 }),
     /** Salva o pensamento preparado no chat: rascunho, ou publicado (publish) depois da confirmação da pessoa. */

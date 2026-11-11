@@ -17,6 +17,7 @@ export default function EnvironmentStack() {
       <Stack.Screen name="categoria/[slug]" options={{ title: "" }} />
       <Stack.Screen name="pastas" options={{ title: "Pastas" }} />
       <Stack.Screen name="base" options={{ title: "Base de documentos" }} />
+      <Stack.Screen name="kally-painel" options={{ title: "Kally" }} />
       <Stack.Screen name="sobre" options={{ title: "Sobre" }} />
       <Stack.Screen name="painel/participantes" options={{ title: "Participantes" }} />
       <Stack.Protected guard={canWrite}>

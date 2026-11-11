@@ -4,7 +4,7 @@ import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { streamEvents } from "@/lib/stream";
@@ -61,6 +61,12 @@ type Message = {
   stats?: DevStats;
   /** etapa em andamento antes do primeiro texto (ex.: "Procurando fontes para o seu post…") */
   status?: string;
+  /** o que a Kally guardou na memória a partir desta mensagem (conversa salva) */
+  remembered?: string[];
+  /** pedido maior numa conversa temporária: a Kally oferece salvar (só salva com o sim da pessoa) */
+  offerSave?: boolean;
+  /** resposta à oferta: salva ou dispensada */
+  saveAnswered?: "salva" | "dispensada";
 };
 type DevStats = {
   loadSeconds?: number;
@@ -351,6 +357,37 @@ function Kally() {
     }
   }
 
+  // Mensagens atuais para o salvar (o cartão fica dentro das bolhas, que não redesenham a cada mudança).
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
+  /** "Salvar esta conversa?": grava o que já foi conversado e a conversa segue salva daqui em diante. */
+  const answerSave = useCallback(
+    async (id: string, yes: boolean) => {
+      setMessages((current) => current.map((m) => (m.id === id ? { ...m, saveAnswered: yes ? "salva" : "dispensada" } : m)));
+      if (!yes) return;
+      try {
+        const list = messagesRef.current.filter((m) => !m.local && !m.failed && m.content).map((m) => ({ role: m.role, content: m.content }));
+        const saved = await api.saveKallyConversation({ mode, messages: list });
+        setConversationId(saved.id);
+        setSave(true);
+        void loadHistory();
+      } catch (cause) {
+        setMessages((current) => current.map((m) => (m.id === id ? { ...m, saveAnswered: undefined } : m)));
+        Alert.alert("Kally", cause instanceof Error ? cause.message : "Não consegui salvar a conversa.");
+      }
+    },
+    [api, mode, loadHistory],
+  );
+
+  // Conversa aberta pelo painel da Kally (/kally-painel → /perguntar?conversa=…).
+  const { conversa } = useLocalSearchParams<{ conversa?: string }>();
+  useEffect(() => {
+    if (!conversa || conversa === conversationId) return;
+    void resume({ id: conversa } as KallyConversation);
+    router.setParams({ conversa: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversa]);
+
   function remove(conversation: KallyConversation) {
     const confirmDelete = async () => {
       await api.deleteKallyConversation(conversation.id).catch(() => undefined);
@@ -476,15 +513,60 @@ function Kally() {
     setReviewTarget(null);
 
     // O texto chega em muitos pedaços: junta e atualiza a tela a cada ~60 ms (menos renderizações).
-    let buffer = "";
-    let timer: ReturnType<typeof setTimeout> | null = null;
     const update = (change: (m: Message) => Message) => setMessages((current) => current.map((m) => (m.id === assistant.id ? change(m) : m)));
-    const flush = () => {
-      timer = null;
-      if (!buffer) return;
-      const chunk = buffer;
-      buffer = "";
-      update((m) => ({ ...m, content: m.content + chunk }));
+    // Texto em ritmo de digitação: o que chega entra numa fila e aparece letra a letra, numa velocidade que
+    // acompanha a de chegada (a local manda ~30 letras/s, a remota ~200, o post revisado chega pronto de uma vez).
+    // Assim a escrita não dá saltos nem para e volta, mesmo quando a frase já chegou inteira.
+    let queue = "";
+    let ticker: ReturnType<typeof setInterval> | null = null;
+    let lastTick = 0;
+    let lastArrival = 0;
+    let arrivalRate = 80; // letras por segundo, média móvel
+    const TICK_MS = 45;
+    const tick = () => {
+      if (!queue) {
+        if (ticker) clearInterval(ticker);
+        ticker = null;
+        return;
+      }
+      const now = Date.now();
+      const dt = Math.min(now - lastTick || TICK_MS, 150);
+      lastTick = now;
+      // no ritmo de chegada; com fila acumulada, esvazia em ~1,2 s (sem nunca jogar tudo de uma vez)
+      let n = Math.max(1, Math.round(Math.max((arrivalRate * 1.05 * dt) / 1000, (queue.length * dt) / 1_200)));
+      if (n < queue.length) {
+        const code = queue.charCodeAt(n - 1);
+        if (code >= 0xd800 && code <= 0xdbff) n += 1;
+      }
+      const piece = queue.slice(0, n);
+      queue = queue.slice(n);
+      update((m) => ({ ...m, content: m.content + piece }));
+    };
+    const typeIn = (text: string) => {
+      const now = Date.now();
+      if (lastArrival) arrivalRate = arrivalRate * 0.8 + Math.min(600, Math.max(15, (text.length * 1000) / Math.max(1, now - lastArrival))) * 0.2;
+      lastArrival = now;
+      queue += text;
+      if (!ticker) {
+        lastTick = now;
+        tick();
+        ticker = setInterval(tick, TICK_MS);
+      }
+    };
+    /** Termina de digitar o que está na fila (fim normal). */
+    const drain = () =>
+      new Promise<void>((resolve) => {
+        const wait = () => (queue ? setTimeout(wait, TICK_MS) : resolve());
+        wait();
+      });
+    /** Mostra o resto de uma vez (erro ou cancelamento). */
+    const flushAll = () => {
+      if (ticker) clearInterval(ticker);
+      ticker = null;
+      if (!queue) return;
+      const rest = queue;
+      queue = "";
+      update((m) => ({ ...m, content: m.content + rest }));
     };
     try {
       await streamEvents(api.kallyPath, payload, (event) => {
@@ -493,20 +575,19 @@ function Kally() {
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
         if (event.status) update((m) => ({ ...m, status: event.status }));
+        if (event.remembered?.length) update((m) => ({ ...m, remembered: event.remembered }));
+        if (event.offerSave) update((m) => ({ ...m, offerSave: true }));
         const extra = event as { model?: string; stats?: DevStats };
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
         if (event.text) {
           kick();
-          buffer += event.text;
-          if (!timer) timer = setTimeout(flush, 60);
+          typeIn(event.text);
         }
       });
-      if (timer) clearTimeout(timer);
-      flush();
+      await drain();
     } catch (cause) {
-      if (timer) clearTimeout(timer);
-      flush();
+      flushAll();
       update((m) => ({ ...m, failed: true, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
     } finally {
       setLoading(false);
@@ -516,7 +597,7 @@ function Kally() {
 
   const available = MODES.filter((m) => !m.needsPublish || permissions.publish);
   const current = MODES.find((m) => m.mode === mode) ?? MODES[0];
-  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} technical={technical} />, [loading, messages.length, technical]);
+  const renderItem = useCallback(({ item, index }: { item: Message; index: number }) => <Bubble item={item} pending={loading && index === messages.length - 1} technical={technical} onSaveAnswer={answerSave} />, [loading, messages.length, technical, answerSave]);
   const lastMessage = messages[messages.length - 1];
   useEffect(() => {
     chaseLive.value = false;
@@ -547,6 +628,7 @@ function Kally() {
           <AppText variant="title" style={styles.headerTitle}>{devOn ? "Kally · dev" : "Kally"}</AppText>
           <AppText variant="small" color={colors.faint} numberOfLines={1}>{subtitle}</AppText>
         </Animated.View>
+        <IconButton name="brain" label="Painel da Kally (conversas, memória e base)" onPress={() => router.push("/kally-painel")} />
         <IconButton name="clock" label="Conversas salvas" onPress={() => { setShowHistory(true); void loadHistory(); }} />
         {started ? <IconButton name="plus" label="Nova conversa" onPress={startNew} /> : null}
       </View>
@@ -870,7 +952,7 @@ function PostPicker({ visible, onClose, onPick }: { visible: boolean; onClose: (
 /** Mensagens criadas nesta sessão entram animadas uma única vez (rolar e voltar não repete). */
 const entered = new Set<string>();
 
-const Bubble = memo(function Bubble({ item, pending, technical }: { item: Message; pending: boolean; technical: boolean }) {
+const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer }: { item: Message; pending: boolean; technical: boolean; onSaveAnswer?: (id: string, yes: boolean) => void }) {
   const isUser = item.role === "user";
   const [animate] = useState(() => {
     if (!item.id.startsWith("local-") || entered.has(item.id)) return false;
@@ -916,6 +998,28 @@ const Bubble = memo(function Bubble({ item, pending, technical }: { item: Messag
         </Animated.View>
       )}
       {item.review ? <ReviewCard review={item.review} source={item.reviewSource} /> : null}
+      {item.remembered?.length && !pending ? (
+        <View style={styles.memoryNote}>
+          <Icon name="brain" size={13} color={colors.violet300} />
+          <AppText variant="small" color={colors.violet300} style={{ flex: 1 }}>Guardei na memória: {item.remembered.join(" · ")}</AppText>
+        </View>
+      ) : null}
+      {item.offerSave && !pending && item.saveAnswered !== "dispensada" ? (
+        <Animated.View entering={enter.rise} style={styles.saveOffer}>
+          {item.saveAnswered === "salva" ? (
+            <AppText variant="small" color={colors.violet300}>Conversa salva. Ela fica no seu histórico e a Kally passa a lembrar do que você contar.</AppText>
+          ) : (
+            <>
+              <AppText variant="uiMedium">Salvar esta conversa?</AppText>
+              <AppText variant="small" color={colors.muted}>Fica no seu histórico deste ambiente (só você vê), e a Kally passa a lembrar do que você contar nela.</AppText>
+              <View style={styles.actions}>
+                <Button label="Salvar" icon="check" compact onPress={() => onSaveAnswer?.(item.id, true)} />
+                <Button label="Agora não" variant="secondary" compact onPress={() => onSaveAnswer?.(item.id, false)} />
+              </View>
+            </>
+          )}
+        </Animated.View>
+      ) : null}
       {!isUser && !pending && !item.failed && !item.local && !draft && item.content && hasStructure(item.content) ? <ToEditor content={item.content} /> : null}
       {item.stats && technical ? (
         <AppText variant="small" color={colors.faint} style={{ marginTop: space.sm }}>
@@ -1262,16 +1366,45 @@ function KallyMark({ failed }: { failed: boolean }) {
 }
 
 /** Texto do "pensando…" com uma luz que passa por ele, devagar (parado com "reduzir movimento"). */
+/**
+ * "Pensando…" (ou a etapa em andamento) na cor do tema, com as letras pulando uma de cada vez, em ciclo.
+ * As palavras não quebram no meio; com "reduzir movimento" ligado, o texto fica parado.
+ */
 function Shimmer({ children }: { children: string }) {
   const reduceMotion = useReducedMotion();
-  const glow = useSharedValue(0);
+  const clock = useSharedValue(0);
+  const letters = Array.from(children).length;
   useEffect(() => {
     if (reduceMotion) return;
-    glow.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin) }), -1, true);
-    return () => cancelAnimation(glow);
-  }, [glow, reduceMotion]);
-  const style = useAnimatedStyle(() => ({ opacity: 0.55 + glow.value * 0.45, color: interpolateColor(glow.value, [0, 1], [colors.muted, colors.violet200]) }));
-  return <Animated.Text style={[type.uiMedium, style]}>{children}</Animated.Text>;
+    clock.value = 0;
+    clock.value = withRepeat(withTiming(1, { duration: Math.max(1_100, letters * 70 + 700), easing: Easing.linear }), -1, false);
+    return () => cancelAnimation(clock);
+  }, [clock, reduceMotion, letters]);
+  let index = 0;
+  const words = children.split(" ");
+  return (
+    <View style={styles.bounceRow} accessibilityRole="text" accessibilityLabel={children}>
+      {words.map((word, w) => (
+        <View key={w} style={styles.bounceWord}>
+          {Array.from(w < words.length - 1 ? `${word}\u00A0` : word).map((char) => {
+            const i = index++;
+            return <BounceLetter key={i} char={char} index={i} count={letters} clock={clock} still={reduceMotion} />;
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function BounceLetter({ char, index, count, clock, still }: { char: string; index: number; count: number; clock: SharedValue<number>; still: boolean }) {
+  const style = useAnimatedStyle(() => {
+    if (still) return { transform: [{ translateY: 0 }] };
+    // Cada letra tem a sua vez no ciclo; o pulo dura um pouco mais que a vez, então a onda passa letra a letra.
+    const slot = 1 / (count + 6);
+    const local = (clock.value - index * slot) / (slot * 2.4);
+    return { transform: [{ translateY: local > 0 && local < 1 ? -Math.sin(local * Math.PI) * 4 : 0 }] };
+  });
+  return <Animated.Text style={[type.uiMedium, { color: colors.violet400 }, style]}>{char}</Animated.Text>;
 }
 
 /** Sugestões da revisão textual: a pessoa marca as que quer e leva ao editor (nada é salvo aqui). */
@@ -1380,6 +1513,10 @@ const styles = StyleSheet.create({
   attachIcon: { width: 44, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.glass },
   bubbleImage: { width: 180, height: 140, borderRadius: radius.md, marginBottom: space.sm, backgroundColor: colors.glass },
   typing: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 36 },
+  bounceRow: { flexDirection: "row", flexWrap: "wrap", flexShrink: 1 },
+  bounceWord: { flexDirection: "row" },
+  memoryNote: { flexDirection: "row", alignItems: "center", gap: space.xs, marginTop: space.sm },
+  saveOffer: { marginTop: space.md, padding: space.md, gap: space.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.violet600, backgroundColor: colors.violet950 },
   reviewBar: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   modeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
   modeRowDev: { borderWidth: 1, borderColor: colors.warning },
