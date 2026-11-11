@@ -1,4 +1,4 @@
-import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type AiMessage, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
@@ -64,6 +64,20 @@ const remoteWaitMs = () => {
   const v = Number(process.env.KALLY_REMOTE_WAIT_MS);
   return process.env.KALLY_REMOTE_WAIT_MS !== undefined && process.env.KALLY_REMOTE_WAIT_MS !== "" && Number.isFinite(v) && v >= 0 ? v : 360_000;
 };
+
+/**
+ * Resposta cortada pelo limite de tokens (finish_reason/done_reason "length"): a Kally continua de onde parou, sem
+ * repetir. Antes, a frase terminava no meio e passava por completa. No máximo MAX_CONTINUATIONS vezes por resposta.
+ */
+const MAX_CONTINUATIONS = 2;
+function continueFrom(base: AiMessage[], written: string): AiMessage[] {
+  const tail = written.length > 6_000 ? written.slice(-6_000) : written;
+  return [
+    ...base,
+    { role: "assistant", content: tail },
+    { role: "user", content: "Continue exatamente de onde você parou (mesmo que seja no meio de uma frase, tabela ou lista), sem repetir nada do que já escreveu, sem introdução e sem comentar que está continuando. Termine a resposta normalmente." },
+  ];
+}
 
 /** Até 3 sites das fontes, para a etapa dizer de onde vem a base: ", como g1.globo.com, cdc.gov e uol.com.br". */
 function siteNames(web: WebResult[], prefix = ", como ") {
@@ -364,6 +378,17 @@ export async function POST(request: Request, context: EnvContext) {
     },
     async start(controller) {
       if (conversationId) markRunning(conversationId);
+      // Sinal de vida a cada 15 s (comentário SSE, que o app ignora): enquanto a Kally pensa ou escreve uma parte
+      // sem mandar texto, o Cloudflare (corta após 100 s parado) e o iPhone (desiste após 60 s sem dados) não
+      // derrubam a conversa. Antes, as respostas em partes caíam no meio.
+      const heartbeat = setInterval(() => {
+        if (cancel.signal.aborted || detached) return;
+        try {
+          controller.enqueue(encoder.encode(": ainda escrevendo\n\n"));
+        } catch {
+          // fechado
+        }
+      }, 15_000);
       const send = (event: Record<string, unknown>) => {
         if (event.status !== undefined) statusSeq += 1;
         if (cancel.signal.aborted || detached) return;
@@ -436,6 +461,7 @@ export async function POST(request: Request, context: EnvContext) {
       }
       let answer = "";
       let postWeb: WebResult[] = [];
+      let continuations = 0;
       let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number } | null = null;
       let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
@@ -532,9 +558,17 @@ export async function POST(request: Request, context: EnvContext) {
             send({ text });
           };
           const runLocal = async () => {
-            for await (const chunk of streamChat(prompt, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) {
-              if (!firstText) firstText = Date.now();
-              emit(cleaner.push(chunk));
+            let messages = prompt;
+            for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+              let reason = "other" as FinishReason;
+              for await (const chunk of streamChat(messages, { temperature, maxTokens, model, onStats: (s) => (stats = s), onLease: (info) => (lease = info), signal: cancel.signal, onFinish: (r) => (reason = r), ...extra })) {
+                if (!firstText) firstText = Date.now();
+                emit(cleaner.push(chunk));
+              }
+              if (reason !== "length" || cancel.signal.aborted) break;
+              emit(cleaner.flush());
+              continuations += 1;
+              messages = continueFrom(prompt, answer);
             }
           };
           // Remoto: o mesmo prompt (a mesma busca, as mesmas regras). Cai para o local, sem misturar modelos,
@@ -576,25 +610,42 @@ export async function POST(request: Request, context: EnvContext) {
             if (thinks) send({ status: say("raciocinio"), step: "raciocinio" });
             try {
               // Post a 0,2 (a 0,4 saíam palavras truncadas como "escre-las" e mais detalhes inventados); o resto a 0,4 ou mais.
-              const chunks = await openChatStream(remotePrompt, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: remoteMax, target: "remote", think: thinks, signal: AbortSignal.any([cancel.signal, firstToken.signal]), onStats: (s) => (stats = s) });
-              modelName = cfg.model;
-              for await (const chunk of chunks) {
-                if (!gotText) {
-                  gotText = true;
-                  clearTimeout(timer);
+              let messages = remotePrompt;
+              let written = "";
+              for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+                let reason = "other" as FinishReason;
+                // Continuação: cabe no contexto do vLLM junto com o fim do que já foi escrito (~2.000 tokens).
+                const roundMax = round === 0 ? remoteMax : health.maxModelLen ? Math.max(512, Math.min(remoteMax, health.maxModelLen - promptTokens - 2_100)) : remoteMax;
+                const chunks = await openChatStream(messages, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: roundMax, target: "remote", think: round === 0 ? thinks : false, signal: round === 0 ? AbortSignal.any([cancel.signal, firstToken.signal]) : cancel.signal, onStats: (s) => (stats = s), onFinish: (r) => (reason = r) });
+                modelName = cfg.model;
+                for await (const chunk of chunks) {
+                  if (!gotText) {
+                    gotText = true;
+                    clearTimeout(timer);
+                  }
+                  const part = cleaner.push(chunk);
+                  if (!collect) {
+                    if (!firstText) firstText = Date.now();
+                    written += part;
+                    pacer.push(part);
+                    continue;
+                  }
+                  draft += part;
+                  if (Date.now() - lastStatus > 1_500) {
+                    lastStatus = Date.now();
+                    rascunhoLine ||= say("rascunho", { palavras: -1 });
+                    send({ status: rascunhoLine.replace("-1", String(draft.split(/\s+/).filter(Boolean).length)), step: "rascunho" });
+                  }
                 }
-                const part = cleaner.push(chunk);
-                if (!collect) {
-                  if (!firstText) firstText = Date.now();
-                  pacer.push(part);
-                  continue;
+                if (reason !== "length" || cancel.signal.aborted) break;
+                const rest = cleaner.flush();
+                if (collect) draft += rest;
+                else {
+                  written += rest;
+                  pacer.push(rest);
                 }
-                draft += part;
-                if (Date.now() - lastStatus > 1_500) {
-                  lastStatus = Date.now();
-                  rascunhoLine ||= say("rascunho", { palavras: -1 });
-                  send({ status: rascunhoLine.replace("-1", String(draft.split(/\s+/).filter(Boolean).length)), step: "rascunho" });
-                }
+                continuations += 1;
+                messages = continueFrom(remotePrompt, collect ? draft : written);
               }
               if (collect) {
                 draft += cleaner.flush();
@@ -641,15 +692,23 @@ export async function POST(request: Request, context: EnvContext) {
             /** Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). */
             const writePart = async (messages: AiMessage[]) => {
               let text = "";
-              if (remote) {
-                const thinkPart = deep.think || remoteThinks({ competence, mode, message, brief: false });
-                const chunks = await openChatStream(messages, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st) });
-                modelName = remoteConfig().model;
-                for await (const chunk of chunks) text += cleaner.push(chunk);
-              } else {
-                for await (const chunk of streamChat(messages, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, ...extra })) text += cleaner.push(chunk);
+              let current = messages;
+              for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+                let reason = "other" as FinishReason;
+                if (remote) {
+                  const thinkPart = round === 0 && (deep.think || remoteThinks({ competence, mode, message, brief: false }));
+                  const chunks = await openChatStream(current, { temperature: 0.4, maxTokens: deep.tokens + (thinkPart ? 2_500 : 0), target: "remote", think: thinkPart, signal: cancel.signal, onStats: (st) => (stats = st), onFinish: (r) => (reason = r) });
+                  modelName = remoteConfig().model;
+                  for await (const chunk of chunks) text += cleaner.push(chunk);
+                } else {
+                  for await (const chunk of streamChat(current, { temperature, maxTokens: deep.tokens, model, onStats: (st) => (stats = st), onLease: (info) => (lease = info), signal: cancel.signal, onFinish: (r) => (reason = r), ...extra })) text += cleaner.push(chunk);
+                }
+                text += cleaner.flush();
+                if (reason !== "length" || cancel.signal.aborted) break;
+                continuations += 1;
+                current = continueFrom(messages, text);
               }
-              return (text + cleaner.flush()).trim();
+              return text.trim();
             };
             try {
               for (const [i, part] of plan.partes.entries()) {
@@ -757,6 +816,7 @@ export async function POST(request: Request, context: EnvContext) {
         // Só conversas salvas guardam a resposta (mesmo parcial).
         if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", latexToText(answer.trim()), sources).catch(() => undefined);
         if (conversationId) markDone(conversationId);
+        clearInterval(heartbeat);
         try {
           controller.close();
         } catch {
@@ -794,6 +854,7 @@ export async function POST(request: Request, context: EnvContext) {
             postSources: sourceHunt,
             effort,
             deep: deepReport,
+            continuations,
             answerSources: answerHunt,
             postReview,
             executor: modelName

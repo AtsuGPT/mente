@@ -59,8 +59,9 @@ export type Effort = "normal" | "aprofundado" | "maximo";
 export const effortFrom = (value: unknown): Effort => (value === "aprofundado" || value === "maximo" ? value : "normal");
 
 export const EFFORTS: Record<Exclude<Effort, "normal">, { parts: string; min: number; max: number; tokens: number; think: boolean }> = {
-  aprofundado: { parts: "3 ou 4", min: 3, max: 4, tokens: 1_100, think: false },
-  maximo: { parts: "5 ou 6", min: 5, max: 6, tokens: 1_400, think: true },
+  // Folga para tabelas e exemplos; se ainda assim bater no limite, a parte continua sozinha (route.ts, continueFrom).
+  aprofundado: { parts: "3 ou 4", min: 3, max: 4, tokens: 1_800, think: false },
+  maximo: { parts: "5 ou 6", min: 5, max: 6, tokens: 2_200, think: true },
 };
 
 export type Plan = { abertura: string; partes: { titulo: string; objetivo: string }[] };

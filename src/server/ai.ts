@@ -40,7 +40,36 @@ export type AiOptions = {
   signal?: AbortSignal;
   /** Remoto: liga (true) ou desliga (false) o raciocínio do modelo neste pedido; padrão: KALLY_REMOTE_NO_THINK. */
   think?: boolean;
+  /** Streaming: silêncio máximo entre dois pedaços depois do primeiro (padrão 90 s). */
+  idleMs?: number;
+  /** Streaming: como a resposta terminou ("length" = cortada pelo limite de tokens; quem chama pode continuar). */
+  onFinish?: (reason: FinishReason) => void;
 };
+
+export type FinishReason = "stop" | "length" | "other";
+
+/**
+ * Prazos do streaming. Antes, um teto TOTAL (180 s na local, 300 s na remota) cortava respostas longas no meio da
+ * frase com o modelo escrevendo normalmente (log de 11/11: 6.319 tokens de prompt, 54 s de leitura e corte aos 180 s).
+ * Agora o prazo vigia o silêncio: timeoutMs é o tempo até o primeiro pedaço (leitura do prompt, carga do modelo),
+ * idleMs o silêncio máximo depois dele, e STREAM_MAX_MS só uma rede de segurança.
+ */
+const STREAM_MAX_MS = 30 * 60_000;
+const IDLE_MS = 90_000;
+function streamWatchdog(firstMs: number, idleMs: number) {
+  const controller = new AbortController();
+  const fire = () => controller.abort(new DOMException("O modelo parou de responder.", "TimeoutError"));
+  let timer = setTimeout(fire, firstMs);
+  return {
+    signal: controller.signal,
+    touch: () => {
+      clearTimeout(timer);
+      timer = setTimeout(fire, idleMs);
+    },
+    stop: () => clearTimeout(timer),
+  };
+}
+type Watchdog = ReturnType<typeof streamWatchdog>;
 
 /** Métricas do Ollama para uma resposta (tempos em segundos). */
 export type GenerationStats = {
@@ -112,7 +141,9 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
     // aceita enable_thinking: false pelo chat_template_kwargs do vLLM.
     ...(options.think !== undefined ? { chat_template_kwargs: { enable_thinking: options.think } } : cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {}),
   };
-  const timeout = AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
+  // Streaming: prazo por silêncio (streamWatchdog); resposta inteira de uma vez: prazo total, como antes.
+  const watchdog = stream ? streamWatchdog(options.timeoutMs ?? cfg.timeoutMs, options.idleMs ?? IDLE_MS) : null;
+  const timeout = watchdog ? AbortSignal.any([watchdog.signal, AbortSignal.timeout(STREAM_MAX_MS)]) : AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let response: Response;
   const send = () => fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(), body: JSON.stringify(body), signal });
@@ -126,18 +157,20 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
       response = await send();
     }
   } catch (cause) {
+    watchdog?.stop();
     slot.release();
     invalidateRemoteHealth();
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
     throw new AiError(timedOut ? "O modelo remoto demorou demais para responder." : "Não consegui conectar ao modelo remoto.", timedOut ? 504 : 503);
   }
   if (!response.ok) {
+    watchdog?.stop();
     slot.release();
     invalidateRemoteHealth();
     console.error("Kally remoto:", response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O modelo remoto não conseguiu responder.", 502);
   }
-  return { response, provider: "openai" as const, lease: { info: null, release: slot.release } as unknown as Lease, model: cfg.model };
+  return { response, provider: "openai" as const, lease: { info: null, release: slot.release } as unknown as Lease, model: cfg.model, watchdog };
 }
 
 async function request(messages: AiMessage[], options: AiOptions, stream: boolean) {
@@ -178,11 +211,12 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
   const url = provider === "ollama" ? `${baseUrl}/api/chat` : `${baseUrl}/v1/chat/completions`;
   const timeoutMs = options.timeoutMs ?? 120_000;
 
-  // Um modelo de texto por vez (gerenciador central); a vez volta quando a resposta termina.
+  // Um modelo de texto por vez (gerenciador central); a vez volta quando a resposta termina. No streaming a vez
+  // dura até o fim da resposta (com a rede de segurança de STREAM_MAX_MS), não até o prazo do primeiro pedaço.
   let lease: Lease | null = null;
   if (provider === "ollama") {
     try {
-      lease = await acquireModel(baseUrl, model, { numCtx, maxMs: timeoutMs + 5_000 });
+      lease = await acquireModel(baseUrl, model, { numCtx, maxMs: (stream ? STREAM_MAX_MS : timeoutMs) + 5_000 });
     } catch (cause) {
       throw new AiError(cause instanceof Error ? cause.message : "A IA está ocupada. Tente de novo em instantes.", 503);
     }
@@ -190,21 +224,24 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
   }
 
   let response: Response;
+  const watchdog = stream ? streamWatchdog(timeoutMs, options.idleMs ?? IDLE_MS) : null;
   try {
-    const timeout = AbortSignal.timeout(timeoutMs);
+    const timeout = watchdog ? AbortSignal.any([watchdog.signal, AbortSignal.timeout(STREAM_MAX_MS)]) : AbortSignal.timeout(timeoutMs);
     response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout });
   } catch (cause) {
+    watchdog?.stop();
     lease?.release();
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
     throw new AiError(timedOut ? "A IA demorou demais para responder. Tente novamente." : "Não consegui conectar ao provedor de IA do servidor.", timedOut ? 504 : 503);
   }
   if (!response.ok) {
+    watchdog?.stop();
     lease?.release();
     // O corpo pode trazer detalhes do provedor: fica só no log do servidor.
     console.error("AI provider error:", response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O provedor de IA não conseguiu responder. Confira o modelo configurado.", 502);
   }
-  return { response, provider, lease, model };
+  return { response, provider, lease, model, watchdog };
 }
 
 /** Resposta completa, de uma vez. */
@@ -231,19 +268,24 @@ export async function* streamChat(messages: AiMessage[], options: AiOptions = {}
  * e devolve os pedaços de texto para ler depois.
  */
 export async function openChatStream(messages: AiMessage[], options: AiOptions = {}): Promise<AsyncGenerator<string>> {
-  const { response, provider, lease, model } = await request(messages, options, true);
-  return readStream(response, provider, model, options.onStats, lease);
+  const { response, provider, lease, model, watchdog } = await request(messages, options, true);
+  return readStream(response, provider, model, options, lease, watchdog);
 }
 
-async function* readStream(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void, lease?: Lease | null): AsyncGenerator<string> {
+async function* readStream(response: Response, provider: "ollama" | "openai", model: string, options: AiOptions, lease?: Lease | null, watchdog?: Watchdog | null): AsyncGenerator<string> {
   try {
-    yield* readEvents(response, provider, model, onStats);
+    yield* readEvents(response, provider, model, options.onStats, watchdog?.touch, options.onFinish);
   } finally {
+    watchdog?.stop();
     lease?.release();
   }
 }
 
-async function* readEvents(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void): AsyncGenerator<string> {
+async function* readEvents(response: Response, provider: "ollama" | "openai", model: string, onStats?: (stats: GenerationStats) => void, touch?: () => void, onFinish?: (reason: FinishReason) => void): AsyncGenerator<string> {
+  let reason: FinishReason = "other";
+  const finishWith = (raw: string | null | undefined) => {
+    reason = raw === "length" ? "length" : raw === "stop" || raw === "eos" ? "stop" : "other";
+  };
   let thinkingChars = 0;
   const reader = response.body?.getReader();
   if (!reader) throw new AiError("A IA não enviou resposta.", 502);
@@ -298,6 +340,7 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
     const event = JSON.parse(raw) as {
       error?: string;
       done?: boolean;
+      done_reason?: string;
       message?: { content?: string; thinking?: string };
       choices?: { delta?: { content?: string; reasoning_content?: string }; finish_reason?: string | null }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
@@ -326,10 +369,16 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
       });
     }
     if (provider === "ollama") {
-      if (event.done) finished = true;
+      if (event.done) {
+        finished = true;
+        finishWith(event.done_reason ?? "stop");
+      }
       return event.message?.content ?? null;
     }
-    if (event.choices?.[0]?.finish_reason) finished = true;
+    if (event.choices?.[0]?.finish_reason) {
+      finished = true;
+      finishWith(event.choices[0].finish_reason);
+    }
     const delta = event.choices?.[0]?.delta;
     if (delta?.reasoning_content) thinkingChars += delta.reasoning_content.length;
     if (event.usage && onStats) {
@@ -356,6 +405,8 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
 
   while (true) {
     const { value, done } = await reader.read();
+    // Chegou alguma coisa do modelo: o prazo de silêncio recomeça.
+    touch?.();
     buffer += decoder.decode(value, { stream: !done });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
@@ -371,6 +422,7 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
   if (!inThink && pending) yield pending;
   // A conexão caiu sem o fim da resposta (sem done, finish_reason ou [DONE]): não é uma resposta completa.
   if (!finished) throw new AiError("A resposta foi interrompida antes do fim.", 502);
+  onFinish?.(reason);
 }
 
 export const visionModel = () => process.env.AI_VISION_MODEL || "gemma3:4b";

@@ -204,3 +204,17 @@ assim na main). A checagem de tipos (`tsc --noEmit`) passa.
    o estado precisa ser `disponivel`, com o modelo e o `max_model_len` esperados.
 4. Para desligar o remoto: `KALLY_REMOTE_ENABLED="0"` (nada mais muda). Para voltar todo o código,
    reverter os commits listados acima.
+
+## Resposta que não para no meio (11/11/2026)
+
+- **Prazo por silêncio, não por duração** (`streamWatchdog` em `src/server/ai.ts`): no streaming, `timeoutMs` é o
+  tempo até o primeiro pedaço (leitura do prompt e carga do modelo) e, depois dele, a geração só é cortada se o
+  modelo ficar 90 s sem mandar nada (`idleMs`). Teto de segurança de 30 min. Antes, um teto total de 180 s (local)
+  e 300 s (remota) cortava respostas longas no meio da frase com o modelo escrevendo normalmente.
+- **Continuação automática:** resposta que termina pelo limite de tokens (`done_reason`/`finish_reason` "length")
+  continua de onde parou, sem repetir, até 2 vezes (`continueFrom` na rota), na local, na remota, no rascunho do
+  post e em cada parte do modo em partes. O log registra `continuations`.
+- **Sinal de vida:** a resposta manda um comentário SSE a cada 15 s. O Cloudflare corta conexões paradas por 100 s
+  e o iPhone desiste depois de 60 s sem dados; no modo em partes, cada parte é escrita inteira antes de aparecer.
+- **Histórico com limite** na conversa comum (5.000 caracteres, respostas antigas cortadas pelo fim): numa conversa
+  salva com respostas longas, o prompt do 8B tinha chegado a 6.319 tokens (54 s de leitura).

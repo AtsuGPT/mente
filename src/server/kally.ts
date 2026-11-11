@@ -281,7 +281,9 @@ export function buildPrompt(input: {
   if (input.guide) system.push(input.guide);
   if (documents.length) system.push(DOCUMENT_RULE);
   if (input.userName) system.push(speakerRule(input.userName));
-  const history = input.history.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
+  // Histórico com limite de tamanho (as respostas antigas entram pelo fim, cortadas): numa conversa salva com respostas
+  // longas do modo aprofundado, o prompt do 8B chegou a 6.319 tokens (54 s só de leitura) e a resposta era cortada.
+  const history = recentHistory(input.history, CHAT_HISTORY_CHARS);
   const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) + structureReminder(input.message) }];
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo
@@ -317,6 +319,7 @@ const ORIENTATION_REMINDER =
  * e o Ollama cortaria o início do prompt, que é justamente onde ficam as instruções.
  */
 const COMPETENCE_HISTORY_CHARS = 4_000;
+const CHAT_HISTORY_CHARS = 5_000;
 function recentHistory(history: { role: string; content: string }[], budget: number) {
   const kept: AiMessage[] = [];
   let used = 0;
