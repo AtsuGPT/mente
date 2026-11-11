@@ -1,0 +1,38 @@
+{
+ "C08 Newton rapidinho": {
+  "X": "local",
+  "Y": "remote"
+ },
+ "C12 bug do input()": {
+  "X": "remote",
+  "Y": "local"
+ },
+ "C16 enunciado ambíguo": {
+  "X": "remote",
+  "Y": "local"
+ },
+ "C18 veia e artéria": {
+  "X": "remote",
+  "Y": "local"
+ },
+ "C10 poema": {
+  "X": "local",
+  "Y": "remote"
+ },
+ "Post a partir de ideia": {
+  "X": "local",
+  "Y": "remote"
+ },
+ "RAG: encontro de trocas": {
+  "X": "local",
+  "Y": "remote"
+ },
+ "RAG: dataset do Rafael": {
+  "X": "remote",
+  "Y": "local"
+ },
+ "Estudo: memória virtual": {
+  "X": "local",
+  "Y": "remote"
+ }
+}

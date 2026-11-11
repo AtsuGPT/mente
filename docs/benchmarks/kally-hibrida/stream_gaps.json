@@ -1,0 +1,43 @@
+{
+ "vllm_think_False": {
+  "pedaços": 956,
+  "primeiro_s": 1.21,
+  "total_s": 21.97,
+  "gap_mediano_ms": 0,
+  "gap_p99_ms": 384,
+  "gap_max_ms": 628,
+  "gaps_acima_1s": 0,
+  "gaps_acima_3s": 0
+ },
+ "vllm_think_True": {
+  "pedaços": 446,
+  "primeiro_s": 16.89,
+  "total_s": 26.73,
+  "gap_mediano_ms": 0,
+  "gap_p99_ms": 433,
+  "gap_max_ms": 1256,
+  "gaps_acima_1s": 1,
+  "gaps_acima_3s": 0,
+  "raciocinio_s": 15.75
+ },
+ "rota_remote": {
+  "pedaços": 1484,
+  "primeiro_s": 26.11,
+  "total_s": 60.72,
+  "gap_mediano_ms": 0,
+  "gap_p99_ms": 435,
+  "gap_max_ms": 712,
+  "gaps_acima_1s": 0,
+  "gaps_acima_3s": 0
+ },
+ "rota_local": {
+  "pedaços": 760,
+  "primeiro_s": 19.55,
+  "total_s": 82.2,
+  "gap_mediano_ms": 82,
+  "gap_p99_ms": 92,
+  "gap_max_ms": 159,
+  "gaps_acima_1s": 0,
+  "gaps_acima_3s": 0
+ }
+}

@@ -1,0 +1,10 @@
+{"C08 Newton rapidinho": {"X": 4, "Y": 3, "nota": "X curta e certa, como pedido; Y com seções para quem pediu 'rapidinho'."},
+ "C12 bug do input()": {"X": 3, "Y": 5, "nota": "X acerta a correção, mas a explicação é confusa. Y certa: TypeError no Python 3, comparação lexicográfica no Python 2, correção e validação com try-except."},
+ "C16 enunciado ambíguo": {"X": 3, "Y": 3, "nota": "X calcula 19 e aponta a confusão com 2·f(4), mas diz que o enunciado não é ambíguo e não vê f vs f(x) nem a frase sem verbo. Y calcula 19 e aponta f vs f(x), com uma segunda interpretação que não faz sentido."},
+ "C18 veia e artéria": {"X": 2, "Y": 2, "nota": "X diz que a veia pulmonar leva sangue rico em CO2 (errado). Y quase toda certa, com tabela e diagrama, mas diz que a artéria pulmonar sai do átrio direito (é do ventrículo direito) e usa emojis."},
+ "C10 poema": {"X": 2, "Y": 3, "nota": "X genérica. Y específica, cita os versos e sugere caminhos, mas não aponta o que está mais fraco."},
+ "D análise de argumento": {"X": 3, "Y": 5, "nota": "X identifica as falhas principais, mas repete rótulos (dois 'falso dilema') e é rasa nos exemplos. Y completa: correlação, falsa equivalência nota=aprendizado, falso dilema, generalização, versão mais forte e como responder."},
+ "Post a partir de ideia": {"X": 3, "Y": 4, "nota": "X sem episódio inventado, mas com 'há pouco tempo' e 'me acontece com frequência' (frequência e tempo que ela não contou) e repetitiva. Y fiel."},
+ "RAG: encontro de trocas": {"X": 4, "Y": 3, "nota": "X certa e curta. Y certa nos fatos do guia (quarta, 20h, 45 min, 10 min cada, sorteio), mas inventa uma inscrição prévia para apresentar."},
+ "RAG: dataset do Rafael": {"X": 5, "Y": 4, "nota": "X certa (12.400, 8%, 992), cita o post, explica accuracy de 92% e recall, sem erro. Y curta e certa."},
+ "Estudo: memória virtual": {"X": 2, "Y": 2, "nota": "X mistura número de página e endereço. Y excelente em estrutura e conceitos (custos, fluxo, diagrama), mas erra a conta do exemplo: 3 × 4096 = 0x3000, não 0xC00."}}
