@@ -8,6 +8,7 @@ import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
+import { essentialOf } from "@/server/kally/essential";
 import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer } from "@/server/kally/deep";
 import { markDone, markRunning } from "@/server/kally/running";
 import { personalOpener, say } from "@/server/kally/narration";
@@ -23,6 +24,8 @@ import {
   addMessage,
   buildCompetencePrompt,
   buildPrompt,
+  chatHead,
+  competenceHead,
   createConversation,
   dropLastAnswer,
   detectIntent,
@@ -225,8 +228,20 @@ export async function POST(request: Request, context: EnvContext) {
   const skipMemory = (competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message);
 
   // Memória do ambiente: pela mensagem (curta? junta com a anterior), pelo texto revisado ou pelo anexo.
-  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const query = review ? review.text.slice(0, 800) : attachment ? `${message} ${attachment.text.slice(0, 600)}` : message.length < 40 ? `${lastUser} ${message}` : message;
+  // Primeiro filtro: o essencial do pedido (essential.ts), escrito pelo modelo, vai para todas as buscas e para o filtro
+  // das fontes; a mensagem inteira com saudação, forma de pedir e instruções de formato desviava a busca do assunto.
+  // Papo casual não busca nada além da memória: lá bastam as regras (sem espera).
+  const essential =
+    review || casual
+      ? null
+      : await essentialOf({
+          message,
+          history,
+          head: dev ? null : competence ? competenceHead({ competence: COMPETENCES[competence], environmentName: access.environment.name, history }) : chatHead({ environmentName: access.environment.name, history }),
+          localModel: dev ? null : pipeline ? pipeline.executor : defaultChatModel(),
+        });
+  const focus = essential?.text || message;
+  const query = review ? review.text.slice(0, 800) : attachment ? `${focus} ${attachment.text.slice(0, 600)}` : focus;
   // Conversas anteriores só entram em Conversar e Aprender: na revisão e na ideia elas se misturariam ao texto da pessoa.
   const withConversations = mode === "chat" || mode === "aprender";
   const retrievalStarted = Date.now();
@@ -260,7 +275,7 @@ export async function POST(request: Request, context: EnvContext) {
   let web: WebResult[] = [];
   const wantsDeeper = /pesquis|aprofund|fonte|refer[eê]ncia|internet|link/i.test(message);
   if (body.web === true && (needsOutsideHelp(posts) || mode === "aprender" || wantsDeeper)) {
-    const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
+    const webQuery = review ? review.text.split("\n")[0].replace(/^#\s*/, "") : focus;
     web = await searchWeb(webQuery, 4);
   }
   // Pedido de conhecimento: fontes da internet automáticas, na local e na remota, para a resposta se apoiar nelas
@@ -268,9 +283,9 @@ export async function POST(request: Request, context: EnvContext) {
   let answerHunt: { consulted: number; sites: number; picked: number; removed: number; ms: number } | null = null;
   const knowledgeAsk = competence === "estudo" || (competence === "analise" && mode !== "revisar") || mode === "aprender" || (mode === "chat" && needsOutsideHelp(posts) && (message.includes("?") || /\b(o que|como|por ?que|quando|quem|qual|quanto|explica|diferen[çc]a)\b/i.test(message)));
   if (!web.length && autoWebEnabled() && !casual && competence !== "post" && mode !== "ideia" && knowledgeAsk && !intimateStory(message)) {
-    const hunt = await findAnswerSources(message);
+    const hunt = await findAnswerSources(focus);
     // Segundo filtro de assunto com o 32B, se ele estiver no ar (não liga a GPU por isso).
-    const filtered = hunt.picked.length && remoteConfig().enabled && (await remoteHealth()).state === "disponivel" ? await filterRelevant(message, hunt.picked) : { kept: hunt.picked, removed: 0 };
+    const filtered = hunt.picked.length && remoteConfig().enabled && (await remoteHealth()).state === "disponivel" ? await filterRelevant(focus, hunt.picked) : { kept: hunt.picked, removed: 0 };
     web = filtered.kept;
     answerHunt = { consulted: hunt.consulted, sites: hunt.sites, picked: filtered.kept.length, removed: filtered.removed, ms: hunt.ms };
   }
@@ -290,7 +305,7 @@ export async function POST(request: Request, context: EnvContext) {
   const retrievalMs = Date.now() - retrievalStarted;
   let sources = toSources(posts, web, documents);
   // Memória da Kally: o que a pessoa contou em conversas salvas e tem a ver com esta mensagem (memory.ts).
-  const memories = await recallMemories(access.environment.id, userId, message, casual ? 3 : 6);
+  const memories = await recallMemories(access.environment.id, userId, casual ? message : focus, casual ? 3 : 6);
 
   const canDraft = wantsDraft(competence, message, access.permissions.publish);
   // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, anexo e
@@ -866,6 +881,8 @@ export async function POST(request: Request, context: EnvContext) {
             deep: deepReport,
             continuations,
             answerSources: answerHunt,
+            // Só contagens e tempo (o registro não guarda o texto das mensagens).
+            essential: essential ? { by: essential.by, ms: essential.ms, words: essential.before, kept: essential.after } : null,
             postReview,
             executor: modelName
               ? {

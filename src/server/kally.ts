@@ -243,6 +243,29 @@ function materialBlock(posts: Retrieved[], web: WebResult[], attachment: Attachm
   return parts.join("\n\n");
 }
 
+/**
+ * Começo fixo do prompt (regras + histórico), igual entre pedidos da mesma conversa: o Ollama e o vLLM o reaproveitam
+ * sem reler. Usado pelas montagens abaixo e pela busca do essencial (kally/essential.ts), que lê o mesmo começo e por isso não
+ * apaga o que o modelo guardou (o Ollama daqui atende um pedido por vez e guarda só o último começo lido).
+ */
+export function chatHead(input: { environmentName: string; history: { role: string; content: string }[]; dev?: DevSettings | null }): AiMessage[] {
+  const system = input.dev ? [devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`)] : identity(input.environmentName);
+  // Histórico com limite de tamanho (as respostas antigas entram pelo fim, cortadas): numa conversa salva com respostas
+  // longas do modo aprofundado, o prompt do 8B chegou a 6.319 tokens (54 s só de leitura) e a resposta era cortada.
+  return [{ role: "system", content: system.join(" ") }, ...recentHistory(input.history, CHAT_HISTORY_CHARS)];
+}
+
+export function competenceHead(input: { competence: CompetenceSpec; environmentName: string; history: { role: string; content: string }[]; identity?: string[] }): AiMessage[] {
+  const c = input.competence;
+  const system = [
+    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, PERSONALITY_SHORT, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
+    `\nTAREFA: ${c.nome}. ${c.descricao}`,
+    `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
+    `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
+  ];
+  return [{ role: "system", content: system.join("\n") }, ...recentHistory(input.history, COMPETENCE_HISTORY_CHARS)];
+}
+
 /** Mensagens para o modelo: instruções do modo, histórico recente e a nova mensagem com o material. */
 export function buildPrompt(input: {
   mode: KallyMode;
@@ -270,7 +293,7 @@ export function buildPrompt(input: {
   // Começo fixo (igual entre pedidos) e, numa mensagem logo antes da pergunta, o que muda a cada pedido: o Ollama e o
   // vLLM reaproveitam o começo igual ao do pedido anterior, inclusive o histórico, e só leem o resto (log de 11/11:
   // só 23 de 6.319 tokens eram reaproveitados, e o 8B relia tudo a cada mensagem, de 25 a 40 s).
-  const system = input.dev ? [devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`)] : identity(input.environmentName);
+  const head = chatHead(input);
   const late: string[] = input.dev
     ? // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
       input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)
@@ -284,9 +307,6 @@ export function buildPrompt(input: {
   if (documents.length) late.push(DOCUMENT_RULE);
   if (input.userName) late.push(speakerRule(input.userName));
   const lateMessage = (): AiMessage[] => (late.filter(Boolean).length ? [{ role: "system", content: late.filter(Boolean).join(" ") }] : []);
-  // Histórico com limite de tamanho (as respostas antigas entram pelo fim, cortadas): numa conversa salva com respostas
-  // longas do modo aprofundado, o prompt do 8B chegou a 6.319 tokens (54 s só de leitura) e a resposta era cortada.
-  const history = recentHistory(input.history, CHAT_HISTORY_CHARS);
   const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) + structureReminder(input.message) }];
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo
@@ -298,19 +318,19 @@ export function buildPrompt(input: {
       late.push("A pessoa pediu o rascunho AGORA: escreva-o nesta resposta, no formato <rascunho> indicado, com o que ela já contou.");
     }
     const extra = [input.attachment ? materialBlock([], [], input.attachment, null, false) : "", input.web?.length ? materialBlock([], input.web, null, null, false) : ""].filter(Boolean).join("\n\n");
-    return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }, ...closing];
+    return [...head, ...lateMessage(), { role: "user", content: extra ? `${input.message}\n\n---\n${extra}` : input.message }, ...closing];
   }
 
   // Conversa solta sem nada relacionado: sem bloco de material (senão a Kally comenta o vazio).
   if (input.mode === "chat" && !input.posts.length && !input.web?.length && !input.attachment && !documents.length) {
-    return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: input.message }, ...closing];
+    return [...head, ...lateMessage(), { role: "user", content: input.message }, ...closing];
   }
   const material = materialBlock(input.posts, input.web ?? [], input.attachment ?? null, input.reviewText ?? null, true, documents, input.userName);
   // Pergunta sobre o ambiente com material encontrado: a regra de orientação da identidade ficava longe do fim do
   // prompt e o modelo de 4B quase não a seguia (2 de 40 respostas da v6 orientavam). Na calibração humana, "curto
   // demais" foi a queixa mais comum em respostas certas. O lembrete vai por último, onde o qwen3 segue melhor.
   if (input.mode === "chat" && (found || documents.length) && closing.length) closing[0].content += ` ${ORIENTATION_REMINDER}`;
-  return [{ role: "system", content: system.join(" ") }, ...history, ...lateMessage(), { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
+  return [...head, ...lateMessage(), { role: "user", content: `${input.message}\n\n---\n${material}` }, ...closing];
 }
 
 const ORIENTATION_REMINDER =
@@ -368,12 +388,7 @@ export function buildCompetencePrompt(input: {
 }): AiMessage[] {
   const c = input.competence;
   const documents = input.documents ?? [];
-  const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, PERSONALITY_SHORT, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
-    `\nTAREFA: ${c.nome}. ${c.descricao}`,
-    `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
-    `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,
-  ];
+  const head = competenceHead(input);
   // O que muda a cada pedido vai numa mensagem própria, logo antes da pergunta, e não no começo: o Ollama e o vLLM
   // reaproveitam a parte do prompt igual à do pedido anterior e só leem o resto. Com os exemplos e o formato no meio
   // das regras, só 23 tokens de 6.319 eram reaproveitados (log do Ollama, 11/11) e o 8B relia tudo (25 a 40 s).
@@ -395,7 +410,6 @@ export function buildCompetencePrompt(input: {
   const holdDraft = c.id === "post" && input.thinMaterial;
   const hold = "A pessoa ainda não contou nada além do tema. Não escreva rascunho, mesmo que ela peça para criar agora: sem a história dela, o texto seria inventado. Responda só com a frase de entendimento e uma única pergunta que traga a matéria do texto.";
   if (holdDraft) late.push(`\nAGORA: ${hold}`);
-  const history = recentHistory(input.history, COMPETENCE_HISTORY_CHARS);
 
   // Post da pessoa: outros pensamentos entram só como títulos (o texto deles se misturaria aos argumentos dela).
   let material: string;
@@ -413,8 +427,7 @@ export function buildCompetencePrompt(input: {
     material = input.posts.length || input.web?.length || input.attachment || input.reviewText || documents.length ? materialBlock(input.posts, input.web ?? [], input.attachment ?? null, input.reviewText ?? null, true, documents) : "";
   }
   return [
-    { role: "system", content: system.join("\n") },
-    ...history,
+    ...head,
     { role: "system", content: late.join("\n") },
     { role: "user", content: material ? `${input.message}\n\n---\n${material}` : input.message },
     { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}${structureReminder(input.message)}` },

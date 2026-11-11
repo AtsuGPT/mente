@@ -218,3 +218,13 @@ assim na main). A checagem de tipos (`tsc --noEmit`) passa.
   e o iPhone desiste depois de 60 s sem dados; no modo em partes, cada parte é escrita inteira antes de aparecer.
 - **Histórico com limite** na conversa comum (5.000 caracteres, respostas antigas cortadas pelo fim): numa conversa
   salva com respostas longas, o prompt do 8B tinha chegado a 6.319 tokens (54 s de leitura).
+
+## O essencial do pedido antes da busca
+
+Antes de procurar material (posts, documentos, memória, internet e o filtro das fontes), o modelo escreve o essencial da mensagem: o assunto e o que a pessoa quer saber, numa frase de até 15 palavras que se entende sozinha (`src/server/kally/essential.ts`). A resposta continua lendo a mensagem inteira; só as buscas usam o essencial.
+
+- **Quem escreve:** a Kally 32, se já estiver no ar (não liga a GPU por isso); senão, o modelo local que vai responder.
+- **Mesmo começo de prompt:** no local, a chamada usa o mesmo começo da resposta (`chatHead`/`competenceHead`: regras + histórico) e o mesmo `num_ctx`. O Ollama atende um pedido por vez e guarda só o último começo lido: com um prompt próprio, esta chamada apagaria o que a resposta reaproveita.
+- **Reserva:** se o modelo falhar, demorar ou escrever algo sem nenhuma palavra da conversa, valem as regras de `focus.ts` (tiram cumprimento, forma de pedir e formato). Mensagem curta sem conversa antes (até 6 palavras) vai direto, sem modelo.
+- **Medido no 8B (11/11/2026):** 3,5 a 3,7 s por pedido; numa conversa nova, cerca de 6 s, porque o histórico é lido aqui em vez de na resposta. A resposta em seguida leu só a parte nova (0,8 a 1,8 s). Exemplos: "E no Brasil, como está isso hoje?" (depois de uma pergunta sobre inflação) → "Inflação no Brasil em 2026 e relação com salários"; um pedido de 34 palavras com saudação e "em 3 tópicos" → "como funciona um servidor web".
+- **Registro:** `essential: { by, ms, words, kept }` em `logs/kally-perf.jsonl` (só contagens e tempo).
