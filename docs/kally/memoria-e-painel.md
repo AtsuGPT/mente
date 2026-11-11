@@ -47,9 +47,9 @@ Botão com o ícone do cérebro no topo da conversa → tela "Kally" (`/kally-pa
 - "Pensando…" e as etapas aparecem na cor do tema (violet400), com as letras pulando uma de cada vez, em ciclo.
   Com "reduzir movimento" ligado, o texto fica parado.
 
-## Modelo e esforço (para quem conversa)
+## Modo aprofundado: modelo e esforço (para quem conversa)
 
-No menu de modo, "Modelo e esforço" abre a tela "Como a Kally responde" (salva no aparelho):
+No menu de modo, "Modo aprofundado" abre a tela de escolha do modelo e do esforço (salva no aparelho):
 
 - **Modelo:** Automático (a Kally escolhe), Kally local · 8B ou Kally remota · 32B. A escolha vale para qualquer
   pessoa; os limites da GPU (vagas, gasto e ligações por dia) continuam valendo, e a remota desligada liga sozinha

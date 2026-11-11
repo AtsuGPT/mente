@@ -189,6 +189,14 @@ function Kally() {
   const [devSheet, setDevSheet] = useState(false);
   const [answerCfg, setAnswerCfgState] = useState<AnswerConfig>(ANSWER_DEFAULT);
   const [answerSheet, setAnswerSheet] = useState(false);
+  /**
+   * Abre outra folha a partir do menu de modo só depois que ele fecha: cada folha é um Modal, e o sistema (no iPhone,
+   * sobretudo) não apresenta um Modal enquanto outro ainda está saindo; o toque parecia não fazer nada.
+   */
+  const afterMenu = (open: () => void) => {
+    setModeMenu(false);
+    setTimeout(open, 350);
+  };
   const list = useAnimatedRef<FlatList<Message>>();
   const attachSeq = useRef(0);
   const { activity, kick } = useKallyActivity();
@@ -544,7 +552,7 @@ function Kally() {
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
       dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
-      // Como a Kally responde: o modelo e o esforço que a pessoa escolheu ("Modelo e esforço" no menu de modo).
+      // Modo aprofundado: o modelo e o esforço que a pessoa escolheu (no menu de modo).
       model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
       effort: answerCfg.effort !== "normal" ? answerCfg.effort : undefined,
     };
@@ -875,15 +883,15 @@ function Kally() {
 
       <Sheet visible={modeMenu} onClose={() => setModeMenu(false)}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
-            <Touchable onPress={() => { setModeMenu(false); setAnswerSheet(true); }} style={styles.modeRow}>
+            <Touchable onPress={() => afterMenu(() => setAnswerSheet(true))} style={styles.modeRow}>
               <Icon name="sparkle" size={18} color={colors.violet300} />
               <View style={{ flex: 1 }}>
-                <AppText variant="uiMedium">Modelo e esforço</AppText>
+                <AppText variant="uiMedium">Modo aprofundado</AppText>
                 <AppText variant="small" color={colors.faint}>{MODEL_LABEL[answerCfg.model]} · {EFFORT_LABEL[answerCfg.effort]}</AppText>
               </View>
             </Touchable>
             {isAdmin ? (
-            <Touchable onPress={() => { setModeMenu(false); setDevSheet(true); }} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
+            <Touchable onPress={() => afterMenu(() => setDevSheet(true))} style={[styles.modeRow, dev.active && styles.modeRowDev]}>
               <Icon name="settings" size={18} color={dev.active ? colors.warning : colors.muted} />
               <View style={{ flex: 1 }}>
                 <AppText variant="uiMedium" color={dev.active ? colors.warning : colors.text}>Modo desenvolvedor {dev.active ? "· ativo" : ""}</AppText>
@@ -1012,7 +1020,8 @@ function AnswerSheet({ visible, value, onClose, onSave }: { visible: boolean; va
   const slow = form.effort !== "normal";
   return (
     <Sheet visible={visible} onClose={onClose} style={{ gap: space.sm }}>
-      <AppText variant="title">Como a Kally responde</AppText>
+      <AppText variant="title">Modo aprofundado</AppText>
+      <AppText variant="small" color={colors.faint}>Escolha quem responde e quanto a Kally se aprofunda.</AppText>
       <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo</AppText>
       {(Object.keys(MODEL_LABEL) as AnswerConfig["model"][]).map((m) => (
         <Touchable key={m} onPress={() => setForm({ ...form, model: m })} style={[styles.modeRow, form.model === m && styles.modeRowOn]}>
