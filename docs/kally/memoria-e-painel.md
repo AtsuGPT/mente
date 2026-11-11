@@ -70,3 +70,12 @@ No menu de modo, "Modelo e esforço" abre a tela "Como a Kally responde" (salva 
 A remota recebe o texto inteiro, no fim do prompt; a local, uma versão condensada dos mesmos sete pontos (prompt
 longo deixa o 8B mais lento nesta placa). O estilo da remota passou a responder pergunta simples de forma direta,
 sem seções, e deixa "Próximos passos" só para respostas que explicam algo.
+
+## Resposta que continua sem a pessoa
+
+Numa conversa **salva**, a resposta continua sendo escrita no servidor mesmo que a pessoa saia do app ou do site
+(a conexão cai; `src/server/kally/running.ts`). A resposta inteira é gravada no fim, e a memória e a revisão do
+post seguem normalmente. Quem reabre a conversa recebe `generating: true` no GET dela, e o app mostra "A Kally
+ainda está escrevendo esta resposta…" e confere a cada 4 s até ela aparecer. Se a conexão cair com a tela aberta,
+o app mostra o mesmo aviso em vez do erro. Na conversa temporária, sair continua parando a resposta (nada seria
+guardado). Um reinício do servidor interrompe o que estava em andamento.

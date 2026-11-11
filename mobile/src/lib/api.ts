@@ -175,7 +175,7 @@ export function envApi(environmentId: string) {
     kallyPath: `${base}/kally`,
     kallyConversations: () => request<{ conversations: KallyConversation[]; allUsers?: boolean }>(`${base}/kally`),
     kallyConversation: (id: string) =>
-      request<KallyConversation & { messages: KallyMessage[] }>(`${base}/kally/${encodeURIComponent(id)}`),
+      request<KallyConversation & { messages: KallyMessage[]; generating?: boolean }>(`${base}/kally/${encodeURIComponent(id)}`),
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),
     /** Salva uma conversa temporária depois que a pessoa confirma (pedidos maiores). */
     saveKallyConversation: (input: { mode?: string; messages: { role: "user" | "assistant"; content: string }[] }) =>

@@ -361,6 +361,24 @@ function Kally() {
     setReviewTarget(null);
   }
 
+  // Resposta que segue sendo escrita no servidor (a pessoa saiu antes do fim): o app confere até ficar pronta.
+  const [waitingFor, setWaitingFor] = useState<string | null>(null);
+  const WAITING = "A Kally ainda está escrevendo esta resposta. Ela aparece aqui assim que ficar pronta.";
+  useEffect(() => {
+    if (!waitingFor) return;
+    let alive = true;
+    const timer = setInterval(async () => {
+      const full = await api.kallyConversation(waitingFor).catch(() => null);
+      if (!alive || !full || full.generating) return;
+      setMessages(full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources })));
+      setWaitingFor(null);
+    }, 4_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [waitingFor, api]);
+
   async function resume(conversation: KallyConversation) {
     setShowHistory(false);
     try {
@@ -368,7 +386,10 @@ function Kally() {
       setConversationId(full.id);
       setReadingOwner(full.owner ?? null);
       setSave(true);
-      setMessages(full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources })));
+      const list: Message[] = full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources }));
+      if (full.generating) list.push({ id: `escrevendo-${full.id}`, role: "assistant", content: "", status: WAITING });
+      setMessages(list);
+      setWaitingFor(full.generating ? full.id : null);
     } catch (cause) {
       Alert.alert("Kally", cause instanceof Error ? cause.message : "Não consegui abrir a conversa.");
     }
@@ -532,6 +553,8 @@ function Kally() {
 
     // O texto chega em muitos pedaços: junta e atualiza a tela a cada ~60 ms (menos renderizações).
     const update = (change: (m: Message) => Message) => setMessages((current) => current.map((m) => (m.id === assistant.id ? change(m) : m)));
+    /** conversa salva desta mensagem (já existente ou criada agora): com ela, a resposta continua mesmo se a conexão cair */
+    let savedId: string | null = conversationId;
     // Texto em ritmo de digitação: o que chega entra numa fila e aparece letra a letra, numa velocidade que
     // acompanha a de chegada (a local manda ~30 letras/s, a remota ~200, o post revisado chega pronto de uma vez).
     // Assim a escrita não dá saltos nem para e volta, mesmo quando a frase já chegou inteira.
@@ -588,7 +611,10 @@ function Kally() {
     };
     try {
       await streamEvents(api.kallyPath, payload, (event) => {
-        if (event.conversationId) setConversationId(event.conversationId);
+        if (event.conversationId) {
+          setConversationId(event.conversationId);
+          savedId = event.conversationId;
+        }
         if (event.mode) update((m) => ({ ...m, mode: event.mode, dev: event.dev === true }));
         if (event.sources) update((m) => ({ ...m, sources: event.sources as KallySource[] }));
         if (event.review) update((m) => ({ ...m, review: event.review as KallyReview }));
@@ -606,6 +632,12 @@ function Kally() {
       await drain();
     } catch (cause) {
       flushAll();
+      // Conversa salva: a conexão caiu, mas a Kally continua escrevendo no servidor. Em vez do erro, espera a resposta.
+      if (savedId) {
+        update((m) => ({ ...m, content: "", status: "A conexão caiu, mas a Kally continua escrevendo. A resposta aparece aqui assim que ficar pronta." }));
+        setWaitingFor(savedId);
+        return;
+      }
       update((m) => ({ ...m, failed: true, content: m.content || (cause instanceof Error ? cause.message : "Falha ao conversar com a Kally."), sources: m.content ? m.sources : [] }));
     } finally {
       setLoading(false);

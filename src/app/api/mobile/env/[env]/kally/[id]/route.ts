@@ -1,4 +1,5 @@
 import { deleteConversation, getConversation } from "@/server/kally";
+import { isRunning } from "@/server/kally/running";
 import { envAccess, error, json } from "../../../../_lib/http";
 
 export const runtime = "nodejs";
@@ -12,7 +13,8 @@ export async function GET(_request: Request, context: Context) {
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
   const conversation = await getConversation(access.environment.id, access.userId, (await context.params).id, access.platformDev);
-  return conversation ? json(conversation) : error("Conversa não encontrada.", 404);
+  // generating: a Kally ainda está escrevendo uma resposta desta conversa (a pessoa saiu antes do fim).
+  return conversation ? json({ ...conversation, generating: isRunning(conversation.id) }) : error("Conversa não encontrada.", 404);
 }
 
 export async function DELETE(_request: Request, context: Context) {

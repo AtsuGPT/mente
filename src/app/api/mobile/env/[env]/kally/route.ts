@@ -9,6 +9,7 @@ import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPo
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
 import { memoryBlock, recallMemories, rememberFrom } from "@/server/kally/memory";
 import { EFFORTS, effortFrom, partPrompt, planAnswer } from "@/server/kally/deep";
+import { markDone, markRunning } from "@/server/kally/running";
 import { createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
@@ -336,19 +337,28 @@ export async function POST(request: Request, context: EnvContext) {
   if (conversationId) await addMessage(conversationId, "user", message);
 
   const encoder = new TextEncoder();
-  // A pessoa fechou a conversa ou saiu: a geração (local ou remota) para e libera o modelo.
+  // A pessoa fechou a conversa ou saiu. Conversa temporária: a geração para e libera o modelo (nada seria guardado).
+  // Conversa salva: a geração continua no servidor ("desligada" da tela) e a resposta inteira é gravada no fim;
+  // quem reabrir a conversa vê que a Kally ainda está escrevendo (running.ts).
   const cancel = new AbortController();
+  let detached = false;
   const stream = new ReadableStream<Uint8Array>({
     cancel() {
+      if (conversationId) {
+        detached = true;
+        return;
+      }
       cancel.abort();
     },
     async start(controller) {
+      if (conversationId) markRunning(conversationId);
       const send = (event: Record<string, unknown>) => {
-        if (cancel.signal.aborted) return;
+        if (cancel.signal.aborted || detached) return;
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
-          cancel.abort();
+          if (conversationId) detached = true;
+          else cancel.abort();
         }
       };
       send({ conversationId, temporary: !conversationId, mode, searched: web.length > 0, dev: !!dev });
@@ -688,6 +698,7 @@ export async function POST(request: Request, context: EnvContext) {
       } finally {
         // Só conversas salvas guardam a resposta (mesmo parcial).
         if (conversationId && answer.trim()) await addMessage(conversationId, "assistant", answer.trim(), sources).catch(() => undefined);
+        if (conversationId) markDone(conversationId);
         try {
           controller.close();
         } catch {
