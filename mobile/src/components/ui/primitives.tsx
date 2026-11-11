@@ -350,14 +350,24 @@ export function Skeleton({ style }: { style?: StyleProp<ViewStyle> }) {
  * Carregando, erro ou vazio. Entra com esmaecimento; o indicador de carregamento só
  * aparece depois de um instante, para respostas rápidas não piscarem na tela.
  */
+/** Enquanto os dados chegam: cartões com a forma do conteúdo (título e linhas), com os blocos de Skeleton. */
+export function SkeletonList({ rows = 4 }: { rows?: number }) {
+  return (
+    <Animated.View entering={enter.fade} style={styles.skeletonList} accessibilityLabel="Carregando" accessibilityRole="progressbar">
+      {Array.from({ length: rows }, (_, i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <Skeleton style={{ width: "55%", height: 14 }} />
+          <Skeleton style={{ width: "92%", height: 10 }} />
+          <Skeleton style={{ width: i % 2 ? "68%" : "80%", height: 10 }} />
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
+
 export function StateView({ loading, error, empty, onRetry }: { loading?: boolean; error?: string | null; empty?: string; onRetry?: () => void }) {
-  if (loading) {
-    return (
-      <Animated.View entering={enter.fade.delay(duration.micro)} style={styles.state} accessibilityLabel="Carregando" accessibilityRole="progressbar">
-        <ActivityIndicator color={colors.violet400} />
-      </Animated.View>
-    );
-  }
+  // Carregando: a forma do conteúdo, com brilho suave, no lugar do giro (a tela parece pronta antes dos dados).
+  if (loading) return <SkeletonList />;
   if (error) {
     return (
       <Animated.View entering={enter.rise} style={styles.state} accessibilityLiveRegion="polite">
@@ -430,4 +440,6 @@ const styles = StyleSheet.create({
   },
   skeleton: { backgroundColor: colors.surfaceRaised, borderRadius: radius.sm },
   state: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.xxl, minHeight: 240 },
+  skeletonList: { padding: space.lg, gap: space.md, width: "100%" },
+  skeletonCard: { padding: space.md, gap: space.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
 });
