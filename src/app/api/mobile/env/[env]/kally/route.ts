@@ -799,13 +799,20 @@ export async function POST(request: Request, context: EnvContext) {
                 const budget = () => (deadline ? Math.max(300, Math.min(deep.tokens, Math.floor(((left() - 10_000) / 1000) * rate * 0.85))) : deep.tokens);
                 // Nunca sair do assunto: a parte é conferida antes de aparecer; fora do assunto, é refeita uma vez (se
                 // houver tempo) e, se continuar fora, não entra na resposta.
+                // Conferida contra o pedido e contra o essencial dele (essential.ts): o pedido inteiro, com saudação e forma de
+                // pedir, puxava a nota para baixo e descartava partes do assunto certo (log de 12/11: as 4 partes de uma
+                // pergunta sobre o site saíram, com notas de 0,28 a 0,37, e a resposta ficou vazia).
+                const topic = async (t: string) => {
+                  const own = await onTopic(message, t);
+                  return own.ok || !essential ? own : onTopic(essential.text, t);
+                };
                 let text = await writePart(partPrompt(base, plan, i, answer, message, false, final), budget());
-                let check = await onTopic(message, text);
+                let check = await topic(text);
                 if (!check.ok && !cancel.signal.aborted && left() > (average ?? 60_000)) {
                   deepReport.retried += 1;
                   send({ status: say("parteRefeita", { label }), step: `parte-${i}-refeita` });
                   text = await writePart(partPrompt(base, plan, i, answer, message, true, final), budget());
-                  check = await onTopic(message, text);
+                  check = await topic(text);
                 }
                 partMs.push(Date.now() - partStarted);
                 if (!check.ok || !text) {
@@ -821,6 +828,11 @@ export async function POST(request: Request, context: EnvContext) {
                 }
               }
               deepReport.ms = Date.now() - deepStarted;
+              // Nenhuma parte passou: em vez de terminar sem resposta, cai para a resposta normal (uma só).
+              if (!answer.trim() && !cancel.signal.aborted) {
+                send({ status: "" });
+                return false;
+              }
               send({ status: "" });
               if (remote) noteRemoteUse();
               return true;

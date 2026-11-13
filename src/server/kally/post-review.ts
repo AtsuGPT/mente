@@ -31,11 +31,21 @@ const words = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerC
 
 type Unit = { line: number; start: number; end: number; text: string; table: boolean };
 
-/** Frases do corpo e linhas de tabela, com a posição na linha. Títulos, citações, links e marcações ficam de fora. */
+/**
+ * Frases do corpo e linhas de tabela, com a posição na linha. Títulos, citações, links e marcações ficam de fora.
+ * Só o que está dentro de <rascunho>…</rascunho>: a frase de entendimento, a pergunta e as notas de fora são da
+ * Kally para a pessoa, não do post (em 13/11 a revisão apagou a pergunta "qual detalhe você quer incluir?" de um
+ * pedido sem matéria, a resposta saiu vazia e o post "não era criado"). Sem rascunho, nada é revisado.
+ */
 export function splitUnits(text: string): { lines: string[]; units: Unit[] } {
   const lines = text.split("\n");
   const units: Unit[] = [];
+  const open = lines.findIndex((l) => /<rascunho>/i.test(l));
+  if (open < 0) return { lines, units };
+  const after = lines.slice(open + 1).findIndex((l) => /<\/rascunho>/i.test(l));
+  const close = after < 0 ? lines.length : open + 1 + after;
   lines.forEach((raw, line) => {
+    if (line <= open || line >= close) return;
     const t = raw.trim();
     if (!t || /^(#|>|:::|<\/?rascunho>|categorias:|- \[|\* \[)/i.test(t) || /^\|?\s*:?-{3,}/.test(t)) return;
     if (t.startsWith("|")) {
@@ -150,6 +160,9 @@ export async function reviewPostFidelity(input: { ownWords: string; sources: Web
       .map((g) => ({ n: Number(g.n), de: String(g.de ?? ""), para: String(g.para ?? "") }))
       .filter((g) => Number.isInteger(g.n) && g.de);
     const { text, applied } = applyReview(input.draft, input.ownWords, remove, gender, input.sources.map((s) => s.url));
+    // Rascunho que ficaria sem nenhuma frase do corpo: a revisão errou a mão (ou o rascunho era quase todo inventado);
+    // fica o original, em vez de uma resposta vazia.
+    if (!splitUnits(text).units.length) return { text: input.draft, applied: 0, proposed: remove.length + gender.length, ms: Date.now() - started, ok: false };
     return { text, applied, proposed: remove.length + gender.length, ms: Date.now() - started, ok: true };
   } catch (cause) {
     console.warn("Kally revisão do post: sem revisão:", cause instanceof Error ? cause.message : cause);
