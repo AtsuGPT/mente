@@ -15,7 +15,7 @@ const SIZE: Record<string, string> = {
   estudo: "de 900 a 1.500 palavras",
   analise: "de 800 a 1.400 palavras",
   orientacao: "de 700 a 1.200 palavras",
-  post: "o que a matéria da pessoa sustentar (sem inventar para alongar), em geral de 500 a 1.000 palavras",
+  post: "de 200 a 450 palavras, proporcional ao que ela contou",
   // Ponto 4 da personalidade: pergunta simples, resposta direta; assunto complexo, resposta completa.
   conversa: "proporcional ao pedido: pergunta simples ou papo, algumas frases diretas e naturais, sem títulos; assunto que pede explicação, de 250 a 700 palavras",
 };
@@ -27,34 +27,23 @@ const SIZE: Record<string, string> = {
  * citado com link), recursos do editor com função e nenhuma repetição.
  */
 const POST_RULES = [
-  "RASCUNHO DE POST. O texto tem duas camadas, que nunca se misturam (a camada 2 é a única exceção à regra de não acrescentar fatos, e só com fonte [E…]):",
-  "1. A vivência e as opiniões dela, em primeira pessoa e na voz dela: SÓ o que ela contou. Toda frase em primeira pessoa (eu, me, meu, a gente) é uma frase DELA: pode ajustar pontuação, ordem e ligação entre frases, mas não crie frase nova em primeira pessoa (nenhum \"no começo eu queria…\", \"percebi que…\", \"aprendi que…\" que ela não disse). O desenvolvimento vem na camada 2, em terceira pessoa. Nenhuma situação, episódio, lembrança, sentimento, frequência ou tempo que ela não disse (nada de \"há pouco tempo\", \"sempre\", \"com frequência\", \"uma vez\", \"por exemplo, quando eu\"). Não troque o que ela disse por algo mais forte.",
-  "2. O conhecimento que sustenta ou explica o que ela percebeu: SÓ das fontes externas [E…] recebidas, quando realmente tratarem do assunto dela. Apresente como conhecimento, não como vivência (\"Isso tem nome: …\", \"A explicação mais aceita é…\"), e cite no próprio parágrafo com link Markdown para o endereço exato informado, ex.: [Repetição espaçada](URL). Fonte que não trata do que ela disse é ignorada. Sem fontes, não cite pesquisa, autor, estudo nem número nenhum. Com fontes, use de 3 a 5, de tipos diferentes (referência, notícia nacional, notícia global, rede social, vídeo), preferindo referências e veículos conhecidos a blogs e títulos sensacionalistas; o tipo de cada fonte vem depois do site, ex.: \"exame.com · notícia nacional\". Uma tabela, se houver, compara o que ela disse com o que as fontes explicam; nunca uma expectativa ou um antes que ela não contou.",
-  "O exemplo de referência é de OUTRA pessoa: nenhum fato, número, cena ou frase dele entra neste rascunho, mesmo que o tema seja parecido. Antes de escrever, separe o que esta pessoa disse; o rascunho só usa isso.",
-  "Proibido em qualquer parte do rascunho: falas entre aspas de outras pessoas, frases que ela ou alguém teria dito, detalhes de cena (roupas, cheiros, sons, gestos, cômodos) e cenas que ela não descreveu. Se ela disse \"cada uma lembra de um detalhe\", o texto diz isso, sem inventar qual detalhe. Fotos, objetos, lugares e pessoas que ela mencionou não ganham descrição: \"ela mandou uma foto do primeiro inverno\" fica exatamente assim, sem dizer o que aparece na foto.",
-  "No :::details[Para saber mais] e em qualquer frase de conhecimento, só o que a fonte [E…] diz, com o link; \"estudos apontam\", \"pesquisas mostram\" e afins só se a fonte disser isso.",
-  "Proporção: o número de seções acompanha a matéria dela. Com pouca matéria (um ou dois parágrafos de relato), 2 seções curtas e nenhum recurso que exija conteúdo novo; nunca crie uma seção para encher. Recursos só quando houver o que colocar neles.",
-  "Construção do post, usando os recursos do editor com função:",
-  "- # Título forte e específico; um parágrafo de abertura que apresenta a percepção dela.",
-  "- Seções com ## subtítulos que digam a ideia da seção (não rótulos como \"Introdução\" ou \"Conclusão\"). Cada seção traz algo novo: uma percepção dela, a explicação da fonte, a ligação entre as duas ou a consequência. Nunca repita a mesma ideia em outra seção, nem resuma o texto no fim.",
-  "- Uma citação em destaque (> ) com a frase central DELA, com as palavras dela.",
-  "- Uma tabela quando ela comparar duas formas de fazer ou dois momentos (ex.: copiar × reescrever), com o que ela disse e, se houver, o que a fonte explica.",
-  "- Uma lista quando houver passos ou sinais que ela descreveu; um diagrama ```mermaid só se houver um processo claro no que ela contou.",
-  "- Um bloco recolhível :::details[Para saber mais] com o aprofundamento das fontes que não cabe no corpo, quando houver fontes.",
-  "- No fim do rascunho, se usou fontes, uma seção \"## Referências\" com cada fonte usada como item de lista: [Título](URL) — Fonte.",
-  "Fecho: retome a percepção dela numa frase nova, sem lição de moral, chamada ao leitor ou conclusão que ela não tirou.",
-  "Expressões de tempo e frequência ficam exatamente como ela disse (\"tenho reparado\" continua \"tenho reparado\", não vira \"há pouco tempo\" nem \"sempre\").",
-  "Esqueleto (o tema é outro; siga a forma, não o conteúdo):\n<rascunho>\n# Título que diz a ideia dela\nCategorias: …\n\nAbertura com a percepção dela, nas palavras dela.\n\n## Subtítulo com a primeira ideia dela\nO que ela contou, desenvolvido e ligado.\n\n> A frase central dela.\n\n## Subtítulo com o que explica isso\nIsso tem nome: [Nome do conceito](URL exata da fonte [E…]). O que a fonte explica e como se liga ao que ela percebeu.\n\n| O que ela comparou | Lado A | Lado B |\n|---|---|---|\n| … | … | … |\n\n## Subtítulo com a consequência que ela tirou\n…\n\n:::details[Para saber mais]\nAprofundamento a partir das fontes.\n:::\n\n## Referências\n- [Título da fonte](URL exata) — Wikipédia\n</rascunho>",
-  "Revise a gramática antes de entregar (concordância e conjugação, ex.: \"volto ao texto e releio\").",
-  "Checagem final do rascunho: nenhum subtítulo genérico (\"Introdução\", \"Conclusão\", \"Considerações finais\"); a citação (> ) usa as palavras dela; toda fonte usada aparece com link no texto E na seção \"## Referências\" no fim; nenhuma frase sobre ela que ela não tenha dito; nenhuma palavra com gênero sobre ela (\"envolvida\", \"cansado\") se ela não revelou o gênero: reescreva sem o adjetivo (\"me envolvo\", \"o cansaço\"); nenhuma palavra truncada ou inventada.",
-  "Depois do rascunho, fora dele e em até 4 linhas: o que veio dela e o que veio das fontes, dois títulos alternativos e 2 sugestões do que ela poderia acrescentar com as palavras dela (um caso vivido, um antes e depois) para o texto ficar mais forte.",
+  "RASCUNHO DE POST CASUAL. É um post pessoal para um blog, não um artigo, um estudo ou uma publicação científica: soa como a pessoa conversando, em primeira pessoa, no registro dela (se ela escreve simples, fica simples).",
+  "Forma: # título curto e com a cara dela; depois parágrafos curtos e corridos (em geral de 3 a 6). Sem subtítulos (##) num post curto; num post longo, no máximo dois, e só se ajudarem a ler. Sem tabela, diagrama, bloco recolhível, lista de referências, notas de rodapé ou links: nada disso combina com um post casual. Uma citação (> ) com a frase central dela só se surgir naturalmente.",
+  "Fontes externas: só entram se a pessoa pediu fontes, dados ou pesquisa. Nesse caso, cite no próprio parágrafo com link Markdown para o endereço exato [E…], sem seção de referências. Sem esse pedido, não cite pesquisa, estudo, autor, número nem link.",
+  "Conteúdo: o centro é o que ela contou (as ideias, a situação, o sentimento). Para o post ficar completo, você pode completar com reflexões, ligações e sentimentos coerentes com o que ela disse, no tom dela; ela vai editar depois. O que NUNCA se inventa: fatos concretos que só ela saberia (nomes de pessoas, lugares, datas, números, horários, cargos, disciplinas, projetos, hobbies, episódios e falas). Isso vale também para exemplos de atividades, tarefas, lugares e rotinas que ela não citou: se um detalhe concreto faria falta, escreva de um jeito geral (\"meus projetos\", \"o trabalho\") em vez de inventar qual é. Não mude o sentido do que ela disse (se ela espera as férias, não escreva que decidiu parar).",
+  "Voz: o rascunho inteiro é dela, em primeira pessoa (\"meus projetos\", nunca \"seus projetos\").",
+  "O exemplo de referência é de OUTRA pessoa: nenhum fato, cena ou frase dele entra neste rascunho.",
+  "Fecho: uma frase que retome a ideia dela, sem lição de moral nem chamada ao leitor.",
+  "Não use palavras com gênero sobre ela (\"cansado\", \"envolvida\") se ela não revelou o gênero: reescreva sem o adjetivo (\"o cansaço\", \"me envolvo\"). Revise a gramática antes de entregar.",
+  "Se ela aprovou um texto anterior desta conversa (\"poste isso\", \"deixa assim\", \"pode publicar\"), o rascunho é esse texto, só no formato <rascunho>, sem reescrever o que ela aprovou (tirando só o que for fato concreto inventado).",
+  "Depois do rascunho, fora dele e em até 2 linhas: dois títulos alternativos e, se quiser, UMA sugestão do que ela poderia acrescentar. Sem perguntas obrigatórias: o rascunho já está pronto para ela editar e publicar.",
 ].join("\n");
 
 /**
  * Post com pouca matéria (menos de ~400 caracteres dela): com o alvo de 500 a 1.000 palavras, o 32B enchia com o que
  * ela não disse ("perder uns quilos", "no parque, na areia"; teste de 10/11 com duas frases sobre começar a correr).
  */
-const SHORT_POST = "Matéria curta: o rascunho tem de 120 a 300 palavras, no máximo um subtítulo, sem tabela e sem diagrama. Cada frase vem do que ela disse ou da fonte; o que faltar fica para as sugestões depois do rascunho.";
+const SHORT_POST = "Matéria curta: o rascunho tem de 120 a 250 palavras, sem subtítulos. Escreva mesmo assim, a partir do tema e do que ela disse, completando com reflexões coerentes (sem fatos concretos inventados).";
 
 export function remoteStyle(input: { competence: CompetenceId | null; brief: boolean; post: boolean; shortPost?: boolean }): string {
   if (input.brief) {
@@ -62,7 +51,17 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
       "Modo de alta qualidade, pedido de resposta curta: responda com precisão e naturalidade em poucas frases bem escolhidas, sem títulos, e ofereça aprofundar se ela quiser.",
     ].join("\n");
   }
-  const size = input.shortPost ? "de 120 a 300 palavras no rascunho" : SIZE[input.post ? "post" : input.competence ?? "conversa"] ?? SIZE.conversa;
+  const size = input.shortPost ? "de 120 a 250 palavras no rascunho" : SIZE[input.post ? "post" : input.competence ?? "conversa"] ?? SIZE.conversa;
+  // Post: só as regras de post casual. As de "alta qualidade" (profundidade, exemplos, nuances, títulos, tabelas,
+  // diagramas, próximos passos) faziam o post sair com cara de artigo científico, com fontes e "Referências"
+  // (conversa de 13/11 sobre as férias da faculdade: o dono do projeto não conseguiu postar).
+  if (input.post) {
+    return [
+      `Extensão: ${size}.`,
+      input.shortPost ? `${POST_RULES}\n${SHORT_POST}` : POST_RULES,
+      `${PERSONALITY}\nSem jargão de sistema e sem emojis.`,
+    ].join("\n");
+  }
   return [
     "MODO DE ALTA QUALIDADE (substitui os alvos de tamanho e formato anteriores; as regras sobre o material, a privacidade, a autoria e a fidelidade continuam valendo integralmente).",
     "Entenda primeiro o que a pessoa realmente precisa: a intenção por trás do pedido, o nível dela e o uso que vai fazer da resposta. Se o pedido tiver ambiguidade, assuma a leitura mais útil e diga em uma frase qual foi.",

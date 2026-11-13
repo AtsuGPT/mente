@@ -56,7 +56,7 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b/.test(m);
   // "Quero um post: …", "faz um post sobre…", "monta um post com isso" (teste de 10/11: caía em conversa e saía um texto
   // genérico, sem rascunho e sem o formato do post).
-  if (!infoQuestion && !outlineOnly && /(\b(quero|queria) (fazer |montar |criar )?(um |o )?post\b|\b(fa[zç]a?|fazer|mont[ae]|montar) (um |o )?post\b|me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b)/.test(m)) {
+  if (!infoQuestion && !outlineOnly && /(\b(quero|queria) (fazer |montar |criar )?(um |o )?post\b|\b(fa[zç]a?|fazer|mont[ae]|montar) (um |o )?post\b|me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b|\bposte\b|\bposta (isso|esse|essa|assim|a[ií]|o texto)\b|\b(deixa|deixe|do|d[aá]) (o )?texto assim\b)/.test(m)) {
     return { mode: "ideia", casual: false, wantsMemory };
   }
   if (/(quero aprender|me ensin|aprender (sobre|a)|estudar (sobre)?|quero entender|me explica(r)? (passo|em etapas|do zero))/.test(m)) return { mode: "aprender", casual: false, wantsMemory: true };
@@ -407,9 +407,12 @@ export function buildCompetencePrompt(input: {
   if (input.userName) late.push(`\n${speakerRule(input.userName)}`);
   if (input.guide) late.push(`\n${input.guide}`);
   // Medido: com "/post <tema>" (que pede o post agora) e nada mais, o modelo inventava a vida da pessoa.
-  const holdDraft = c.id === "post" && input.thinMaterial;
-  const hold = "A pessoa ainda não contou nada além do tema. Não escreva rascunho, mesmo que ela peça para criar agora: sem a história dela, o texto seria inventado. Responda só com a frase de entendimento e uma única pergunta que traga a matéria do texto.";
-  if (holdDraft) late.push(`\nAGORA: ${hold}`);
+  // Pouca matéria (só o tema): antes a Kally segurava o rascunho e fazia perguntas até ter a história; o dono do projeto
+  // prefere postar logo e editar depois (13/11/2026). Agora sai um rascunho curto a partir do tema.
+  const holdDraft = false;
+  const hold = "";
+  if (c.id === "post" && input.thinMaterial)
+    late.push("\nAGORA: a pessoa contou pouco além do tema. Escreva mesmo assim um rascunho curto (100 a 200 palavras), em primeira pessoa e no tom dela, a partir do tema e do que ela disse, completando com reflexões coerentes e sem inventar fatos concretos (nomes, lugares, datas, números, episódios). Ela edita depois.");
 
   // Post da pessoa: outros pensamentos entram só como títulos (o texto deles se misturaria aos argumentos dela).
   let material: string;

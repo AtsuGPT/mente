@@ -153,8 +153,6 @@ export async function POST(request: Request, context: EnvContext) {
   const intent = detectIntent(message);
   const hasReviewPayload = !!body.review && typeof body.review === "object";
   let mode: Exclude<KallyMode, "auto"> = postCommand ? "ideia" : requested === "auto" ? (hasReviewPayload ? "revisar" : intent.mode) : requested;
-  if (mode === "ideia" && !access.permissions.publish) mode = "chat";
-  const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   // Modo Desenvolvedor: só muda o prompt (personalidade/estilo). Permissões e ambiente continuam os mesmos.
   // Só o administrador da plataforma usa o modo; para as outras contas o pedido é ignorado.
   const me = await findUserById(userId);
@@ -170,6 +168,16 @@ export async function POST(request: Request, context: EnvContext) {
         .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && typeof (m as { content?: unknown }).content === "string")
         .slice(-10)
         .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
+
+  // Conversa de post em andamento: a mensagem seguinte, sem pergunta nova, continua o post (antes cada mensagem era lida
+  // sozinha: "Atividades gerais" virava papo e "Poste isso" saía como texto solto, sem o cartão de publicar).
+  if (requested === "auto" && mode === "chat" && !hasReviewPayload && !message.includes("?")) {
+    const recent = history.slice(-4);
+    const postFlow = recent.some((m) => (m.role === "user" && detectIntent(m.content).mode === "ideia") || (m.role === "assistant" && m.content.includes("<rascunho>")));
+    if (postFlow) mode = "ideia";
+  }
+  if (mode === "ideia" && !access.permissions.publish) mode = "chat";
+  const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
 
   const attachment: Attachment | null =
     body.attachment && typeof body.attachment === "object"
@@ -519,7 +527,10 @@ export async function POST(request: Request, context: EnvContext) {
           // Post na remota: fontes reais e diversas (notícias nacionais e globais, redes sociais, referências, vídeos)
           // sobre os conceitos gerais do tema, citadas com link. Só os termos gerais saem do servidor (post-sources.ts);
           // a pessoa vê cada etapa enquanto espera.
-          if (route.target === "remote" && competence === "post" && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
+          // Só quando ela pede fontes, dados ou pesquisa: num post pessoal, as fontes viravam seção de "Referências" e o
+          // post saía com cara de artigo (13/11/2026).
+          const wantsSources = /\b(fontes?|refer[eê]ncias?|pesquis\w*|dados|estat[ií]stic\w*|estudos?|cient[ií]fic\w*|com links?|embasad\w*)\b/i.test(ownWords);
+          if (route.target === "remote" && competence === "post" && wantsSources && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
             send({ status: say("postFontes"), step: "post-fontes" });
             const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
             if (terms.pt.length && !cancel.signal.aborted) {

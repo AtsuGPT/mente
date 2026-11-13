@@ -18,9 +18,9 @@ export const postReviewEnabled = () => process.env.KALLY_POST_REVIEW !== "0";
 
 const SYSTEM = [
   "Você é o revisor de fidelidade da Kally. Recebe (1) o que a pessoa escreveu, (2) as fontes externas e (3) as frases de um rascunho de post escrito na voz dela, numeradas.",
-  "Marque em \"remover\" o número de cada frase que afirma sobre ela, ou sobre gente da vida dela, algo que ela NÃO escreveu: vivência, cena, lugar, detalhe, motivo, plano, expectativa, rotina, hábito, frequência, tempo, sentimento, aprendizado ou fala (ex.: ela só disse que começou a correr aos 40; \"A ideia era melhorar a saúde\" e \"Hoje foco em respirar fundo\" saem). Linhas de tabela com o que ela \"esperava\", \"antes\" ou planos que ela não contou também saem.",
+  "O post é casual e a Kally pode completar o texto com reflexões e sentimentos coerentes com o que ela disse (ela edita depois). Marque em \"remover\" só as frases com FATO CONCRETO sobre ela ou sobre gente da vida dela que ela NÃO escreveu: nome de pessoa, lugar, data, número, horário, cargo, disciplina, projeto, hobby, episódio ou fala específica (ex.: ela não falou de fotografia; \"meu hobby de fotografia ficou de lado\" sai; \"sinto que não tenho espaço para mais nada\" fica).",
   "Marque também afirmações de conhecimento SEM link que não estejam nas fontes (\"estudos apontam\", números, explicações científicas). Frase com link para uma das fontes não é marcada.",
-  "NÃO marque: frases que repetem ou reformulam o que ela disse; frases que só ligam os pontos dela; explicações que vêm das fontes; títulos e subtítulos.",
+  "NÃO marque: frases que repetem ou reformulam o que ela disse; reflexões, sentimentos e ligações gerais coerentes com o tema; explicações que vêm das fontes; títulos e subtítulos.",
   "Em \"genero\", liste palavras com gênero gramatical que se referem a ela quando ela não revelou o gênero no que escreveu, com a troca neutra (ex.: {\"n\": 4, \"de\": \"cansada\", \"para\": \"com cansaço\"}).",
   'Responda só com o JSON compacto: {"remover":[3,7],"genero":[{"n":4,"de":"...","para":"..."}]}',
 ].join("\n");
@@ -53,7 +53,8 @@ export function splitUnits(text: string): { lines: string[]; units: Unit[] } {
       return;
     }
     // Pontos dentro de links e números (https://www.cdc.gov, 3.000) não terminam frase: a busca roda numa cópia sem eles.
-    const masked = raw.replace(/\]\([^)]*\)/g, (m) => m.replace(/[.!?…]/g, "_")).replace(/(\d)\.(\d)/g, "$1_$2");
+    // O link inteiro ([texto](endereço)) fica numa frase só: cortar dentro dele deixava "](https://…) — g1" solto no post.
+    const masked = raw.replace(/\[[^\]]*\]\([^)]*\)/g, (m) => m.replace(/[.!?…]/g, "_")).replace(/(\d)\.(\d)/g, "$1_$2");
     const re = /[^.!?…]+(?:[.!?…]+["”»)]?|$)\s*/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(masked)) && m[0]) {

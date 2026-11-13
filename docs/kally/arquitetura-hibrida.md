@@ -265,3 +265,20 @@ A Kally 1.5 (o modelo de conversa "local") passou a ser o GPT-OSS 20B pela mesma
 - **Medido (13/11):** conversa curta, 1ª palavra em 1,2 s; dúvida com tabela, 0,4 s e 237 tokens; US$ 0,0001 por
   pedido. Com o teto estourado de propósito, o Qwen respondeu (12 a 20 s).
 - **Reasoning:** baixo por padrão; `KALLY_LIGHT_EFFORT_HIGH` (padrão "medium") quando a Kally pede raciocínio.
+
+## Post casual e sem rodada de perguntas (13/11/2026)
+
+Pedido do dono do projeto, depois de não conseguir postar sobre as férias da faculdade: o post saía com cara de
+artigo (subtítulos, fontes da internet, seção "Referências", link quebrado) e a Kally fazia pergunta atrás de pergunta.
+
+- **Forma** (`remote-style.ts`, `POST_RULES`; `competences/post.ts`): post casual de blog, título curto e parágrafos
+  corridos; sem subtítulos num post curto, sem tabela, diagrama, bloco recolhível, links nem referências. As regras de
+  "alta qualidade" (profundidade, títulos, tabelas, próximos passos) não entram mais no post.
+- **Fontes da internet no post:** só quando a pessoa pede (fontes, dados, pesquisa, estudos).
+- **Sempre um rascunho:** com pouca matéria, sai um rascunho curto a partir do tema, para ela editar. A Kally pode
+  completar com reflexões e sentimentos coerentes; nunca inventa fatos concretos (nomes, lugares, datas, números,
+  episódios, falas). A revisão de fidelidade (`post-review.ts`) passou a tirar só esses fatos concretos.
+- **Continuidade:** numa conversa de post, a mensagem seguinte sem pergunta nova continua o post (antes "Atividades
+  gerais" virava papo). "Poste isso", "posta assim" e "deixa o texto assim" pedem o rascunho, e o texto aprovado
+  vira o rascunho sem ser reescrito.
+- **Links:** a revisão não parte mais uma frase dentro de um link (`[texto](endereço)`).
