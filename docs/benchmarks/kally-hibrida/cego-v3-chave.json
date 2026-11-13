@@ -1,0 +1,52 @@
+{
+ "C08 Newton rapidinho": {
+  "X": "qwen-v2",
+  "Y": "g120",
+  "Z": "g20"
+ },
+ "C12 bug do input()": {
+  "X": "qwen-v2",
+  "Y": "g120",
+  "Z": "g20"
+ },
+ "C16 enunciado ambíguo": {
+  "X": "g120",
+  "Y": "qwen-v2",
+  "Z": "g20"
+ },
+ "C18 veia e artéria": {
+  "X": "g120",
+  "Y": "qwen-v2",
+  "Z": "g20"
+ },
+ "C10 poema": {
+  "X": "g120",
+  "Y": "g20",
+  "Z": "qwen-v2"
+ },
+ "D análise de argumento": {
+  "X": "g120",
+  "Y": "g20",
+  "Z": "qwen-v2"
+ },
+ "Post a partir de ideia": {
+  "X": "g120",
+  "Y": "qwen-v2",
+  "Z": "g20"
+ },
+ "RAG: encontro de trocas": {
+  "X": "g120",
+  "Y": "g20",
+  "Z": "qwen-v2"
+ },
+ "RAG: dataset do Rafael": {
+  "X": "g120",
+  "Y": "qwen-v2",
+  "Z": "g20"
+ },
+ "Estudo: memória virtual": {
+  "X": "g20",
+  "Y": "g120",
+  "Z": "qwen-v2"
+ }
+}

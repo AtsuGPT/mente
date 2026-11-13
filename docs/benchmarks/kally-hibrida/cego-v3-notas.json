@@ -1,0 +1,14 @@
+{
+ "_sobre": "Rodada cega v3 (13/11/2026): os 10 casos da v2 com os prompts da Kally. g20 = Kally 1.5 pela API (GPT-OSS 20B, prompt local); g120 = Kally 32 pela API (GPT-OSS 120B, prompt local + estilo da remota); qwen-v2 = as respostas do Qwen 8B guardadas da v2, recorrigidas junto. Notas 0 a 5, uma correção às cegas. O poema foi refeito depois de corrigir o 'poste' que virava pedido de post (chave em cego-v3-poema-chave.json). Material dos dois casos de RAG reconstruído num post curto (o ambiente da simulação não existe mais).",
+ "C08 Newton rapidinho": {"qwen-v2": 3, "g20": 3, "g120": 4, "nota": "g120 curta, certa e com exemplo, como pedido ('rapidinho'); qwen e g20 com seções e mais longas."},
+ "C12 bug do input()": {"qwen-v2": 3, "g20": 3, "g120": 4, "nota": "g120 com a correção mais robusta (int + try/except + while True), mas erra o Python 2 (string > int faria imprimir 'menor'). g20 diz que 'chute != n nunca será verdadeira' (é sempre verdadeira)."},
+ "C16 enunciado ambíguo": {"qwen-v2": 3, "g20": 2, "g120": 3, "nota": "g20 diz que não há ambiguidade nenhuma e usa LaTeX. g120 aponta 'quanto vale f' e a frase solta, mas lê '1º ano' como fundamental."},
+ "C18 veia e artéria": {"qwen-v2": 2, "g20": 3, "g120": 3, "nota": "qwen erra a veia pulmonar (diz CO2). g120 completa, mas diz que artérias coronárias têm válvulas e repete o mito da cor azul. g20 certa e curta, com uma pergunta de fixação de premissa errada."},
+ "C10 poema": {"qwen-v2": 2, "g20": 2, "g120": 3, "nota": "g120 específico, cita os versos e explica; não aponta o que está mais fraco. g20 curto e genérico, sugere rimar."},
+ "D análise de argumento": {"qwen-v2": 3, "g20": 3, "g120": 4, "nota": "g120 com nota ≠ aprendizado, efeitos colaterais, versão mais forte e como responder; alguns rótulos imprecisos. g20 com rótulos forçados (apelo à emoção, autoridade)."},
+ "Post a partir de ideia": {"qwen-v2": 3, "g20": 4, "g120": 3, "nota": "g20 com toda a estrutura pedida (introdução, seções, prática, conclusão) e fiel. g120 sem conclusão e com um hábito que ela não contou. qwen sem subtítulos e com 'ao longo do tempo'."},
+ "RAG: encontro de trocas": {"qwen-v2": 3, "g20": 4, "g120": 5, "nota": "g120 dia, hora, duração e formato. qwen diz que a ordem é sorteada 'no começo do ciclo' (é no começo do encontro)."},
+ "RAG: dataset do Rafael": {"qwen-v2": 4, "g20": 4, "g120": 5, "nota": "Os três certos (12.400 e 8%); g120 também calcula os 992 e explica recall e F1."},
+ "Estudo: memória virtual": {"qwen-v2": 2, "g20": 2, "g120": 3, "nota": "Ninguém acerta toda a conta em hexadecimal: g120 erra 1×4 KB + 0x678 (0x1678, não 0x4678); g20 erra várias (12×4 KB = 0xC000, não 0x3000); qwen mistura número de página e endereço."},
+ "_medias": {"qwen-v2": 2.8, "g20": 3.0, "g120": 3.7, "qwen_v2_original": 3.0, "qwen3_32b_v2": 3.5}
+}
