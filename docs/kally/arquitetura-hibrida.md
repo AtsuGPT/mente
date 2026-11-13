@@ -230,3 +230,21 @@ Antes de procurar material (posts, documentos, memória, internet e o filtro das
 - **Reserva:** se o modelo falhar, demorar ou escrever algo sem nenhuma palavra da conversa, valem as regras de `focus.ts` (tiram cumprimento, forma de pedir e formato). Mensagem curta sem conversa antes (até 6 palavras) vai direto, sem modelo.
 - **Medido no 8B (11/11/2026):** 3,5 a 3,7 s por pedido; numa conversa nova, cerca de 6 s, porque o histórico é lido aqui em vez de na resposta. A resposta em seguida leu só a parte nova (0,8 a 1,8 s). Exemplos: "E no Brasil, como está isso hoje?" (depois de uma pergunta sobre inflação) → "Inflação no Brasil em 2026 e relação com salários"; um pedido de 34 palavras com saudação e "em 3 tópicos" → "como funciona um servidor web".
 - **Registro:** `essential: { by, ms, words, kept }` em `logs/kally-perf.jsonl` (só contagens e tempo).
+
+## Kally 32 pela API (12/11/2026)
+
+A Kally 32 deixou a GPU alugada (Vast, Qwen3-32B no vLLM, desligada e sem ligar sozinha) e passou a chamar o GPT-OSS 120B
+pelo Vercel AI Gateway, pago por uso. O nome que aparece no app continua "Kally 32".
+
+| Variável | Valor | Para quê |
+|---|---|---|
+| `KALLY_VLLM_BASE_URL` | `https://ai-gateway.vercel.sh/v1` | endereço compatível com a API da OpenAI |
+| `KALLY_REMOTE_MODEL` | `openai/gpt-oss-120b` | modelo |
+| `KALLY_VLLM_API_KEY` | chave `vck_...` | colocada pelo dono do projeto |
+| `KALLY_REMOTE_HOSTED` | `1` | API sempre ligada: a saúde não exige o modelo na lista de modelos |
+| `KALLY_REMOTE_REASONING` | `effort` | o GPT-OSS sempre raciocina: `reasoning.effort` baixo nas conversas, alto no Máximo, código, matemática e direito (`KALLY_REMOTE_EFFORT_LOW`/`_HIGH`) |
+| `KALLY_VAST_ENABLED` / `KALLY_GPU_AUTOSTART` | `0` | a GPU alugada não liga mais |
+
+Para voltar à GPU alugada: os valores antigos estão em `minha-mente-logs/.env.backup-20261112-antes-api`.
+Teste rápido da API: `node --env-file=<.env> minha-mente-servicos/testar-kally-api.mjs` (saúde, conversa em streaming,
+JSON do plano e raciocínio alto).

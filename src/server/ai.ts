@@ -124,6 +124,20 @@ function config() {
  * Pedido ao vLLM remoto (API OpenAI): sem o gerenciador de modelos (a GPU é outra), com vaga
  * limitada (acquireRemoteSlot) e teto próprio de tempo. O modelo é sempre o KALLY_REMOTE_MODEL.
  */
+/**
+ * Raciocínio pedido ao remoto. Qwen3 híbrido (ex.: Qwen3-32B no vLLM): raciocina por padrão e a 1ª palavra demora;
+ * o template aceita enable_thinking: false pelo chat_template_kwargs. Modelos que sempre raciocinam (GPT-OSS na API):
+ * reasoning.effort, baixo nas conversas e alto quando a Kally pede raciocínio (Máximo, código, matemática, direito).
+ */
+function remoteReasoning(cfg: ReturnType<typeof remoteConfig>, think: boolean | undefined) {
+  if (cfg.reasoning === "effort") {
+    const on = think ?? !cfg.noThink;
+    return { reasoning: { effort: on ? cfg.effortHigh : cfg.effortLow } };
+  }
+  if (think !== undefined) return { chat_template_kwargs: { enable_thinking: think } };
+  return cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {};
+}
+
 async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean) {
   const cfg = remoteConfig();
   if (!cfg.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
@@ -137,9 +151,7 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
     temperature: options.temperature,
     max_tokens: options.maxTokens,
     ...(options.json ? { response_format: { type: "json_object" } } : {}),
-    // Qwen3 híbrido (ex.: Qwen3-32B): raciocina por padrão e a 1ª palavra demora; o template do modelo
-    // aceita enable_thinking: false pelo chat_template_kwargs do vLLM.
-    ...(options.think !== undefined ? { chat_template_kwargs: { enable_thinking: options.think } } : cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+    ...remoteReasoning(cfg, options.think),
   };
   // Streaming: prazo por silêncio (streamWatchdog); resposta inteira de uma vez: prazo total, como antes.
   const watchdog = stream ? streamWatchdog(options.timeoutMs ?? cfg.timeoutMs, options.idleMs ?? IDLE_MS) : null;
@@ -342,7 +354,7 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
       done?: boolean;
       done_reason?: string;
       message?: { content?: string; thinking?: string };
-      choices?: { delta?: { content?: string; reasoning_content?: string }; finish_reason?: string | null }[];
+      choices?: { delta?: { content?: string; reasoning_content?: string; reasoning?: string }; finish_reason?: string | null }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
       load_duration?: number;
       prompt_eval_count?: number;
@@ -380,7 +392,9 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
       finishWith(event.choices[0].finish_reason);
     }
     const delta = event.choices?.[0]?.delta;
+    // vLLM manda o raciocínio em reasoning_content; as APIs (Vercel AI Gateway, OpenRouter), em reasoning.
     if (delta?.reasoning_content) thinkingChars += delta.reasoning_content.length;
+    if (typeof delta?.reasoning === "string") thinkingChars += delta.reasoning.length;
     if (event.usage && onStats) {
       const end = Date.now();
       const outputSeconds = firstAt ? (end - firstAt) / 1000 : 0;

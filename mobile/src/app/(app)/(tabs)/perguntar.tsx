@@ -1117,7 +1117,7 @@ function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value
 const MODEL_HINT: Record<AnswerConfig["model"], string> = {
   auto: "A Kally escolhe a melhor para cada pedido: a Kally 1.5 para conversas e pedidos rápidos, a Kally 32 para pedidos maiores.",
   local: "Mais ágil para começar a responder. Boa para conversas, dúvidas rápidas e textos curtos.",
-  remote: "Mais completa e elaborada, para estudos, análises e textos longos. Depois de um tempo sem uso, a primeira resposta pode levar alguns minutos para começar.",
+  remote: "Mais completa e elaborada, para estudos, análises e textos longos.",
 };
 const EFFORT_HINT: Record<AnswerConfig["effort"], string> = {
   normal: "Uma resposta, no tempo de sempre.",

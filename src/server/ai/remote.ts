@@ -42,6 +42,19 @@ export function remoteConfig() {
     maxConcurrent: Math.floor(number(process.env.KALLY_REMOTE_MAX_CONCURRENCY, 2)),
     /** KALLY_REMOTE_NO_THINK="1": pede enable_thinking: false (modelos Qwen3 híbridos) */
     noThink: process.env.KALLY_REMOTE_NO_THINK === "1",
+    /**
+     * KALLY_REMOTE_HOSTED="1": API paga por uso (Vercel AI Gateway, OpenRouter...) no lugar do vLLM da GPU alugada. Está
+     * sempre ligada: a lista de modelos dela pode não trazer o configurado (ou vir paginada) e não conta contra.
+     */
+    hosted: process.env.KALLY_REMOTE_HOSTED === "1",
+    /**
+     * Como pedir mais ou menos raciocínio. "qwen" (padrão): enable_thinking pelo chat_template_kwargs do vLLM.
+     * "effort": reasoning.effort, para modelos que sempre raciocinam (GPT-OSS e outros nas APIs); o pedido sem raciocínio
+     * usa o nível baixo (KALLY_REMOTE_EFFORT_LOW) e o com raciocínio, o alto (KALLY_REMOTE_EFFORT_HIGH).
+     */
+    reasoning: process.env.KALLY_REMOTE_REASONING === "effort" ? ("effort" as const) : ("qwen" as const),
+    effortLow: process.env.KALLY_REMOTE_EFFORT_LOW || "low",
+    effortHigh: process.env.KALLY_REMOTE_EFFORT_HIGH || "high",
   };
 }
 
@@ -101,10 +114,12 @@ export async function remoteHealth(force = false): Promise<RemoteHealth> {
       } else if (!r.ok) {
         health = { state: booting ? "inicializando" : "indisponivel", model: null, maxModelLen: null, latencyMs: Date.now() - started, checkedAt: Date.now(), detail: `vLLM respondeu HTTP ${r.status}` };
       } else {
-        const data = (await r.json()) as { data?: { id?: string; max_model_len?: number }[] };
-        const served = (data.data ?? []).find((m) => m.id === cfg.model);
+        const data = (await r.json()) as { data?: { id?: string; max_model_len?: number; context_window?: number; context_length?: number }[] };
+        const listed = (data.data ?? []).find((m) => m.id === cfg.model);
+        const served = listed ?? (cfg.hosted ? { id: cfg.model } : undefined);
+        const window = listed ? listed.max_model_len ?? listed.context_window ?? listed.context_length ?? null : null;
         health = served
-          ? { state: "disponivel", model: cfg.model, maxModelLen: served.max_model_len ?? null, latencyMs: Date.now() - started, checkedAt: Date.now(), detail: null }
+          ? { state: "disponivel", model: cfg.model, maxModelLen: typeof window === "number" && window > 0 ? window : null, latencyMs: Date.now() - started, checkedAt: Date.now(), detail: null }
           : { state: "erro", model: null, maxModelLen: null, latencyMs: Date.now() - started, checkedAt: Date.now(), detail: `o vLLM serve ${(data.data ?? []).map((m) => m.id).join(", ") || "nenhum modelo"}, não ${cfg.model}` };
         if (served) registry.__kallyRemoteBooting = undefined;
       }
