@@ -442,7 +442,6 @@ export async function POST(request: Request, context: EnvContext) {
           if (!r.ok && !/em andamento/.test(r.detail)) failed = r.detail;
         });
         while (!cancel.signal.aborted && Date.now() - began < remoteWaitMs()) {
-          const s = Math.round((Date.now() - began) / 1000);
           gpuLine ||= say("gpu");
           send({ status: gpuLine, step: "gpu" });
           await new Promise((resolve) => setTimeout(resolve, 5_000));
