@@ -1,7 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { completeChat, type AiMessage } from "./ai";
-import { devSystemPrompt, type DevSettings } from "./kally-dev";
 import type { CompetenceSpec, ReferenceExample } from "./kally/competences/types";
 import type { DocumentHit } from "./kally/documents";
 import { recall, type Retrieved } from "./kally-memory";
@@ -248,8 +247,8 @@ function materialBlock(posts: Retrieved[], web: WebResult[], attachment: Attachm
  * sem reler. Usado pelas montagens abaixo e pela busca do essencial (kally/essential.ts), que lê o mesmo começo e por isso não
  * apaga o que o modelo guardou (o Ollama daqui atende um pedido por vez e guarda só o último começo lido).
  */
-export function chatHead(input: { environmentName: string; history: { role: string; content: string }[]; dev?: DevSettings | null }): AiMessage[] {
-  const system = input.dev ? [devSystemPrompt(input.dev, `ambiente "${input.environmentName}" do Minha Mente`)] : identity(input.environmentName);
+export function chatHead(input: { environmentName: string; history: { role: string; content: string }[] }): AiMessage[] {
+  const system = identity(input.environmentName);
   // Histórico com limite de tamanho (as respostas antigas entram pelo fim, cortadas): numa conversa salva com respostas
   // longas do modo aprofundado, o prompt do 8B chegou a 6.319 tokens (54 s só de leitura) e a resposta era cortada.
   return [{ role: "system", content: system.join(" ") }, ...recentHistory(input.history, CHAT_HISTORY_CHARS)];
@@ -277,8 +276,6 @@ export function buildPrompt(input: {
   web?: WebResult[];
   attachment?: Attachment | null;
   reviewText?: string | null;
-  /** Modo Desenvolvedor: substitui a personalidade padrão (identity e o tom do modo Conversar). */
-  dev?: DevSettings | null;
   /** Interpretação prévia do pedido (pipeline: interpretador → executor). */
   guide?: string | null;
   /** Exemplos de tom do papo casual (padrão: sim). */
@@ -294,20 +291,17 @@ export function buildPrompt(input: {
   // vLLM reaproveitam o começo igual ao do pedido anterior, inclusive o histórico, e só leem o resto (log de 11/11:
   // só 23 de 6.319 tokens eram reaproveitados, e o 8B relia tudo a cada mensagem, de 25 a 40 s).
   const head = chatHead(input);
-  const late: string[] = input.dev
-    ? // Nos outros modos ficam só as regras de função (formato do rascunho, etapas, revisão).
-      input.mode === "chat" || input.mode === "auto" ? [] : modeInstructions(input.mode, found, input.categories)
-    : [
-        ...(input.toneExamples ?? true ? [TONE_EXAMPLES] : []),
-        // Tabelas, diagramas e código: fora do papo casual, ou quando a mensagem pede estrutura.
-        ...(input.toneExamples === false || (input.mode !== "chat" && input.mode !== "auto") || WANTS_STRUCTURE.test(input.message) ? [FORMAT_RULE] : []),
-        ...modeInstructions(input.mode, found, input.categories),
-      ];
+  const late: string[] = [
+    ...(input.toneExamples ?? true ? [TONE_EXAMPLES] : []),
+    // Tabelas, diagramas e código: fora do papo casual, ou quando a mensagem pede estrutura.
+    ...(input.toneExamples === false || (input.mode !== "chat" && input.mode !== "auto") || WANTS_STRUCTURE.test(input.message) ? [FORMAT_RULE] : []),
+    ...modeInstructions(input.mode, found, input.categories),
+  ];
   if (input.guide) late.push(input.guide);
   if (documents.length) late.push(DOCUMENT_RULE);
   if (input.userName) late.push(speakerRule(input.userName));
   const lateMessage = (): AiMessage[] => (late.filter(Boolean).length ? [{ role: "system", content: late.filter(Boolean).join(" ") }] : []);
-  const closing: AiMessage[] = input.dev ? [] : [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) + structureReminder(input.message) }];
+  const closing: AiMessage[] = [{ role: "system", content: writingReminder(input.message, input.attachment?.text, input.reviewText, ...documents.map((d) => d.text)) + structureReminder(input.message) }];
 
   // Ideia: o texto de outros pensamentos se mistura aos argumentos da pessoa (e o modelo
   // pequeno chega a repeti-lo). Vão só títulos, como referências internas para sugerir.

@@ -45,6 +45,11 @@ export type AiOptions = {
   idleMs?: number;
   /** Streaming: como a resposta terminou ("length" = cortada pelo limite de tokens; quem chama pode continuar). */
   onFinish?: (reason: FinishReason) => void;
+  /**
+   * Pedido local e a Kally 1.5 pela API (modo dev): "only" = só a API (falha se ela não puder responder, sem cair para o
+   * Qwen); "never" = só o Qwen do PC. Sem isso, a API quando der e o Qwen como último recurso.
+   */
+  light?: "only" | "never";
 };
 
 export type FinishReason = "stop" | "length" | "other";
@@ -199,7 +204,13 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
  * imagem (visão fica no Ollama), com a API configurada, sem falha nos últimos 2 minutos e dentro do teto do dia.
  */
 function useLight(options: AiOptions, messages: AiMessage[]) {
+  if (options.light === "never") return false;
   const light = lightConfig();
+  if (options.light === "only") {
+    if (!light.enabled) throw new AiError("A Kally 1.5 pela API não está configurada (KALLY_LIGHT_MODEL).", 503);
+    if (overBudget(light.model)) throw new AiError("A Kally 1.5 pela API atingiu o teto de gasto do dia.", 503);
+    return true;
+  }
   if (!light.enabled || lightCoolingDown() || overBudget(light.model)) return false;
   if (messages.some((m) => m.images?.length)) return false;
   const model = options.model || config().model;
@@ -217,7 +228,7 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
     try {
       return await remoteRequest(messages, options, stream, true);
     } catch (cause) {
-      if (options.signal?.aborted) throw cause;
+      if (options.signal?.aborted || options.light === "only") throw cause;
       // Último recurso: o Qwen do PC responde (e a API fica de fora por 2 minutos).
       noteLightFailure();
       console.warn("Kally 1.5 (API) → Qwen local:", cause instanceof Error ? cause.message : cause);

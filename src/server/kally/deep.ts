@@ -92,7 +92,7 @@ export type Plan = { abertura: string; partes: { titulo: string; objetivo: strin
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.trim().replace(/\s+/g, " ").slice(0, n) : "");
 
 /** Plano da resposta. null se o modelo falhar ou fugir do formato (aí a resposta sai normal). */
-export async function planAnswer(base: AiMessage[], effort: Exclude<Effort, "normal">, target: { remote: boolean; model?: string; signal?: AbortSignal }): Promise<Plan | null> {
+export async function planAnswer(base: AiMessage[], effort: Exclude<Effort, "normal">, target: { remote: boolean; model?: string; signal?: AbortSignal; light?: "only" | "never" }): Promise<Plan | null> {
   const cfg = EFFORTS[effort];
   const rule = [
     `PLANEJAMENTO (não escreva a resposta agora). A resposta a este pedido vai ser escrita em ${cfg.parts} partes encadeadas, cada uma numa etapa própria.`,
@@ -106,7 +106,7 @@ export async function planAnswer(base: AiMessage[], effort: Exclude<Effort, "nor
       temperature: 0.2,
       maxTokens: 600,
       timeoutMs: target.remote ? 40_000 : 120_000,
-      ...(target.remote ? { target: "remote" as const, think: false } : target.model ? { model: target.model } : {}),
+      ...(target.remote ? { target: "remote" as const, think: false } : { ...(target.model ? { model: target.model } : {}), ...(target.light ? { light: target.light } : {}) }),
       ...(target.signal ? { signal: target.signal } : {}),
     });
     const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { abertura?: unknown; partes?: { titulo?: unknown; objetivo?: unknown }[] };

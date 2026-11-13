@@ -41,7 +41,7 @@ import {
   type KallyMode,
 } from "@/server/kally";
 import { searchWeb, type WebResult } from "@/server/web-search";
-import { devModel, parseDevSettings } from "@/server/kally-dev";
+import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
 
@@ -193,7 +193,7 @@ export async function POST(request: Request, context: EnvContext) {
   // do interpretador; depois o executor responde. Um modelo carregado por vez (model-manager).
   // Avaliação (Etapa 6): escolhe a configuração por pedido, só no servidor de testes e só para o administrador.
   const evalConfig = process.env.KALLY_EVAL === "1" && platformAdmin && EVAL_CONFIGS.includes(body.evalConfig as never) ? (body.evalConfig as (typeof EVAL_CONFIGS)[number]) : null;
-  const pipeline = dev ? null : evalConfig ? evalPipeline(evalConfig) : pipelineFor(platformAdmin);
+  const pipeline = evalConfig ? evalPipeline(evalConfig) : pipelineFor(platformAdmin);
   const sampler = memorySampler();
   let interpretation: Interpretation | null = null;
   let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
@@ -246,8 +246,8 @@ export async function POST(request: Request, context: EnvContext) {
       : await essentialOf({
           message,
           history,
-          head: dev ? null : competence ? competenceHead({ competence: COMPETENCES[competence], environmentName: access.environment.name, history }) : chatHead({ environmentName: access.environment.name, history }),
-          localModel: dev ? null : pipeline ? pipeline.executor : defaultChatModel(),
+          head: competence ? competenceHead({ competence: COMPETENCES[competence], environmentName: access.environment.name, history }) : chatHead({ environmentName: access.environment.name, history }),
+          localModel: pipeline ? pipeline.executor : defaultChatModel(),
         });
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
   const focus = essential?.text || message;
@@ -342,7 +342,7 @@ export async function POST(request: Request, context: EnvContext) {
   const exampleSelection = competence ? await selectExamples(competence, message, { max: attachment || review || documents.length ? 1 : 2 }) : null;
   const examples: ReferenceExample[] = exampleSelection?.examples ?? [];
 
-  // Roteamento (só no pipeline, fora do modo dev e da revisão textual): local ou remoto (vLLM).
+  // Roteamento (só no pipeline e fora da revisão textual): local ou remoto. No modo dev, vale o modelo escolhido.
   // A decisão usa os sinais já calculados acima; com o remoto fora do ar, responde o local.
   const materialChars = (attachment?.text.length ?? 0) + (review?.text.length ?? 0) + documents.reduce((n, d) => n + d.text.length, 0);
   // Quem conversa escolhe o modelo (Automático, Kally local 8B, Kally remota 32B) e o esforço (pedido do dono do
@@ -363,20 +363,23 @@ export async function POST(request: Request, context: EnvContext) {
   let remoteFallback: string | null = null;
   /** pedido grande com a GPU desligada ou ligando: espera o 32B (dentro da resposta) em vez de ir para o 8B */
   let waitRemote: { reason: string; started: Promise<{ ok: boolean; detail: string }> | null } | null = null;
-  if (pipeline && !dev && review?.kind !== "textual" && remoteConfig().enabled) {
+  if (pipeline && review?.kind !== "textual" && remoteConfig().enabled) {
     route = routeModel(
       { mode, competence, casual, interpretation, message, materialChars, sources: posts.length + documents.length, canDraft, thinMaterial, brief: BRIEF.test(message) },
       choice,
     );
-  } else if (dev && choice === "remote" && remoteConfig().enabled) {
-    // Modo dev com a personalidade ligada e "só 32B": o mesmo prompt do modo dev, no remoto.
-    route = { target: "remote", reason: "modo dev: só 32B" };
   }
+  // Modo dev: o modelo escolhido responde tudo (comandos e esforços incluídos), sem o roteador trocar de modelo.
+  if (dev) route = { target: dev.engine === "120b" ? "remote" : "local", reason: `modo dev: ${DEV_ENGINE_LABEL[dev.engine]}` };
+  // Pedido local no modo dev: o 20B só pela API; o Qwen só no PC.
+  const devLight = dev ? (dev.engine === "20b" ? ("only" as const) : dev.engine === "qwen" ? ("never" as const) : undefined) : undefined;
   {
     if (route.target === "remote") {
       const health = await remoteHealth();
       if (health.state !== "disponivel") {
         remoteFallback = `remoto ${health.state}${health.detail ? `: ${health.detail}` : ""}`;
+        // Modo dev com o 120B: não troca de modelo; avisa por que ele não pode responder agora.
+        if (dev) return error(`A Kally 32 (GPT-OSS 120B) não pode responder agora (${health.detail ?? health.state}). Escolha outro modelo no modo desenvolvedor.`, 503);
         // GPU sob demanda: só com KALLY_GPU_AUTOSTART.
         const gpu = gpuConfig();
         let started: Promise<{ ok: boolean; detail: string }> | null = null;
@@ -494,7 +497,7 @@ export async function POST(request: Request, context: EnvContext) {
         }
         // Abertura única para este pedido, escrita pelo 32B em paralelo (só com a remota no ar). Entra se chegar antes
         // do texto e antes de outra etapa; senão fica de fora (não atrasa nada).
-        if (route.target === "remote" && !dev) {
+        if (route.target === "remote") {
           const seq = statusSeq;
           const plans = [
             ...done,
@@ -574,14 +577,13 @@ export async function POST(request: Request, context: EnvContext) {
           const promptWith = (w: WebResult[]) =>
             withMemory(competenceArgs
               ? buildCompetencePrompt({ ...competenceArgs, web: w })
-              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, dev, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName }));
+              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName }));
           // Local (8B): versão reduzida das fontes, para o prompt não pesar na placa (localSources). Remota: todas.
           const reducedWeb = localSources(web);
           const prompt = promptWith(reducedWeb);
           const fullPrompt = reducedWeb.length === web.length && reducedWeb.every((w, i) => w.snippet === web[i].snippet) ? prompt : promptWith(web);
           // No pipeline o executor responde tudo. Fora dele, a revisão intelectual usa KALLY_REVIEW_MODEL, se configurado.
-          // Modo dev com "só 8B": o executor do pipeline (KALLY_EXECUTOR_MODEL), não o modelo experimental.
-          const model = dev ? (choice === "local" ? process.env.KALLY_EXECUTOR_MODEL || devModel(dev) : devModel(dev)) : pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
+          const model = pipeline ? pipeline.executor : mode === "revisar" && review ? process.env.KALLY_REVIEW_MODEL || undefined : undefined;
           modelName = model || defaultChatModel();
           // Modo dev e pipeline do administrador: diz qual modelo responde e mostra as medições.
           // Servidor de testes (KALLY_EVAL=1): as métricas vão para qualquer conta, para a simulação separar falha de
@@ -590,7 +592,8 @@ export async function POST(request: Request, context: EnvContext) {
           const evalEnvironment = process.env.KALLY_EVAL === "1" || (process.env.KALLY_EVAL_AMBIENTES ?? "").split(",").map((x) => x.trim()).includes(access.environment.slug);
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           // Nome do modelo que vai responder: a Kally 1.5 pela API aparece como ela (e não como o Qwen do PC, que é só reserva).
-          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : lightServes(model) ? lightConfig().model : modelName, backend: route.target });
+          const localName = devLight === "never" ? modelName : devLight === "only" || lightServes(model) ? lightConfig().model : modelName;
+          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : localName, backend: route.target });
           generationStarted = Date.now();
           // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
           // para sozinho quando termina; só respostas longas usam o teto.
@@ -598,7 +601,7 @@ export async function POST(request: Request, context: EnvContext) {
           // +35 a 45%. Nas provas locais nenhuma resposta chegou perto do teto (máximo de 260 tokens de 1.400): as respostas
           // curtas vinham das regras de estilo, não do corte. O teto só pesa em pedidos longos (planos, código, textos), e
           // prompt + resposta continuam dentro do contexto de 8.192.
-          const maxTokens = dev ? 4_096 : spec ? spec.maxTokens : casual ? 480 : 2_048;
+          const maxTokens = spec ? spec.maxTokens : casual ? 480 : 2_048;
           // Conversa comum a 0,2 (era 0,45): na simulação, perguntas sobre o ambiente ganhavam interpretações que não
           // estão no material e variavam de uma execução para outra. Ideia e competências mantêm a temperatura delas.
           const temperature = spec ? spec.temperatura : mode === "ideia" ? 0.6 : 0.2;
@@ -607,7 +610,7 @@ export async function POST(request: Request, context: EnvContext) {
           // longas da rodada 2 passaram de 180 s e foram cortadas; na GPU do servidor (~34 tokens/s) o teto de 2.048 tokens
           // cabe em ~60 s. A instância de teste usa um teto maior; a produção continua com o padrão.
           const pipelineTimeout = Number(process.env.KALLY_TIMEOUT_MS) || 180_000;
-          const extra = dev ? { sameContext: true, timeoutMs: 600_000 } : pipeline ? { sameContext: true, timeoutMs: pipelineTimeout } : {};
+          const extra = { ...(pipeline ? { sameContext: true, timeoutMs: pipelineTimeout } : {}), ...(devLight ? { light: devLight } : {}) };
           // Rótulos internos ([P1], "material fornecido") saem da resposta antes de chegar à pessoa (clean.ts).
           const cleaner = createAnswerCleaner();
           const emit = (text: string) => {
@@ -638,8 +641,7 @@ export async function POST(request: Request, context: EnvContext) {
             // Prompt do remoto: o mesmo da Kally (material, regras, histórico) + o estilo de alta qualidade no fim.
             const brief = BRIEF.test(message);
             const isPost = competence === "post" && canDraft;
-            // Modo dev: o prompt do modo, sem o estilo de alta qualidade (a personalidade definida manda no formato).
-            const style = dev ? "" : remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial && !bigPost, structured: isPost && bigPost });
+            const style = remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial && !bigPost, structured: isPost && bigPost });
             // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
             // O formato vem do esqueleto do estilo.
             const base = isPost && competenceArgs && examples.length > 1 ? withMemory(buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) })) : fullPrompt;
@@ -733,7 +735,7 @@ export async function POST(request: Request, context: EnvContext) {
           const deep = effort !== "normal" && !casual && competence !== "post" && mode !== "ideia" ? EFFORTS[effort] : null;
           const runDeep = async (remote: boolean): Promise<boolean> => {
             if (!deep || effort === "normal") return false;
-            const style = remote && !dev ? remoteStyle({ competence, brief: false, post: false }) : "";
+            const style = remote ? remoteStyle({ competence, brief: false, post: false }) : "";
             // Sem os exemplos de referência: no teste de 11/11 o 8B escreveu uma parte inteira sobre o tema do exemplo
             // ("elasticidade-preço") numa pergunta sobre inflação.
             const own = competenceArgs ? withMemory(buildCompetencePrompt({ ...competenceArgs, examples: [], web: remote ? web : localSources(web) })) : remote ? fullPrompt : prompt;
@@ -743,7 +745,7 @@ export async function POST(request: Request, context: EnvContext) {
             const deadline = deep.budgetMs ? Date.now() + deep.budgetMs : null;
             const left = () => (deadline ? deadline - Date.now() : Number.POSITIVE_INFINITY);
             send({ status: say("planejar", { partes: deep.parts }), step: "planejar" });
-            const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal });
+            const plan = await planAnswer(base, effort, { remote, model, signal: cancel.signal, light: devLight });
             if (!plan || cancel.signal.aborted) {
               send({ status: say("planoFalhou"), step: "plano-falhou" });
               return false;
@@ -867,6 +869,8 @@ export async function POST(request: Request, context: EnvContext) {
             if (route.target === "remote") {
               const done = (deep && (await runDeep(true))) || (await runRemote());
               if (!done) {
+                // Modo dev com o 120B: sem trocar de modelo; o erro diz por que ele não respondeu.
+                if (dev) throw new AiError(`A Kally 32 (GPT-OSS 120B) não conseguiu responder: ${remoteFallback ?? "falha sem detalhe"}.`, 502);
                 route = { target: "local", reason: `${route.reason}; ${remoteFallback}` };
                 modelName = model || defaultChatModel();
                 // A remota falhou: a local responde direto (em partes, no 8B, levaria muitos minutos).

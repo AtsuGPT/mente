@@ -115,3 +115,18 @@ nada de HTML; o que escapar é convertido por `latexToText` (`mobile/src/lib/mat
 `src/server/kally/math-text.ts`): $…$, $$…$$, \(…\), \[…\], blocos ```math, comandos soltos (\cdot, \beta…) e
 <br>, <sup>, <b>. Converte na tela enquanto o texto chega, no rascunho antes de publicar ou abrir no editor e no
 texto salvo. Não toca em código nem em valores como "R$ 5.000".
+
+## Modo desenvolvedor: só o modelo (13/11/2026)
+
+O modo dev (só o administrador da plataforma) deixou de mexer no prompt: personalidade, instruções e linguagem
+saíram. Agora ele só escolhe o modelo que responde (`src/server/kally-dev.ts`): `120b` (Kally 32, GPT-OSS 120B pela
+API), `20b` (Kally 1.5, GPT-OSS 20B pela API) ou `qwen` (o Qwen 8B do PC). No app: *Modo ▾ → Modo desenvolvedor*, ou
+`/dev 120b`, `/dev 20b`, `/dev qwen`, `/dev off`.
+
+- O modelo escolhido vale para tudo: conversa, /post, revisão, Aprofundado e Máximo, sem o roteador trocar de modelo e
+  ignorando a escolha "Kally 1.5/32" da tela de resposta.
+- Sem queda para outro modelo: se o escolhido não puder responder (fora do ar, teto de gasto), a resposta é um erro com
+  o motivo (`AiOptions.light`: "only" e "never" em `src/server/ai.ts`).
+- Chamadas auxiliares (essencial do pedido, filtro de fontes, revisão do post) continuam com os modelos de sempre.
+- Testado no site de teste (porta 3200, banco de teste novo): 120B, 20B e Qwen forçados, inclusive /post e Aprofundado
+  com o 20B; com o teto estourado, 120B e 20B dão erro e, sem o dev, a Kally desce até o Qwen.

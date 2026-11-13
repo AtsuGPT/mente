@@ -116,10 +116,20 @@ type PendingAttachment = {
 
 const ATTACH_LABEL: Record<KallyAttachment["kind"], string> = { pdf: "PDF", imagem: "imagem descrita", texto: "texto", docx: "Word", csv: "CSV", audio: "áudio transcrito" };
 
-/** Modo Desenvolvedor: personalidade definida pela pessoa, guardada neste aparelho. */
-/** engine: quem responde, só para o administrador (o servidor confere): automático, só a Kally local (8B) ou só a remota (32B). */
-type DevConfig = { active: boolean; persona: DevPersona; instructions: string; vulgar: boolean; model: "padrao" | "experimental"; engine?: "auto" | "8b" | "32b" };
-type DevPersona = "livre" | "direta" | "divertida" | "deferente" | "formal";
+/**
+ * Modo Desenvolvedor (só o administrador; o servidor confere): escolhe o modelo que responde tudo, inclusive comandos e
+ * esforços que normalmente trocariam de modelo. Não mexe no prompt. Guardado neste aparelho.
+ */
+type DevEngine = "qwen" | "20b" | "120b";
+type DevConfig = { active: boolean; engine: DevEngine };
+const DEV_ENGINES: { id: DevEngine; label: string; hint: string }[] = [
+  { id: "120b", label: "GPT-OSS 120B", hint: "Kally 32, pela API" },
+  { id: "20b", label: "GPT-OSS 20B", hint: "Kally 1.5, pela API" },
+  { id: "qwen", label: "Qwen 8B", hint: "no PC (Ollama), o último recurso" },
+];
+const DEV_ENGINE_LABEL = Object.fromEntries(DEV_ENGINES.map((e) => [e.id, e.label])) as Record<DevEngine, string>;
+const devEngineFrom = (text: string): DevEngine | null =>
+  /^(120b?|32b?|kally ?32|remot\w*)$/i.test(text) ? "120b" : /^(20b?|1\.?5|kally ?1\.?5|api)$/i.test(text) ? "20b" : /^(qwen|8b?|local|pc)$/i.test(text) ? "qwen" : null;
 const DEV_KEY = "minha-mente.kally-dev.v1";
 /** Como a Kally responde (para qualquer pessoa): o modelo e o esforço. Fica salvo no aparelho. */
 type AnswerConfig = { model: "auto" | "local" | "remote"; effort: "normal" | "aprofundado" | "maximo" };
@@ -129,14 +139,7 @@ const MODEL_LABEL: Record<AnswerConfig["model"], string> = { auto: "Automático"
 const EFFORT_LABEL: Record<AnswerConfig["effort"], string> = { normal: "Normal", aprofundado: "Aprofundado", maximo: "Máximo" };
 /** Constante simples (a rolagem roda na UI thread, onde só valores capturados funcionam). */
 const IS_WEB = Platform.OS === "web";
-const DEV_OFF: DevConfig = { active: false, persona: "livre", instructions: "", vulgar: false, model: "experimental" };
-const DEV_PERSONAS: { id: DevPersona; label: string }[] = [
-  { id: "livre", label: "Só minhas instruções" },
-  { id: "direta", label: "Direta" },
-  { id: "divertida", label: "Divertida" },
-  { id: "deferente", label: "Deferente / obediente" },
-  { id: "formal", label: "Formal" },
-];
+const DEV_OFF: DevConfig = { active: false, engine: "120b" };
 
 let counter = 0;
 const newId = () => `local-${Date.now()}-${counter++}`;
@@ -324,7 +327,10 @@ function Kally() {
 
   useEffect(() => {
     void getItem(DEV_KEY).then((saved) => {
-      if (saved) setDevState({ ...DEV_OFF, ...(JSON.parse(saved) as Partial<DevConfig>) });
+      if (!saved) return;
+      // Configuração antiga (personalidade e instruções) fica para trás: só o modelo conta.
+      const old = JSON.parse(saved) as Partial<DevConfig>;
+      setDevState({ active: old.active === true && !!old.engine && DEV_ENGINES.some((e) => e.id === old.engine), engine: DEV_ENGINES.some((e) => e.id === old.engine) ? (old.engine as DevEngine) : DEV_OFF.engine });
     }).catch(() => undefined);
   }, []);
   const setDev = (next: DevConfig) => {
@@ -342,22 +348,25 @@ function Kally() {
   };
   const notice = (content: string) => setMessages((current) => [...current, { id: newId(), role: "assistant", content, local: true }]);
 
-  /** /dev, /dev on, /dev off (ou "padrão"), /dev <instruções>. Tratado aqui; nada vai ao modelo. */
+  /** /dev, /dev on, /dev off (ou "padrão"), /dev 120b | 20b | qwen. Tratado aqui; nada vai ao modelo. */
   function devCommand(content: string) {
     if (!isAdmin) return notice("O modo desenvolvedor está disponível só para o administrador.");
     const arg = content.replace(/^\/dev\s*/i, "").trim();
     if (/^(off|desligar|padr[aã]o|sair)$/i.test(arg)) {
       setDev({ ...dev, active: false });
-      return notice("Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+      return notice("Modo desenvolvedor **desligado**. A Kally volta a escolher o modelo.");
+    }
+    const engine = arg ? devEngineFrom(arg) : null;
+    if (engine) {
+      setDev({ active: true, engine });
+      return notice(`Modo desenvolvedor **ligado**: todas as respostas com **${DEV_ENGINE_LABEL[engine]}**.`);
     }
     if (!arg || /^(on|ligar)$/i.test(arg)) {
       const next = { ...dev, active: arg ? true : !dev.active };
       setDev(next);
-      if (next.active && !next.instructions && next.persona === "livre") setDevSheet(true);
-      return notice(next.active ? "Modo desenvolvedor **ligado**. Ajuste a personalidade em *Modo ▾ → Modo desenvolvedor* ou com `/dev suas instruções`." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão.");
+      return notice(next.active ? `Modo desenvolvedor **ligado**: todas as respostas com **${DEV_ENGINE_LABEL[next.engine]}**. Troque com \`/dev 120b\`, \`/dev 20b\` ou \`/dev qwen\`.` : "Modo desenvolvedor **desligado**. A Kally volta a escolher o modelo.");
     }
-    setDev({ ...dev, active: true, instructions: arg.slice(0, 2000) });
-    notice("Modo desenvolvedor **ligado** com as suas instruções. Use `/dev off` para voltar à Kally padrão.");
+    notice("Use `/dev 120b`, `/dev 20b`, `/dev qwen` ou `/dev off`.");
   }
   const started = messages.length > 0;
 
@@ -620,7 +629,7 @@ function Kally() {
       web,
       attachment: ready?.result ? { name: ready.result.name, kind: ready.result.kind, text: ready.result.text } : undefined,
       review: reviewing ? { kind: reviewKind, ...(reviewTarget ? { postId: reviewTarget.id } : { text: content }) } : undefined,
-      dev: devOn ? { active: true, persona: dev.persona, instructions: dev.instructions, vulgar: dev.vulgar, model: dev.model } : undefined,
+      dev: devOn ? { active: true, engine: dev.engine } : undefined,
       retry: options.retry || undefined,
       // Modo aprofundado: o modelo e o esforço que a pessoa escolheu (no menu de modo).
       model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
@@ -780,7 +789,7 @@ function Kally() {
   // chegando), falha na última resposta, ou pronta.
   const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
   const engineLabel = `${answerCfg.model === "local" ? " · Kally 1.5" : answerCfg.model === "remote" ? " · Kally 32" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
-  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_PERSONAS.find((p) => p.id === dev.persona)?.label}${engineLabel}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
+  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_ENGINE_LABEL[dev.engine]}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
   // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
   // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
   const orbit = useOrbitDock({ keyboardInset, composerFocus, answering: loading, gutter });
@@ -810,9 +819,9 @@ function Kally() {
       {devOn ? (
         <View style={styles.devBar}>
           <Icon name="settings" size={14} color={colors.warning} />
-          <AppText variant="small" color={colors.warning} style={{ flex: 1 }}>Modo desenvolvedor ativo: personalidade definida por você.</AppText>
-          <Touchable onPress={() => setDevSheet(true)}><AppText variant="small" color={colors.violet200}>Ajustar</AppText></Touchable>
-          <Touchable onPress={() => { setDev({ ...dev, active: false }); notice("Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }}><AppText variant="small" color={colors.violet200}>Padrão</AppText></Touchable>
+          <AppText variant="small" color={colors.warning} style={{ flex: 1 }}>Modo desenvolvedor: tudo com {DEV_ENGINE_LABEL[dev.engine]}.</AppText>
+          <Touchable onPress={() => setDevSheet(true)}><AppText variant="small" color={colors.violet200}>Trocar</AppText></Touchable>
+          <Touchable onPress={() => { setDev({ ...dev, active: false }); notice("Modo desenvolvedor **desligado**. A Kally volta a escolher o modelo."); }}><AppText variant="small" color={colors.violet200}>Desligar</AppText></Touchable>
         </View>
       ) : null}
 
@@ -1005,7 +1014,7 @@ function Kally() {
               <Icon name="settings" size={18} color={dev.active ? colors.warning : colors.muted} />
               <View style={{ flex: 1 }}>
                 <AppText variant="uiMedium" color={dev.active ? colors.warning : colors.text}>Modo desenvolvedor {dev.active ? "· ativo" : ""}</AppText>
-                <AppText variant="small" color={colors.faint}>Personalidade e estilo definidos por você (/dev)</AppText>
+                <AppText variant="small" color={colors.faint}>{dev.active ? `Tudo com ${DEV_ENGINE_LABEL[dev.engine]}` : "Escolher o modelo que responde (/dev)"}</AppText>
               </View>
             </Touchable>
             ) : null}
@@ -1040,7 +1049,7 @@ function Kally() {
           );
         }}
       />
-      <DevSheet visible={devSheet} value={dev} onClose={() => setDevSheet(false)} onSave={(next) => { setDev(next); setDevSheet(false); notice(next.active ? "Modo desenvolvedor **ligado** com a nova configuração." : "Modo desenvolvedor **desligado**. Voltei à Kally padrão."); }} />
+      <DevSheet visible={devSheet} value={dev} onClose={() => setDevSheet(false)} onSave={(next) => { setDev(next); setDevSheet(false); notice(next.active ? `Modo desenvolvedor **ligado**: todas as respostas com **${DEV_ENGINE_LABEL[next.engine]}**.` : "Modo desenvolvedor **desligado**. A Kally volta a escolher o modelo."); }} />
 
       <PostPicker visible={picking} onClose={() => setPicking(false)} onPick={(post) => { setReviewTarget(post); setPicking(false); }} />
 
@@ -1073,41 +1082,28 @@ function Kally() {
   );
 }
 
-/** Configuração do Modo Desenvolvedor: personalidade, instruções e linguagem. */
+/** Modo Desenvolvedor: o modelo que responde tudo. */
 function DevSheet({ visible, value, onClose, onSave }: { visible: boolean; value: DevConfig; onClose: () => void; onSave: (next: DevConfig) => void }) {
-  const [form, setForm] = useState(value);
+  const [engine, setEngine] = useState<DevEngine>(value.engine);
   useEffect(() => {
-    if (visible) setForm({ ...value, active: true });
+    if (visible) setEngine(value.engine);
   }, [visible, value]);
   return (
-    <Sheet visible={visible} onClose={onClose} keyboard style={{ gap: space.sm }}>
+    <Sheet visible={visible} onClose={onClose} style={{ gap: space.sm }}>
           <AppText variant="title">Modo desenvolvedor</AppText>
-          <AppText variant="small" color={colors.faint}>Você define personalidade, tom e estilo da Kally. As permissões e a privacidade do Minha Mente continuam as mesmas. Fica salvo neste aparelho.</AppText>
-          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Personalidade</AppText>
+          <AppText variant="small" color={colors.faint}>Escolha o modelo que responde. Ele vale para tudo, inclusive /post, revisão e os esforços Aprofundado e Máximo, sem a Kally trocar de modelo. Se ele não puder responder, aparece o motivo. Fica salvo neste aparelho.</AppText>
+          {DEV_ENGINES.map((e) => (
+            <Touchable key={e.id} onPress={() => setEngine(e.id)} style={[styles.modeRow, engine === e.id && styles.modeRowOn]}>
+              <View style={{ flex: 1 }}>
+                <AppText variant="uiMedium" color={engine === e.id ? colors.violet200 : colors.text}>{e.label}</AppText>
+                <AppText variant="small" color={colors.faint}>{e.hint}</AppText>
+              </View>
+              {engine === e.id ? <Icon name="check" size={18} color={colors.violet300} /> : null}
+            </Touchable>
+          ))}
           <View style={styles.actions}>
-            {DEV_PERSONAS.map((p) => <Chip key={p.id} label={p.label} selected={form.persona === p.id} onPress={() => setForm({ ...form, persona: p.id })} />)}
-          </View>
-          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Instruções (prioridade sobre o estilo padrão)</AppText>
-          <TextInput
-            value={form.instructions}
-            onChangeText={(instructions) => setForm({ ...form, instructions })}
-            placeholder="Ex.: fale como um amigo de bar, me chame de chefe, respostas curtas…"
-            placeholderTextColor={colors.faint}
-            multiline
-            maxLength={2000}
-            style={[styles.input, styles.bodyInput, { minHeight: 110 }]}
-          />
-          <View style={styles.actions}>
-            <Chip label={form.vulgar ? "Linguagem vulgar liberada" : "Sem linguagem vulgar"} selected={form.vulgar} onPress={() => setForm({ ...form, vulgar: !form.vulgar })} />
-          </View>
-          <AppText variant="label" color={colors.faint} style={{ marginTop: space.sm }}>Modelo (para comparar com as mesmas mensagens)</AppText>
-          <View style={styles.actions}>
-            <Chip label="Padrão (o da Kally)" selected={form.model === "padrao"} onPress={() => setForm({ ...form, model: "padrao" })} />
-            <Chip label="Experimental (do servidor)" selected={form.model !== "padrao"} onPress={() => setForm({ ...form, model: "experimental" })} />
-          </View>
-          <View style={styles.actions}>
-            <Button label="Ativar" icon="check" compact onPress={() => onSave({ ...form, active: true })} />
-            <Button label="Voltar à Kally padrão" variant="secondary" compact onPress={() => onSave({ ...form, active: false })} />
+            <Button label="Ativar" icon="check" compact onPress={() => onSave({ active: true, engine })} />
+            <Button label="Desligar" variant="secondary" compact onPress={() => onSave({ active: false, engine })} />
           </View>
     </Sheet>
   );
