@@ -1,4 +1,4 @@
-import { AiError, defaultChatModel, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { AiError, defaultChatModel, lightServes, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
@@ -732,7 +732,8 @@ export async function POST(request: Request, context: EnvContext) {
             const deepStarted = Date.now();
             send({ status: `Planejei ${plan.partes.length} partes: ${plan.partes.map((p) => `«${p.titulo}»`).join(" · ")}.`, step: "plano" });
             // Velocidade medida da geração (tokens/s), para caber a parte no tempo que resta; antes da 1ª parte, uma estimativa.
-            let rate = remote ? 35 : 8;
+            // A Kally 1.5 pela API escreve tão rápido quanto a 32; só o Qwen do PC fica em ~8 tokens/s.
+            let rate = remote || lightServes(model) ? 35 : 8;
             const partMs: number[] = [];
             /**
              * Escreve uma parte inteira (sem mostrar): ela só aparece depois de conferida (onTopic). Com teto de tempo, a

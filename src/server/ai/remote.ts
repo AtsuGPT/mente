@@ -1,4 +1,5 @@
 import "server-only";
+import { dailyLimitUsd, overBudget } from "./spend";
 
 /**
  * Modelo remoto da Kally: um servidor vLLM (API compatível com OpenAI) numa GPU alugada.
@@ -58,9 +59,40 @@ export function remoteConfig() {
   };
 }
 
-export function remoteHeaders(): Record<string, string> {
-  const { apiKey } = remoteConfig();
+export function remoteHeaders(apiKey = remoteConfig().apiKey): Record<string, string> {
   return { "Content-Type": "application/json", ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) };
+}
+
+/**
+ * Kally 1.5 pela API (13/11/2026): o modelo de conversa "local" (o 8B do Ollama) passa a ser um modelo pequeno pago por
+ * uso (KALLY_LIGHT_MODEL, ex.: openai/gpt-oss-20b), na mesma conta da Kally 32 (endereço e chave dela, se
+ * KALLY_LIGHT_BASE_URL/KALLY_LIGHT_API_KEY não forem dados). O Qwen do PC fica como último recurso: fora do ar, com
+ * falha recente ou com o teto de gasto do dia atingido (spend.ts), a resposta volta para o Ollama.
+ */
+export function lightConfig() {
+  const main = remoteConfig();
+  const raw = (process.env.KALLY_LIGHT_BASE_URL || "").trim().replace(/\/+$/, "").replace(/\/v1$/, "") || main.baseUrl;
+  const apiKey = process.env.KALLY_LIGHT_API_KEY || main.apiKey;
+  const model = process.env.KALLY_LIGHT_MODEL || "";
+  return {
+    enabled: !!model && !!raw && !!apiKey && process.env.KALLY_LIGHT_ENABLED !== "0",
+    baseUrl: raw,
+    apiKey,
+    model,
+    timeoutMs: main.timeoutMs,
+    noThink: true,
+    reasoning: "effort" as const,
+    effortLow: process.env.KALLY_LIGHT_EFFORT_LOW || "low",
+    effortHigh: process.env.KALLY_LIGHT_EFFORT_HIGH || "medium",
+  };
+}
+
+/** Falha recente da Kally 1.5 pela API: por 2 minutos a resposta vai direto ao Ollama, sem esperar outra falha. */
+export function noteLightFailure() {
+  registry.__kallyLightFailedAt = Date.now();
+}
+export function lightCoolingDown() {
+  return !!registry.__kallyLightFailedAt && Date.now() - registry.__kallyLightFailedAt < 120_000;
 }
 
 type Registry = {
@@ -69,6 +101,7 @@ type Registry = {
   __kallyRemoteActive?: number;
   /** estado imposto pelo controlador da GPU (ligando a instância), com validade */
   __kallyRemoteBooting?: { until: number; detail: string };
+  __kallyLightFailedAt?: number;
 };
 const registry = globalThis as typeof globalThis & Registry;
 
@@ -94,6 +127,8 @@ export async function remoteHealth(force = false): Promise<RemoteHealth> {
   const cfg = remoteConfig();
   const now = Date.now();
   if (!cfg.enabled) return { state: "desligado", model: null, maxModelLen: null, latencyMs: null, checkedAt: now, detail: "KALLY_REMOTE_ENABLED, KALLY_VLLM_BASE_URL ou KALLY_REMOTE_MODEL ausente" };
+  // Teto de gasto do dia atingido (spend.ts): a Kally 32 sai de cena até amanhã e os pedidos descem para a Kally 1.5.
+  if (cfg.hosted && overBudget(cfg.model)) return { state: "indisponivel", model: null, maxModelLen: null, latencyMs: null, checkedAt: now, detail: `teto de gasto do dia atingido (US$ ${dailyLimitUsd()})` };
   const cached = registry.__kallyRemoteHealth;
   if (!force && cached && now - cached.checkedAt < (cached.state === "disponivel" ? OK_TTL_MS : FAIL_TTL_MS)) return cached;
   if (registry.__kallyRemoteHealthPending) return registry.__kallyRemoteHealthPending;

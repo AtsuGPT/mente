@@ -248,3 +248,20 @@ pelo OpenRouter, pago por uso. O nome que aparece no app continua "Kally 32".
 Para voltar à GPU alugada: os valores antigos estão em `minha-mente-logs/.env.backup-20261112-antes-api`.
 Teste rápido da API: `node --env-file=<.env> minha-mente-servicos/testar-kally-api.mjs` (saúde, conversa em streaming,
 JSON do plano e raciocínio alto).
+
+## Kally 1.5 pela API e teto de gasto (13/11/2026)
+
+A Kally 1.5 (o modelo de conversa "local") passou a ser o GPT-OSS 20B pela mesma conta do OpenRouter
+(`KALLY_LIGHT_MODEL`). O Qwen do PC (`qwen3-8b-iq4xs`) ficou como último recurso.
+
+- **Onde:** `src/server/ai.ts` (`useLight`): todo pedido ao modelo de conversa local (o do `.env` ou o executor do
+  pipeline), sem imagem, vai para a API. Visão, modelos do modo dev e os vetores da memória continuam no Ollama.
+- **Degraus:** Kally 32 (GPT-OSS 120B) → Kally 1.5 pela API (GPT-OSS 20B) → Qwen no PC. A Kally 32 desce quando
+  passa do teto (a saúde dela vira "indisponível" e o roteador manda o pedido para a 1.5); a 1.5 desce para o Qwen
+  quando passa do teto, quando a API falha (fica 2 minutos de fora) ou quando o pedido tem imagem.
+- **Teto:** `KALLY_API_MAX_USD_PER_DAY` (padrão US$ 1) por modelo e por dia (horário de Brasília), em
+  `src/server/ai/spend.ts`. O custo vem do `usage.cost` do OpenRouter (estimativa pelos tokens se faltar) e o total do
+  dia fica em `logs/kally-gasto.json`, para um reinício não zerar a conta.
+- **Medido (13/11):** conversa curta, 1ª palavra em 1,2 s; dúvida com tabela, 0,4 s e 237 tokens; US$ 0,0001 por
+  pedido. Com o teto estourado de propósito, o Qwen respondeu (12 a 20 s).
+- **Reasoning:** baixo por padrão; `KALLY_LIGHT_EFFORT_HIGH` (padrão "medium") quando a Kally pede raciocínio.

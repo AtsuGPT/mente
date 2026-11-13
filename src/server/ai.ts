@@ -1,6 +1,7 @@
 import "server-only";
 import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
-import { acquireRemoteSlot, invalidateRemoteHealth, remoteConfig, remoteHeaders } from "@/server/ai/remote";
+import { acquireRemoteSlot, invalidateRemoteHealth, lightConfig, lightCoolingDown, noteLightFailure, remoteConfig, remoteHeaders } from "@/server/ai/remote";
+import { overBudget, recordSpend } from "@/server/ai/spend";
 
 /**
  * Provedor de IA da Kally, configurado só no servidor (.env). O app nunca fala com o
@@ -129,7 +130,9 @@ function config() {
  * o template aceita enable_thinking: false pelo chat_template_kwargs. Modelos que sempre raciocinam (GPT-OSS na API):
  * reasoning.effort, baixo nas conversas e alto quando a Kally pede raciocínio (Máximo, código, matemática, direito).
  */
-function remoteReasoning(cfg: ReturnType<typeof remoteConfig>, think: boolean | undefined) {
+type ApiProfile = Pick<ReturnType<typeof remoteConfig>, "baseUrl" | "apiKey" | "model" | "timeoutMs" | "noThink" | "reasoning" | "effortLow" | "effortHigh">;
+
+function remoteReasoning(cfg: ApiProfile, think: boolean | undefined) {
   if (cfg.reasoning === "effort") {
     const on = think ?? !cfg.noThink;
     return { reasoning: { effort: on ? cfg.effortHigh : cfg.effortLow } };
@@ -138,11 +141,17 @@ function remoteReasoning(cfg: ReturnType<typeof remoteConfig>, think: boolean | 
   return cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {};
 }
 
-async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean) {
-  const cfg = remoteConfig();
-  if (!cfg.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
-  const slot = acquireRemoteSlot();
+/** light: a Kally 1.5 pela API (lightConfig), sem vaga limitada e sem mexer na saúde da Kally 32. */
+async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean, light = false) {
+  const main = remoteConfig();
+  const cfg: ApiProfile = light ? lightConfig() : main;
+  if (!light && !main.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
+  if (!light && main.hosted && overBudget(main.model)) throw new AiError("O modelo remoto atingiu o teto de gasto do dia.", 503);
+  const slot = light ? { release: () => undefined } : acquireRemoteSlot();
   if (!slot) throw new AiError("O modelo remoto está ocupado.", 503);
+  const dropHealth = () => {
+    if (!light) invalidateRemoteHealth();
+  };
   const body = {
     model: cfg.model,
     stream,
@@ -158,7 +167,7 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
   const timeout = watchdog ? AbortSignal.any([watchdog.signal, AbortSignal.timeout(STREAM_MAX_MS)]) : AbortSignal.timeout(options.timeoutMs ?? cfg.timeoutMs);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let response: Response;
-  const send = () => fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(), body: JSON.stringify(body), signal });
+  const send = () => fetch(`${cfg.baseUrl}/v1/chat/completions`, { method: "POST", headers: remoteHeaders(cfg.apiKey), body: JSON.stringify(body), signal });
   try {
     try {
       response = await send();
@@ -171,22 +180,49 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
   } catch (cause) {
     watchdog?.stop();
     slot.release();
-    invalidateRemoteHealth();
+    dropHealth();
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
     throw new AiError(timedOut ? "O modelo remoto demorou demais para responder." : "Não consegui conectar ao modelo remoto.", timedOut ? 504 : 503);
   }
   if (!response.ok) {
     watchdog?.stop();
     slot.release();
-    invalidateRemoteHealth();
-    console.error("Kally remoto:", response.status, (await response.text().catch(() => "")).slice(0, 300));
+    dropHealth();
+    console.error(light ? "Kally 1.5 (API):" : "Kally remoto:", response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O modelo remoto não conseguiu responder.", 502);
   }
   return { response, provider: "openai" as const, lease: { info: null, release: slot.release } as unknown as Lease, model: cfg.model, watchdog };
 }
 
+/**
+ * O pedido local vai para a Kally 1.5 pela API? Só o modelo de conversa (o do .env ou o executor do pipeline), sem
+ * imagem (visão fica no Ollama), com a API configurada, sem falha nos últimos 2 minutos e dentro do teto do dia.
+ */
+function useLight(options: AiOptions, messages: AiMessage[]) {
+  const light = lightConfig();
+  if (!light.enabled || lightCoolingDown() || overBudget(light.model)) return false;
+  if (messages.some((m) => m.images?.length)) return false;
+  const model = options.model || config().model;
+  return model === config().model || model === process.env.KALLY_EXECUTOR_MODEL;
+}
+
+/** A Kally 1.5 está respondendo pela API agora (para estimar o tempo das respostas em partes). */
+export function lightServes(model?: string) {
+  return useLight({ model }, []);
+}
+
 async function request(messages: AiMessage[], options: AiOptions, stream: boolean) {
   if (options.target === "remote") return remoteRequest(messages, options, stream);
+  if (useLight(options, messages)) {
+    try {
+      return await remoteRequest(messages, options, stream, true);
+    } catch (cause) {
+      if (options.signal?.aborted) throw cause;
+      // Último recurso: o Qwen do PC responde (e a API fica de fora por 2 minutos).
+      noteLightFailure();
+      console.warn("Kally 1.5 (API) → Qwen local:", cause instanceof Error ? cause.message : cause);
+    }
+  }
   const { provider, baseUrl, apiKey } = config();
   const model = options.model || config().model;
   if (!baseUrl) throw new AiError("A IA não está configurada no servidor (AI_BASE_URL).", 503);
@@ -258,9 +294,10 @@ async function request(messages: AiMessage[], options: AiOptions, stream: boolea
 
 /** Resposta completa, de uma vez. */
 export async function completeChat(messages: AiMessage[], options: AiOptions = {}): Promise<string> {
-  const { response, provider, lease } = await request(messages, options, false);
+  const { response, provider, lease, model } = await request(messages, options, false);
   try {
-    const data = (await response.json()) as { message?: { content?: string }; choices?: { message?: { content?: string } }[] };
+    const data = (await response.json()) as { message?: { content?: string }; choices?: { message?: { content?: string } }[]; usage?: { cost?: unknown; prompt_tokens?: number; completion_tokens?: number } };
+    if (provider === "openai") recordSpend(model, data.usage);
     const raw = provider === "ollama" ? data.message?.content : data.choices?.[0]?.message?.content;
     const text = typeof raw === "string" ? raw.replace(/<think>[\s\S]*?<\/think>/g, "") : raw;
     if (typeof text !== "string" || !text.trim()) throw new AiError("A IA retornou uma resposta vazia.", 502);
@@ -395,6 +432,7 @@ async function* readEvents(response: Response, provider: "ollama" | "openai", mo
     // vLLM manda o raciocínio em reasoning_content; as APIs (Vercel AI Gateway, OpenRouter), em reasoning.
     if (delta?.reasoning_content) thinkingChars += delta.reasoning_content.length;
     if (typeof delta?.reasoning === "string") thinkingChars += delta.reasoning.length;
+    if (event.usage) recordSpend(model, event.usage);
     if (event.usage && onStats) {
       const end = Date.now();
       const outputSeconds = firstAt ? (end - firstAt) / 1000 : 0;
