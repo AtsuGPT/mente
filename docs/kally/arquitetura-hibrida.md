@@ -282,3 +282,8 @@ artigo (subtítulos, fontes da internet, seção "Referências", link quebrado) 
   gerais" virava papo). "Poste isso", "posta assim" e "deixa o texto assim" pedem o rascunho, e o texto aprovado
   vira o rascunho sem ser reescrito.
 - **Links:** a revisão não parte mais uma frase dentro de um link (`[texto](endereço)`).
+- **Post elaborado só em pedido grande** (13/11/2026): esforço Aprofundado ou Máximo, pedido de post
+  completo/estruturado/detalhado/com fontes/artigo, mais de 1.500 caracteres de matéria ou interpretação "aprofundada"
+  (`bigPost` em `route.ts`). Aí volta a estrutura de antes (`STRUCTURED_POST_RULES`: seções, citação, tabela quando
+  houver comparação, fontes buscadas na internet e "Referências"). O resto é post casual.
+- **Nome do modelo no app (admin):** a Kally 1.5 pela API aparece como `openai/gpt-oss-20b`, não como o Qwen do PC.

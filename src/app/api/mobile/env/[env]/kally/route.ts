@@ -1,7 +1,7 @@
 import { AiError, defaultChatModel, lightServes, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
-import { estimateTokens, remoteConfig, remoteHealth } from "@/server/ai/remote";
+import { estimateTokens, lightConfig, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
 import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
 import { createPacer, typeOut } from "@/server/kally/pacer";
@@ -348,6 +348,14 @@ export async function POST(request: Request, context: EnvContext) {
   // Quem conversa escolhe o modelo (Automático, Kally local 8B, Kally remota 32B) e o esforço (pedido do dono do
   // projeto, 11/11/2026). Os limites da GPU (vagas, gasto por dia) continuam valendo.
   const effort = effortFrom(body.effort);
+  // Post elaborado (com seções, fontes e referências) só em pedido grande: esforço acima do normal, pedido explícito
+  // de post completo/estruturado/com fontes, muita matéria ou interpretação "aprofundada". O resto é post casual.
+  const bigPost =
+    competence === "post" &&
+    (effort !== "normal" ||
+      ownWords.length > 1_500 ||
+      interpretation?.profundidade === "aprofundada" ||
+      /\b(post|texto|publica[cç][aã]o)\s+(bem\s+)?(elaborad[oa]|complet[oa]|detalhad[oa]|estruturad[oa]|aprofundad[oa]|long[oa]|grande|robust[oa]|informativ[oa]|t[eé]cnic[oa])\b|\b(com|use|usar|usando)\s+(subt[ií]tulos|se[cç][oõ]es|tabelas?|fontes|refer[eê]ncias|dados)\b|\bartigo\b/i.test(ownWords));
   // Esforço acima do normal no Automático vai para a remota (no 8B cada parte levaria minutos) e espera a GPU ligar.
   const chosen = modelChoiceFrom(body.model, true);
   const choice = chosen === "auto" && effort !== "normal" ? "remote" : chosen;
@@ -529,7 +537,7 @@ export async function POST(request: Request, context: EnvContext) {
           // a pessoa vê cada etapa enquanto espera.
           // Só quando ela pede fontes, dados ou pesquisa: num post pessoal, as fontes viravam seção de "Referências" e o
           // post saía com cara de artigo (13/11/2026).
-          const wantsSources = /\b(fontes?|refer[eê]ncias?|pesquis\w*|dados|estat[ií]stic\w*|estudos?|cient[ií]fic\w*|com links?|embasad\w*)\b/i.test(ownWords);
+          const wantsSources = bigPost || /\b(fontes?|refer[eê]ncias?|pesquis\w*|dados|estat[ií]stic\w*|estudos?|cient[ií]fic\w*|com links?|embasad\w*)\b/i.test(ownWords);
           if (route.target === "remote" && competence === "post" && wantsSources && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
             send({ status: say("postFontes"), step: "post-fontes" });
             const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
@@ -552,7 +560,7 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = interpretation ? interpretationGuide(interpretation) : null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
-            ? { competence: spec, examples, canDraft, depth: shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
+            ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
             : null;
           // Memória da pessoa (só os itens ligados a esta mensagem) logo depois das regras do sistema.
           // Memória logo antes da pergunta (e não no começo): o começo do prompt e o histórico ficam iguais entre pedidos,
@@ -581,7 +589,8 @@ export async function POST(request: Request, context: EnvContext) {
           // Em produção, KALLY_EVAL_AMBIENTES (slugs separados por vírgula) liga as métricas só nos ambientes da simulação.
           const evalEnvironment = process.env.KALLY_EVAL === "1" || (process.env.KALLY_EVAL_AMBIENTES ?? "").split(",").map((x) => x.trim()).includes(access.environment.slug);
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
-          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : modelName, backend: route.target });
+          // Nome do modelo que vai responder: a Kally 1.5 pela API aparece como ela (e não como o Qwen do PC, que é só reserva).
+          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : lightServes(model) ? lightConfig().model : modelName, backend: route.target });
           generationStarted = Date.now();
           // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
           // para sozinho quando termina; só respostas longas usam o teto.
@@ -630,7 +639,7 @@ export async function POST(request: Request, context: EnvContext) {
             const brief = BRIEF.test(message);
             const isPost = competence === "post" && canDraft;
             // Modo dev: o prompt do modo, sem o estilo de alta qualidade (a personalidade definida manda no formato).
-            const style = dev ? "" : remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial });
+            const style = dev ? "" : remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial && !bigPost, structured: isPost && bigPost });
             // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
             // O formato vem do esqueleto do estilo.
             const base = isPost && competenceArgs && examples.length > 1 ? withMemory(buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) })) : fullPrompt;

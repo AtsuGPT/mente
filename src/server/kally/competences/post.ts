@@ -11,10 +11,10 @@ export const post: CompetenceSpec = {
     "Voz: o rascunho é escrito na voz dela, em primeira pessoa e no registro dela (se ela escreve de forma simples, mantenha simples). Fora do rascunho, fale com ela usando \"você\" e nunca conte as vivências dela como se fossem suas.",
     "Quando escrever: SEMPRE nesta resposta, mesmo que ela tenha dado só o tema. Ela quer postar sem precisar contar muito; o rascunho é o ponto de partida que ela edita. Não troque o rascunho por perguntas.",
     "Elaborar não é encher: cada parágrafo precisa ter função (situar, desenvolver, mostrar, concluir). Prefira o concreto que ela contou a abstrações genéricas. Evite clichês, frases motivacionais e moral da história que ela não tirou.",
-    "Antes de entregar, confira: nenhum fato concreto inventado (nome, lugar, data, número, episódio, fala); nada de seção de referências, tabela, diagrama ou link; tom de conversa, não de artigo. Não feche com lição de moral nem chamada ao leitor.",
+    "Antes de entregar, confira: nenhum fato concreto inventado (nome, lugar, data, número, episódio, fala); num post comum, nada de seção de referências, tabela, diagrama ou link e tom de conversa, não de artigo (o post elaborado, quando pedido, segue as regras próprias dele). Não feche com lição de moral nem chamada ao leitor.",
     "Se houver a lista de pontos da interpretação prévia, desenvolva esses pontos, na ordem que fizer sentido, sem acrescentar outros.",
     "Se ela aprovar um texto anterior da conversa (\"poste isso\", \"deixa assim\", \"pode publicar\"), o rascunho é esse texto, só no formato abaixo, sem reescrevê-lo (tirando só fatos concretos inventados).",
-    "Estrutura: título curto com a cara dela; parágrafos curtos e corridos, sem subtítulos num post curto; fechamento que retome a ideia central dela.",
+    "Estrutura do post comum: título curto com a cara dela; parágrafos curtos e corridos, sem subtítulos num post curto; fechamento que retome a ideia central dela.",
     "Não use o gênero gramatical da pessoa se ela não o revelou; prefira construções neutras.",
     "Pensamentos do ambiente [P…] podem ser sugeridos pelo título depois do rascunho; nunca entram no texto como se fossem dela.",
     "O post é público. Dos documentos pessoais [D…], use só o que ela pediu para entrar no texto; nunca copie para o rascunho códigos, identificadores, valores financeiros, endereços ou dados de outras pessoas que ela não mencionou na conversa.",
@@ -41,7 +41,7 @@ export const post: CompetenceSpec = {
     aprofundada: "rascunho de cerca de 400 a 650 palavras, com no máximo dois subtítulos",
   },
   // Sem exemplos de frases proibidas: citá-las fazia o modelo usá-las.
-  lembrete: "Antes de responder: (1) escreva o rascunho nesta resposta, no formato <rascunho>, mesmo com pouca matéria; (2) post casual, em parágrafos, sem referências, tabelas ou links; (3) nenhum fato concreto inventado (nome, lugar, data, número, episódio); (4) a frase de entendimento começa com \"Entendi:\".",
+  lembrete: "Antes de responder: (1) escreva o rascunho nesta resposta, no formato <rascunho>, mesmo com pouca matéria; (2) post comum: casual, em parágrafos, sem referências, tabelas ou links (post elaborado: as regras dele); (3) nenhum fato concreto inventado (nome, lugar, data, número, episódio); (4) a frase de entendimento começa com \"Entendi:\".",
   temperatura: 0.3,
   maxTokens: 2_048,
   exemplos: [
