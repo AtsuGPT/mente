@@ -6,7 +6,7 @@ import { scheduleOnUI } from "react-native-worklets";
 import { useAmbientActive } from "@/lib/use-ambient";
 import { spring } from "@/theme/motion";
 import type { KallyOrbitalState } from "./activity";
-import { burst, geometry, makeParticles, PARTICLE_HEX, smoothstep, stepParticles, STROKE_HEX, STYLE, SWEEP_HEX, type Particles, type Stroke } from "./orbit-geometry";
+import { burst, geometry, makeParticles, PARTICLE_HEX, smoothstep, SPHERE, stepParticles, STROKE_HEX, STYLE, SWEEP_HEX, type Particles, type Stroke } from "./orbit-geometry";
 
 /**
  * KallyOrbital: a presença da Kally (aprovada na prévia de 14/11/2026).
@@ -64,6 +64,7 @@ const STILL_T = 2.2;
 
 type Kit = {
   stroke: SkPaint;
+  sphere: SkPaint;
   dot: SkPaint;
   glow: SkPaint;
   halo: SkPaint;
@@ -89,6 +90,18 @@ function makeKit(): Kit {
   glow.setAntiAlias(true);
   glow.setBlendMode(BlendMode.Plus);
   glow.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, 0.022, true));
+  // Esfera escura do repouso: quase preta, com um reflexo violeta fraco no alto, à esquerda.
+  const sphere = Skia.Paint();
+  sphere.setAntiAlias(true);
+  sphere.setShader(
+    Skia.Shader.MakeRadialGradient(
+      { x: -0.06, y: -0.07 },
+      SPHERE * 1.25,
+      [Skia.Color("#2A1B4D"), Skia.Color("#130B24"), Skia.Color("#07040C")],
+      [0, 0.5, 1],
+      TileMode.Clamp,
+    ),
+  );
   const halo = Skia.Paint();
   halo.setAntiAlias(true);
   halo.setShader(
@@ -102,6 +115,7 @@ function makeKit(): Kit {
   );
   return {
     stroke,
+    sphere,
     dot,
     glow,
     halo,
@@ -129,6 +143,10 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
       canvas.scale(R, R);
       kit.halo.setAlphaf(Math.min(1, orb.halo));
       canvas.drawCircle(0, 0, 1.38, kit.halo);
+      if (orb.shape === 0 && lineA > 0.01) {
+        kit.sphere.setAlphaf(0.85 * lineA);
+        canvas.drawCircle(0, 0, SPHERE, kit.sphere);
+      }
 
       if (lineA > 0.01) {
         const minW = 0.9 / R;

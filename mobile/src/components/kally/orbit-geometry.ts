@@ -20,6 +20,9 @@ export const PARTICLE_HEX = ["#6236D4", "#8461F0", "#A58BF7", "#C7B7FA", "#E4DBF
 export const STROKE_HEX = { core: "#E4DBFD", comet: "#F4EFFF", light: "#C7B7FA", dim: "#A58BF7", fault: "#6E6787" } as const;
 export const SWEEP_HEX = ["#C7B7FA", "#B65CF2", "#4A2B9B", "#C7B7FA"] as const;
 
+/** Raio da esfera escura do centro, no repouso (unidades da órbita). */
+export const SPHERE = 0.17;
+
 export type Stroke = { p: number[]; c: boolean; w: number; a: number; s: number; r: number; k: boolean };
 
 /** Anéis da órbita original: proporções, inclinação (graus), período de giro (s), sentido, espessura, cometa. */
@@ -79,7 +82,8 @@ export function geometry(shape: number, t: number, lvl: number, act: number): St
   };
   switch (shape) {
     case 0: {
-      // idle: as três órbitas achatadas da Kally, com o cometa claro em cada anel, e a estrela de quatro pontas.
+      // idle: as três órbitas achatadas da Kally, com o cometa claro em cada anel; no centro, uma esfera escura quase
+      // invisível (desenhada à parte, em orbital-skia), com só um contorno fraco, que também guia as partículas.
       const rots = RINGS.map((R) => (R.tilt * Math.PI) / 180 + R.dir * t * (TAU / R.period) * 0.3);
       for (let i = 0; i < 3; i++) add(ell(RINGS[i].rx, RINGS[i].ry, rots[i], Math.PI, TAU, 36), false, RINGS[i].w * 0.8, 0.28, STYLE.sweep, rots[i]);
       for (let i = 0; i < 3; i++) {
@@ -90,17 +94,7 @@ export function geometry(shape: number, t: number, lvl: number, act: number): St
         const front = Math.sin(((head % TAU) + TAU) % TAU) > 0 ? 1 : 0.35;
         trail(S, R.rx, R.ry, rots[i], head - span, head, 6, R.w * 0.6, R.w * 1.5, 0.95 * front, STYLE.comet, STYLE.comet, 1.4);
       }
-      const sc = 0.2 * (1 + 0.04 * Math.sin(t * 1.4));
-      const rot = t * 0.25;
-      const p: number[] = [];
-      for (let k = 0; k < 72; k++) {
-        const a = (k / 72) * TAU;
-        const x = sc * Math.cos(a) ** 3;
-        const y = sc * Math.sin(a) ** 3;
-        p.push(x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot));
-      }
-      add(p, true, 0.03, 0.95, STYLE.core, 0, true);
-      add(circ(0, 0, 0.026, 12), true, 0.03, 0.9, STYLE.core, 0, true);
+      add(circ(0, 0, SPHERE * (1 + 0.012 * Math.sin(t * 1.1)), 64), true, 0.012, 0.13, STYLE.dim, -t * 0.2, true);
       break;
     }
     case 1: {

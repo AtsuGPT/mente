@@ -50,7 +50,7 @@ Prévia aprovada pelo dono do projeto antes da implementação. Arquivos: `mobil
   lavanda → orquídea → roxo profundo, metade de trás apagada, cometa quase branco). Na troca de estado, o desenho se
   desfaz em partículas no lugar exato das linhas; elas escorregam para o novo desenho, cada uma no seu tempo, e voltam a
   ser linhas (~1,4 s). Partículas e física só existem durante a troca.
-- **Estados** (pelas etapas reais do servidor, nada inventado): repouso (três órbitas e estrela), ouvindo (borda que
+- **Estados** (pelas etapas reais do servidor, nada inventado): repouso (três órbitas e uma esfera escura, quase invisível, no centro), ouvindo (borda que
   ondula com o nível do microfone, barras no centro), processando (cometa e três pontos; também durante a transcrição do
   áudio), memória (etapa "resumo" citando memórias ou pensamentos), pesquisando (`post-fontes`, `post-pesquisa`, resumo
   citando fontes), lendo documento (anexo sendo processado, revisão), criando post (`post-leu`, `rascunho`, `revisao`),
