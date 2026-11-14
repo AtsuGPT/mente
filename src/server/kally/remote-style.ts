@@ -1,5 +1,6 @@
 import type { CompetenceId } from "@/server/kally/competences";
 import { PERSONALITY } from "@/server/kally/personality";
+import { DRAWING_RULE } from "@/server/kally/drawing";
 
 /**
  * Estilo da Kally quando quem responde é o modelo remoto (Qwen3-32B no vLLM): respostas mais
@@ -63,6 +64,7 @@ const STRUCTURED_POST_RULES = [
   "- Uma citação em destaque (> ) com a frase central DELA, com as palavras dela.",
   "- Uma tabela quando ela comparar duas formas de fazer ou dois momentos (ex.: copiar × reescrever), com o que ela disse e, se houver, o que a fonte explica.",
   "- Uma lista quando houver passos ou sinais que ela descreveu; um diagrama ```mermaid só se houver um processo claro no que ela contou.",
+  "- Uma figura própria (```desenho lado=direita, com o parágrafo que ela ilustra ao lado) quando ajudar a mostrar algo que ela descreveu ou que a fonte explica; nunca para enfeitar, e no máximo uma.",
   "- Um bloco recolhível :::details[Para saber mais] com o aprofundamento das fontes que não cabe no corpo, quando houver fontes.",
   "- No fim do rascunho, se usou fontes, uma seção \"## Referências\" com cada fonte usada como item de lista: [Título](URL) — Fonte.",
   "Fecho: retome a percepção dela numa frase nova, sem lição de moral, chamada ao leitor ou conclusão que ela não tirou.",
@@ -101,6 +103,7 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
     "Organização visual, usando só o que ajuda a entender: títulos curtos (##); listas; **negrito** nos conceitos-chave; uma tabela Markdown (com linha de cabeçalho) quando houver comparação, etapas com atributos ou dados; um diagrama em bloco ```mermaid (flowchart TD, um nó por linha no formato A[\"Rótulo curto\"], setas A --> B, sem HTML) quando houver processo, fluxo, decisão ou relação entre partes, seguido de uma frase dizendo o que ele mostra; uma citação (> ) para destacar a ideia central; uma lista de tarefas (- [ ]) quando houver passos para a pessoa fazer; e, para um aprofundamento opcional que não deve pesar na leitura, um bloco recolhível exatamente assim:\n:::details[Título do aprofundamento]\nconteúdo\n:::\nFórmulas: o app não desenha LaTeX. Nunca use $, $$, \\(, \\[, \\frac, \\cdot, \\hat, \\sum nem blocos ```math: escreva a fórmula em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ, ≤, ≥, ×, ≈), numa linha própria quando for central. Nada de HTML (<br>, <b>, <sup>); numa célula de tabela, nada de quebra de linha.",
     input.post ? STRUCTURED_POST_RULES : "Em respostas que explicam ou desenvolvem algo, termine com uma seção curta \"Próximos passos\" ou \"Para ir além\": 2 ou 3 sugestões concretas e proativas, específicas para esta pessoa e este pedido (o que melhorar, o que testar, o que ler ou perguntar a seguir). Em pergunta simples ou papo, no máximo uma sugestão, numa frase, se for natural.",
     "Pergunta factual sobre o ambiente: responda primeiro o fato exatamente como está no material; o desenvolvimento vem do próprio material (o que mais ele diz sobre o assunto) e de orientação útil, não de suposições. Não faça contas, porcentagens ou conversões que ninguém pediu; quando fizer uma conta, confira o resultado antes de escrever.",
+    DRAWING_RULE,
     "Código, matemática, ciência e leis: antes de afirmar como algo funciona, confira mentalmente (rode o código na cabeça, refaça a conta). Se não tiver certeza, diga que não tem, em vez de afirmar.",
     // Personalidade completa (texto do dono do projeto, 11/11): na remota vai inteira, por último, onde o 32B segue melhor.
     `${PERSONALITY}\nSem jargão de sistema e sem emojis.`,

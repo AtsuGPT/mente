@@ -14,6 +14,7 @@ import { splitDetails, type Segment } from "./details";
 import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
 import { ConvergenceAside, ConvergenceExplorer, parseConvergence } from "./convergence-block";
+import { DrawingFigure, SideBySide, SideDrawing, sideOptions, splitDrawing, splitImage, useSideSize } from "./drawing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
 
@@ -89,6 +90,36 @@ function PostImage({ href, alt }: { href: string; alt: string }) {
       </Modal>
     </>
   );
+}
+
+/** Imagem pequena ao lado do texto (bloco ```imagem): tocar abre em tela cheia, como as outras. */
+function SideImage({ href, alt, size }: { href: string; alt: string; size: "pequena" | "grande" }) {
+  const [open, setOpen] = useState(false);
+  useDialogKeyboard(open, () => setOpen(false));
+  const { width: screen } = useWindowDimensions();
+  const box = useSideSize(size);
+  const image = parseImage(href);
+  if (!image) return null;
+  return (
+    <>
+      <Touchable accessibilityRole="imagebutton" accessibilityLabel={alt || "Imagem"} onPress={() => setOpen(true)} style={[styles.sideImage, { width: box }]}>
+        <Image source={{ uri: image.src }} style={{ width: box, aspectRatio: image.ratio }} contentFit="cover" transition={{ duration: 320, effect: "cross-dissolve" }} accessibilityLabel={alt} />
+      </Touchable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.viewer} onPress={() => setOpen(false)} accessibilityLabel="Fechar imagem">
+          <Image source={{ uri: image.src }} style={{ width: screen, aspectRatio: image.ratio }} contentFit="contain" />
+          <View style={styles.viewerClose}>
+            <Icon name="close" color={colors.text} />
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+function SideDrawingBlock({ source, size }: { source: string; size: "pequena" | "grande" }) {
+  const box = useSideSize(size);
+  return <SideDrawing source={source} width={box} />;
 }
 
 /* --------------------------- Elementos de linha -------------------------- */
@@ -220,6 +251,33 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
       // Diagramas: o bloco ```mermaid é desenhado (só depois de fechado, no streaming).
       if (isMermaid(code)) return <Diagram source={code.text} complete={fenceClosed(code.raw)} />;
       const lang = (code.lang ?? "").split(/\s/)[0];
+      // Imagem ao lado do texto e figuras desenhadas (drawing.tsx). Desenho ainda chegando (streaming): um aviso, não o código.
+      // Os modelos às vezes rotulam o desenho como ```svg (ou xml, html): com um <svg> dentro, vale como ```desenho.
+      const kind = lang.toLowerCase() === "imagem" ? "imagem" : lang.toLowerCase() === "desenho" || (/^(svg|xml|html)$/i.test(lang) && /<svg[\s>]/i.test(code.text)) ? "desenho" : null;
+      if (kind) {
+        if (!fenceClosed(code.raw)) {
+          return kind === "desenho" ? <AppText variant="small" color={colors.faint} style={{ marginBottom: space.lg }}>Desenhando a figura…</AppText> : null;
+        }
+        const options = sideOptions(code.lang ?? "");
+        if (kind === "imagem") {
+          const found = splitImage(code.text);
+          if (found) {
+            return (
+              <SideBySide side={options.side ?? "esquerda"} visual={<SideImage href={found.href} alt={found.alt} size={options.size} />}>
+                <Blocks tokens={lexer(found.rest)} depth={depth + 1} />
+              </SideBySide>
+            );
+          }
+        } else {
+          const { svg, rest } = splitDrawing(code.text);
+          if (!options.side || !rest) return <DrawingFigure source={svg} />;
+          return (
+            <SideBySide side={options.side} visual={<SideDrawingBlock source={svg} size={options.size} />}>
+              <Blocks tokens={lexer(rest)} depth={depth + 1} />
+            </SideBySide>
+          );
+        }
+      }
       // Símbolo da Mente ao vivo: ao lado do texto do bloco, ou interativo (convergence-block.tsx).
       if (lang.toLowerCase() === "convergencia" && fenceClosed(code.raw)) {
         const options = parseConvergence(code.lang ?? "");
@@ -251,9 +309,17 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
       const text = token as Tokens.Text;
       return <AppText variant="body" style={styles.paragraph}>{text.tokens ? inline(text.tokens, "t") : decode(text.text)}</AppText>;
     }
+    case "html": {
+      // HTML solto não é desenhado, com uma exceção: um <svg> que o modelo escreveu fora do bloco ```desenho vira a
+      // figura (com a mesma limpeza); um <svg> ainda chegando mostra só o aviso.
+      const raw = (token as Tokens.HTML).text;
+      if (/<svg[\s>]/i.test(raw)) {
+        return /<\/svg>/i.test(raw) ? <DrawingFigure source={raw} /> : <AppText variant="small" color={colors.faint} style={{ marginBottom: space.lg }}>Desenhando a figura…</AppText>;
+      }
+      return null;
+    }
     case "space":
     case "def":
-    case "html":
       return null;
     default:
       return null;
@@ -448,6 +514,7 @@ const styles = StyleSheet.create({
   fullHead: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   tableClose: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   imageFrame: { marginBottom: space.lg, borderRadius: radius.md, overflow: "hidden", alignItems: "center", backgroundColor: colors.glass },
+  sideImage: { borderRadius: radius.lg, overflow: "hidden", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.22)", backgroundColor: colors.surface },
   viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.96)", alignItems: "center", justifyContent: "center" },
   viewerClose: { position: "absolute", top: 60, right: 20 },
   details: { borderWidth: 1, borderColor: colors.violet800, borderRadius: radius.lg, marginBottom: space.lg, backgroundColor: colors.glass },

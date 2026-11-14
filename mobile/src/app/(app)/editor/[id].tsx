@@ -18,6 +18,14 @@ import { blockAt, type StructuredBlock } from "@/lib/structured";
 import { DiagramEditorSheet, TableEditorSheet } from "@/components/editor/structure-sheets";
 import { Icon } from "@/components/ui/icon";
 import { KeyboardScreen } from "@/components/keyboard-screen";
+import { Sheet } from "@/components/ui/sheet";
+
+type Placement = "cheia" | "direita" | "esquerda";
+const PLACEMENTS: { id: Placement; label: string; hint: string }[] = [
+  { id: "cheia", label: "Na largura do texto", hint: "Entre dois parágrafos, como sempre" },
+  { id: "direita", label: "Ao lado do texto, à direita", hint: "Pequena, com um parágrafo ao lado" },
+  { id: "esquerda", label: "Ao lado do texto, à esquerda", hint: "Pequena, com um parágrafo ao lado" },
+];
 
 type Intent = "save" | "publish" | "unpublish";
 type Selection = { start: number; end: number };
@@ -92,6 +100,8 @@ export default function EditorScreen() {
   const [selection, setSelection] = useState<Selection>({ start: 0, end: 0 });
   const [tab, setTab] = useState<"write" | "preview">("write");
   // Tabela ou diagrama em edição: o bloco sob o cursor (editar no lugar) ou nenhum (inserir).
+  // Escolha de onde a imagem fica (antes de abrir a galeria).
+  const [placing, setPlacing] = useState(false);
   const [structure, setStructure] = useState<{ kind: "table" | "diagram"; block: StructuredBlock | null } | null>(null);
   const underCursor = useMemo(() => blockAt(content, selection.start), [content, selection.start]);
 
@@ -178,7 +188,7 @@ export default function EditorScreen() {
     touch();
   }
 
-  async function insertImage() {
+  async function insertImage(place: Placement) {
     setMessage(null);
     let asset;
     try {
@@ -199,7 +209,8 @@ export default function EditorScreen() {
       const width = Math.max(1, Math.round((asset.width || 960) * scale));
       const height = Math.max(1, Math.round((asset.height || 720) * scale));
       const alt = name.replace(/\.[^.]+$/, "").replace(/[[\]]/g, "");
-      const result = insertBlock(content, selection, `![${alt}](${src}?mm-width=${width}&mm-height=${height})`);
+      const markdown = `![${alt}](${src}?mm-width=${width}&mm-height=${height})`;
+      const result = insertBlock(content, selection, place === "cheia" ? markdown : `\`\`\`imagem lado=${place}\n${markdown}\nEscreva aqui o texto que fica ao lado da imagem.\n\`\`\``);
       setContent(result.text);
       setSelection({ start: result.cursor, end: result.cursor });
       touch();
@@ -332,7 +343,7 @@ export default function EditorScreen() {
                 <Icon name="flow" size={15} color={colors.violet300} />
                 <AppText variant="small" style={{ fontFamily: fonts.sansMedium }}>{underCursor?.kind === "diagram" ? "Editar diagrama" : "Diagrama"}</AppText>
               </Touchable>
-              <Touchable accessibilityLabel="Imagem" onPress={() => void insertImage()} disabled={saving === "image"} style={[styles.tool, styles.toolAccent]}>
+              <Touchable accessibilityLabel="Imagem" onPress={() => setPlacing(true)} disabled={saving === "image"} style={[styles.tool, styles.toolAccent]}>
                 <AppText variant="small" color={colors.violet200} style={{ fontFamily: fonts.sansMedium }}>{saving === "image" ? "Enviando…" : "Imagem"}</AppText>
               </Touchable>
             </ScrollView>
@@ -439,6 +450,27 @@ export default function EditorScreen() {
           {!isNew ? <Button label="Excluir pensamento" icon="trash" variant="danger" disabled={!!saving} loading={saving === "delete"} onPress={confirmDelete} style={{ marginTop: space.lg }} /> : null}
         </View>
       </ScrollView>
+      {/* Onde a imagem fica: na largura do texto ou pequena, ao lado de um parágrafo (bloco ```imagem). */}
+      <Sheet visible={placing} onClose={() => setPlacing(false)}>
+        <AppText variant="title">Onde a imagem fica?</AppText>
+        {PLACEMENTS.map((option) => (
+          <Touchable
+            key={option.id}
+            onPress={() => {
+              setPlacing(false);
+              // A galeria abre depois que a folha fecha (no iPhone, um Modal não abre enquanto outro sai).
+              setTimeout(() => void insertImage(option.id), 350);
+            }}
+            style={styles.placeRow}
+          >
+            <Icon name="image" size={18} color={colors.violet300} />
+            <View style={{ flex: 1 }}>
+              <AppText variant="uiMedium">{option.label}</AppText>
+              <AppText variant="small" color={colors.faint}>{option.hint}</AppText>
+            </View>
+          </Touchable>
+        ))}
+      </Sheet>
       <TableEditorSheet
         visible={structure?.kind === "table"}
         initial={structure?.block?.kind === "table" ? structure.block.table : null}
@@ -456,6 +488,7 @@ export default function EditorScreen() {
 }
 
 const styles = StyleSheet.create({
+  placeRow: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.md },
   content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxxl * 2 },
   statusRow: { flexDirection: "row", justifyContent: "space-between" },
   titleInput: { fontFamily: fonts.serif, fontSize: 26, lineHeight: 32, minHeight: 56 },

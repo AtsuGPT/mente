@@ -1,4 +1,5 @@
 import "server-only";
+import { DRAWING_REMINDER, WANTS_DRAWING } from "@/server/kally/drawing";
 import { db } from "@/lib/db";
 import { completeChat, type AiMessage } from "./ai";
 import type { CompetenceSpec, ReferenceExample } from "./kally/competences/types";
@@ -91,6 +92,7 @@ export const FORMAT_RULE =
 const WANTS_STRUCTURE = /\b(tabelas?|compar\w*|diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental|c[oó]digo|script)\b/i;
 /** Lembrete final de formato (o qwen3 segue melhor o que vem por último), só quando pedido. */
 export function structureReminder(message: string | null | undefined) {
+  if (message && WANTS_DRAWING.test(message)) return DRAWING_REMINDER;
   if (!message || !WANTS_STRUCTURE.test(message)) return "";
   return /\b(diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental)\b/i.test(message)
     ? " Formato: entregue o diagrama num bloco ```mermaid (flowchart TD, rótulos curtos) e explique em seguida."

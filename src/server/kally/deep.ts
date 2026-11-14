@@ -144,7 +144,7 @@ export function partPrompt(base: AiMessage[], plan: Plan, index: number, written
       ? `AGORA: comece pela abertura, em uma ou duas frases naturais que respondam direto ao pedido (${plan.abertura || "o essencial do que a pessoa pediu"}), e depois escreva a parte 1 com o subtítulo "## ${part.titulo}".`
       : `AGORA: escreva só a parte ${index + 1}, começando com o subtítulo "## ${part.titulo}".`,
     `O que esta parte entrega: ${part.objetivo}`,
-    "Desenvolva de verdade (explicação, exemplo concreto, nuance), com tabela, diagrama ```mermaid, lista ou exemplo quando a parte pedir. Não anuncie as próximas partes, não diga \"nesta parte\" e não volte ao que já foi escrito.",
+    "Desenvolva de verdade (explicação, exemplo concreto, nuance), com tabela, diagrama ```mermaid, figura própria em ```desenho (SVG simples), lista ou exemplo quando a parte pedir. Não anuncie as próximas partes, não diga \"nesta parte\" e não volte ao que já foi escrito.",
     "Formato: subtítulos com ## (um por parte; ### dentro dela, se precisar), listas e tabelas Markdown com linha de cabeçalho. Fórmulas em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ), nunca LaTeX ($, \\frac, \\cdot) nem blocos ```math; nada de HTML.",
     early
       ? `É a última parte: o tempo desta resposta acabou. Entregue o que esta parte promete, de forma mais enxuta, toque em poucas frases no essencial do que ficaria para depois (${rest}) e feche com aplicação prática e 2 ou 3 próximos passos concretos.`

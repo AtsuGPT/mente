@@ -44,9 +44,15 @@ export function splitUnits(text: string): { lines: string[]; units: Unit[] } {
   if (open < 0) return { lines, units };
   const after = lines.slice(open + 1).findIndex((l) => /<\/rascunho>/i.test(l));
   const close = after < 0 ? lines.length : open + 1 + after;
+  let fenced = false;
   lines.forEach((raw, line) => {
     if (line <= open || line >= close) return;
     const t = raw.trim();
+    if (t.startsWith("```")) {
+      fenced = !fenced;
+      return;
+    }
+    if (fenced) return;
     if (!t || /^(#|>|:::|<\/?rascunho>|categorias:|- \[|\* \[)/i.test(t) || /^\|?\s*:?-{3,}/.test(t)) return;
     if (t.startsWith("|")) {
       units.push({ line, start: 0, end: raw.length, text: t, table: true });
