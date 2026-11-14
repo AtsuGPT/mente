@@ -40,6 +40,34 @@ Botão com o ícone do cérebro no topo da conversa → tela "Kally" (`/kally-pa
 - **Memória:** cada item com o tipo, a data e quantas vezes foi usado; apagar um ou tudo.
 - **Base pessoal:** a mesma tela da base de documentos (`/base`).
 
+## Presença da Kally (órbita de partículas, 14/11/2026)
+
+Prévia aprovada pelo dono do projeto antes da implementação. Arquivos: `mobile/src/components/kally/orbit-geometry.ts`
+(desenhos), `orbital-skia.tsx` (desenho e física), `orbit-dock.tsx` (onde a órbita fica), `mobile/src/lib/kally-phrases.ts`
+(frases e saudação).
+
+- **Desenho:** em repouso, cada estado é um desenho vetorial nítido nas cores da órbita original (degradê circular
+  lavanda → orquídea → roxo profundo, metade de trás apagada, cometa quase branco). Na troca de estado, o desenho se
+  desfaz em partículas no lugar exato das linhas; elas escorregam para o novo desenho, cada uma no seu tempo, e voltam a
+  ser linhas (~1,4 s). Partículas e física só existem durante a troca.
+- **Estados** (pelas etapas reais do servidor, nada inventado): repouso (três órbitas e estrela), ouvindo (borda que
+  ondula com o nível do microfone, barras no centro), processando (cometa e três pontos; também durante a transcrição do
+  áudio), memória (etapa "resumo" citando memórias ou pensamentos), pesquisando (`post-fontes`, `post-pesquisa`, resumo
+  citando fontes), lendo documento (anexo sendo processado, revisão), criando post (`post-leu`, `rascunho`, `revisao`),
+  respondendo (texto chegando, partes do Aprofundado) e falha.
+- **Desempenho:** tudo na UI thread (useFrameCallback grava uma SkPicture por quadro; o estado da física fica no runtime
+  da UI). Em repouso, só 10 a 25 linhas por quadro. Fora de foco, em segundo plano ou com "reduzir movimento", a órbita
+  fica parada no desenho do estado. Menos partículas nos tamanhos pequenos.
+- **Lugar:** tela vazia, a órbita grande e uma frase só (a saudação). Na conversa, ela flutua no topo, com a frase de
+  estado logo abaixo; escutando, vai para o meio, maior (no computador, mais ainda), balança com a intensidade da voz e a
+  conversa esmaece; com o teclado do celular aberto, vai para o canto acima da caixa de texto e a faixa do topo recolhe.
+- **Frases:** uma por vez, curta, sorteada entre 3 ou 4 do cenário, sem repetir a anterior; em tarefas longas troca a
+  cada 4,5 s. Depois da resposta, "Quer ajustar alguma coisa?" (ou outra) por 6 s. As etapas detalhadas do servidor
+  continuam no chat, abaixo da barra cinza oscilante que aparece enquanto a resposta não começa.
+- **Saudação:** pelo primeiro nome de exibição, a hora local (madrugada, manhã, tarde, noite), sábado, domingo e
+  feriados nacionais (fixos e os móveis: Carnaval, Sexta-feira Santa, Corpus Christi). Diferente da última mostrada no
+  aparelho. O app não pede localização: feriados estaduais e municipais ficam de fora.
+
 ## Resposta na tela
 
 - O texto entra numa fila e aparece letra a letra, na velocidade de chegada (média móvel), e esvazia a fila em
@@ -86,6 +114,16 @@ post seguem normalmente. Quem reabre a conversa recebe `generating: true` no GET
 ainda está escrevendo esta resposta…" e confere a cada 4 s até ela aparecer. Se a conexão cair com a tela aberta,
 o app mostra o mesmo aviso em vez do erro. Na conversa temporária, sair continua parando a resposta (nada seria
 guardado). Um reinício do servidor interrompe o que estava em andamento.
+
+### Voltar no outro dia (14/11/2026)
+
+- **A última conversa salva reabre sozinha** quando a Kally abre de novo neste ambiente (o id fica guardado no aparelho,
+  `minha-mente.kally-ultima.<ambiente>`); "Nova conversa" esquece. Abrir pelo histórico ou pelo painel continua igual.
+- **A Kally sabe que houve uma pausa:** com 6 horas ou mais desde a última mensagem, o prompt ganha a nota RETOMADA
+  (`resumedNote` na rota): continuar o trabalho de onde pararam, sem repetir nem se apresentar de novo. Testado com uma
+  conversa recuada 2 dias: "pode continuar" seguiu para a semana 2 do plano de estudos.
+- **Resposta que não chegou a ser escrita** (o servidor reiniciou no meio): a conversa abre com "Esta resposta não chegou
+  a ser escrita" e o botão Refazer; a pergunta já gravada não é lida duas vezes no prompt.
 
 ### Sem sair do assunto
 

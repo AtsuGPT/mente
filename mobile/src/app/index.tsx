@@ -39,7 +39,8 @@ export default function EnvironmentsScreen() {
   useEffect(() => {
     if (current && navigateWhenReady.current) {
       navigateWhenReady.current = false;
-      router.push("/feed");
+      // O ambiente abre na Kally.
+      router.push("/perguntar");
     }
   }, [current]);
 

@@ -1,196 +1,298 @@
-import { memo, useCallback, useEffect, useMemo } from "react";
-import { Pressable, StyleSheet } from "react-native";
-import { Canvas, Circle, DashPathEffect, Group, Path, RadialGradient, Skia, SweepGradient, vec, type SkPath } from "@shopify/react-native-skia";
-import Animated, {
-  type FrameInfo,
-  cancelAnimation,
-  interpolate,
-  interpolateColor,
-  useAnimatedStyle,
-  useDerivedValue,
-  useFrameCallback,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  type SharedValue,
-} from "react-native-reanimated";
+import { memo, useEffect, useMemo, useState } from "react";
+import { Pressable } from "react-native";
+import { BlendMode, BlurStyle, Canvas, PaintStyle, Picture, Skia, StrokeCap, StrokeJoin, TileMode, createPicture, type SkPaint, type SkPicture, type SkShader } from "@shopify/react-native-skia";
+import Animated, { useAnimatedStyle, useFrameCallback, useSharedValue, withSpring, type SharedValue } from "react-native-reanimated";
+import { scheduleOnUI } from "react-native-worklets";
 import { useAmbientActive } from "@/lib/use-ambient";
-import { easing, spring } from "@/theme/motion";
-import { colors } from "@/theme/tokens";
+import { spring } from "@/theme/motion";
 import type { KallyOrbitalState } from "./activity";
+import { burst, geometry, makeParticles, PARTICLE_HEX, smoothstep, stepParticles, STROKE_HEX, STYLE, SWEEP_HEX, type Particles, type Stroke } from "./orbit-geometry";
 
 /**
- * KallyOrbital: a identidade da Kally. Só anéis: três elipses em inclinações diferentes girando
- * em volta de um centro vazio, com partículas de luz correndo sobre elas nos tamanhos grandes.
+ * KallyOrbital: a presença da Kally (aprovada na prévia de 14/11/2026).
  *
- * Movimento: cada anel gira no próprio plano com velocidade angular constante (interno uma
- * volta a cada 2,5 s, intermediário 3,5 s em sentido contrário, externo 5 s), multiplicada pelo
- * estado. O ângulo é integrado quadro a quadro na UI thread (useFrameCallback), nunca
- * reiniciado nem reduzido por módulo: mudar de estado muda a velocidade sem salto, e completar
- * uma volta não tem emenda. As fases da luz também são integradas (mudar a frequência não
- * pula a fase).
+ * Em repouso, cada estado é um desenho vetorial nítido nas cores da órbita original (degradê circular lavanda →
+ * orquídea → roxo profundo, metade de trás apagada, cometa quase branco). Quando o estado muda, o desenho se desfaz em
+ * partículas no lugar exato das linhas; elas flutuam, escorregam para o novo desenho cada uma no seu tempo e voltam a
+ * ser linhas (~1,4 s). Partículas e física só existem durante a troca; no repouso, cada quadro desenha só as linhas.
  *
- * Profundidade: a metade de trás de cada anel é desenhada primeiro, mais fina e apagada; a da
- * frente, depois e mais nítida. Cometas de luz percorrem os anéis (traço tracejado com fase
- * animada) e o gradiente de cada anel gira com ele.
- *
- * Desempenho: caminhos e geometria são calculados uma vez por tamanho; por quadro só mudam
- * transformações, cores e fases (valores compartilhados, sem setState). Nenhum desfoque: os
- * brilhos são degradês radiais. Pausa fora de foco; com "reduzir movimento" fica parada e o
- * estado aparece só por cor e brilho.
+ * Tudo roda na UI thread: um useFrameCallback calcula o quadro e grava uma SkPicture (createPicture), que o <Picture>
+ * desenha. O estado da física fica no runtime da UI (globalThis), por instância. Fora de foco, com o app em segundo
+ * plano ou com "reduzir movimento", a órbita fica parada no desenho do estado (sem partículas).
  */
 
 type Props = {
   size?: number;
   state?: KallyOrbitalState;
-  /** Pulso do streaming (useKallyActivity): cada pedaço de texto acelera e acende um pouco. */
+  /** Pulso do streaming (useKallyActivity): o texto chegando acelera as ondas. */
   activity?: SharedValue<number>;
-  /** Amplitude real do áudio (0–1): microfone em listening, reprodução em speaking. */
+  /** Amplitude real do áudio (0–1): microfone em listening. */
   level?: SharedValue<number>;
-  /** Escala geral do brilho (0–1.5). */
+  /** Mantido por compatibilidade (o brilho agora vem do estado). */
   intensity?: number;
-  /** Responde ao toque (compressão elástica; segurar intensifica o brilho). */
+  /** Responde ao toque (compressão elástica). */
   interactive?: boolean;
   onPress?: () => void;
   /** Anuncia o estado aos leitores de tela. */
   announce?: boolean;
 };
 
-/** Parâmetros por estado. speed multiplica as velocidades base; energy acende e pulsa;
- * hue vai do violeta profundo (0) ao lavanda (1); glow é o halo; dim desbota (erro). */
-const TARGET: Record<KallyOrbitalState, { speed: number; energy: number; hue: number; glow: number; dim: number }> = {
-  idle: { speed: 0.85, energy: 0.22, hue: 0.32, glow: 0.45, dim: 0 },
-  listening: { speed: 1.15, energy: 0.55, hue: 0.55, glow: 0.75, dim: 0 },
-  thinking: { speed: 1.75, energy: 0.85, hue: 0.45, glow: 0.9, dim: 0 },
-  responding: { speed: 1.35, energy: 1, hue: 0.8, glow: 1, dim: 0 },
-  speaking: { speed: 1.3, energy: 0.95, hue: 0.92, glow: 1, dim: 0 },
-  error: { speed: 0.45, energy: 0.12, hue: 0.12, glow: 0.3, dim: 1 },
-};
+const SHAPE: Record<KallyOrbitalState, number> = { idle: 0, listening: 1, thinking: 2, responding: 3, speaking: 3, memory: 4, research: 5, docs: 6, post: 7, error: 8 };
 
 const STATE_LABEL: Record<KallyOrbitalState, string> = {
   idle: "Kally pronta",
   listening: "Kally escutando",
   thinking: "Kally preparando a resposta",
+  memory: "Kally consultando suas memórias",
+  research: "Kally pesquisando",
+  docs: "Kally lendo o documento",
+  post: "Kally escrevendo o rascunho",
   responding: "Kally respondendo",
   speaking: "Kally falando",
   error: "Kally: a resposta falhou",
 };
 
-/** Anéis: raios (fração do tamanho), inclinação inicial, período (s), sentido, espessura, cometa. */
-const RINGS = [
-  { rx: 0.27, ry: 0.1, tilt: 18, period: 2.5, dir: 1, width: 0.017, comet: 0.16, cometSpeed: 1.25, phase: 0 },
-  { rx: 0.375, ry: 0.13, tilt: 116, period: 3.5, dir: -1, width: 0.0135, comet: 0.12, cometSpeed: 0.95, phase: 1.9 },
-  { rx: 0.465, ry: 0.108, tilt: -36, period: 5, dir: 1, width: 0.011, comet: 0.1, cometSpeed: 0.7, phase: 3.7 },
-] as const;
+/** Brilho do halo por desenho (idle, listening, thinking, responding, memory, research, docs, post, error). */
+const HALO = [0.45, 0.6, 0.85, 0.75, 0.6, 0.6, 0.6, 0.65, 0.25];
+/** Raio da órbita em fração do tamanho (sobra espaço para o halo e o voo das partículas). */
+const RADIUS = 0.36;
+/** Duração da troca: linhas acendem entre LINE_IN e as partículas somem até PART_OUT (s). */
+const LINE_IN = [0.7, 1.15] as const;
+const PART_OUT = [0.95, 1.4] as const;
+/** Instante desenhado quando a órbita está parada (reduzir movimento, fora de foco). */
+const STILL_T = 2.2;
 
-const DEEP = [colors.violet800, colors.violet700, colors.violet600] as const;
-const LIGHT = [colors.violet400, colors.violet300, colors.violet200] as const;
+type Kit = {
+  stroke: SkPaint;
+  dot: SkPaint;
+  glow: SkPaint;
+  halo: SkPaint;
+  solid: Record<number, Float32Array>;
+  sweep: Float32Array[];
+  dots: Float32Array[];
+};
+type Orb = { p: Particles; shape: number; since: number; last: number; lvl: number; act: number; halo: number; kit: Kit };
+type Registry = Record<string, Orb>;
 
-export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, state = "idle", activity, level, intensity = 1, interactive = false, onPress, announce = false }: Props) {
+function makeKit(): Kit {
+  "worklet";
+  const stroke = Skia.Paint();
+  stroke.setAntiAlias(true);
+  stroke.setStyle(PaintStyle.Stroke);
+  stroke.setStrokeCap(StrokeCap.Round);
+  stroke.setStrokeJoin(StrokeJoin.Round);
+  stroke.setBlendMode(BlendMode.Plus);
+  const dot = Skia.Paint();
+  dot.setAntiAlias(true);
+  dot.setBlendMode(BlendMode.Plus);
+  const glow = Skia.Paint();
+  glow.setAntiAlias(true);
+  glow.setBlendMode(BlendMode.Plus);
+  glow.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, 0.022, true));
+  const halo = Skia.Paint();
+  halo.setAntiAlias(true);
+  halo.setShader(
+    Skia.Shader.MakeRadialGradient(
+      { x: 0, y: 0 },
+      1.38,
+      [Skia.Color("rgba(98,54,212,0.5)"), Skia.Color("rgba(98,54,212,0.22)"), Skia.Color("rgba(98,54,212,0.05)"), Skia.Color("rgba(98,54,212,0)")],
+      [0, 0.42, 0.75, 1],
+      TileMode.Clamp,
+    ),
+  );
+  return {
+    stroke,
+    dot,
+    glow,
+    halo,
+    solid: {
+      [STYLE.core]: Skia.Color(STROKE_HEX.core),
+      [STYLE.comet]: Skia.Color(STROKE_HEX.comet),
+      [STYLE.light]: Skia.Color(STROKE_HEX.light),
+      [STYLE.dim]: Skia.Color(STROKE_HEX.dim),
+      [STYLE.fault]: Skia.Color(STROKE_HEX.fault),
+    },
+    sweep: SWEEP_HEX.map((hex) => Skia.Color(hex)),
+    dots: PARTICLE_HEX.map((hex) => Skia.Color(hex)),
+  };
+}
+
+/** Grava o quadro: halo, linhas (opacidade lineA) e partículas (opacidade partA). */
+function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: number): SkPicture {
+  "worklet";
+  const { kit, p } = orb;
+  return createPicture(
+    (canvas) => {
+      const R = size * RADIUS;
+      canvas.save();
+      canvas.translate(size / 2, size / 2);
+      canvas.scale(R, R);
+      kit.halo.setAlphaf(Math.min(1, orb.halo));
+      canvas.drawCircle(0, 0, 1.38, kit.halo);
+
+      if (lineA > 0.01) {
+        const minW = 0.9 / R;
+        const shaders: Record<string, SkShader> = {};
+        const paintStroke = kit.stroke;
+        for (let i = 0; i < strokes.length; i++) {
+          const s = strokes[i];
+          if (s.a < 0.01) continue;
+          const pts = s.p;
+          const b = Skia.PathBuilder.Make();
+          b.moveTo(pts[0], pts[1]);
+          for (let k = 2; k < pts.length; k += 2) b.lineTo(pts[k], pts[k + 1]);
+          if (s.c) b.close();
+          const path = b.detach();
+          if (s.s === STYLE.sweep) {
+            const key = s.r.toFixed(3);
+            let shader = shaders[key];
+            if (!shader) {
+              shader = Skia.Shader.MakeSweepGradient(0, 0, kit.sweep, [0, 0.33, 0.66, 1], TileMode.Clamp, Skia.Matrix().rotate(s.r));
+              shaders[key] = shader;
+            }
+            paintStroke.setShader(shader);
+          } else {
+            paintStroke.setShader(null);
+            paintStroke.setColor(kit.solid[s.s]);
+          }
+          const w = Math.max(minW, s.w);
+          if (s.a > 0.5 || s.k) {
+            paintStroke.setStrokeWidth(w * 3.6);
+            paintStroke.setAlphaf(s.a * 0.14 * lineA);
+            canvas.drawPath(path, paintStroke);
+          }
+          paintStroke.setStrokeWidth(w);
+          paintStroke.setAlphaf(Math.min(1, s.a) * lineA);
+          canvas.drawPath(path, paintStroke);
+        }
+      }
+
+      if (partA > 0.01) {
+        // Partículas agrupadas por cor e brilho: poucas chamadas de desenho por quadro.
+        const unit = 1 / R;
+        const base = Math.max(0.8, Math.min(1.5, size / 160)) * unit;
+        const builders: ReturnType<typeof Skia.PathBuilder.Make>[] = [];
+        for (let i = 0; i < p.n; i++) {
+          const bb = p.b[i] * partA;
+          if (bb < 0.02) continue;
+          const slot = p.col[i] * 2 + (bb > 0.55 ? 1 : 0);
+          let builder = builders[slot];
+          if (!builder) {
+            builder = Skia.PathBuilder.Make();
+            builders[slot] = builder;
+          }
+          builder.addCircle(p.x[i], p.y[i], base * p.size[i] * (0.9 + bb * 0.7));
+        }
+        for (let slot = 0; slot < builders.length; slot++) {
+          const builder = builders[slot];
+          if (!builder) continue;
+          const path = builder.detach();
+          const alpha = (slot % 2 ? 0.95 : 0.5) * partA;
+          const color = kit.dots[Math.floor(slot / 2)];
+          kit.glow.setColor(color);
+          kit.glow.setAlphaf(alpha * 0.6);
+          canvas.drawPath(path, kit.glow);
+          kit.dot.setColor(color);
+          kit.dot.setAlphaf(alpha);
+          canvas.drawPath(path, kit.dot);
+        }
+      }
+      canvas.restore();
+    },
+    { width: size, height: size },
+  );
+}
+
+/** Um quadro da órbita `id`. still: parada no desenho do estado (sem partículas nem tempo correndo). */
+function frame(id: string, shapeNow: number, lvlNow: number, actNow: number, size: number, count: number, t: number, dt: number, still: boolean): SkPicture {
+  "worklet";
+  const g = globalThis as unknown as { __kallyOrbs?: Registry };
+  const registry = (g.__kallyOrbs ??= {});
+  let orb = registry[id];
+  if (!orb || orb.p.n !== count) {
+    orb = { p: makeParticles(count), shape: shapeNow, since: t, last: t, lvl: 0, act: 0, halo: HALO[shapeNow], kit: orb?.kit ?? makeKit() };
+    registry[id] = orb;
+  }
+  orb.lvl += (lvlNow - orb.lvl) * Math.min(1, dt * (lvlNow > orb.lvl ? 18 : 6));
+  orb.act += (actNow - orb.act) * Math.min(1, dt * 3);
+  if (still) {
+    orb.shape = shapeNow;
+    orb.since = -10;
+    orb.halo = HALO[shapeNow];
+    return paint(orb, geometry(shapeNow, STILL_T, 0.35, 0.3), size, 1, 0);
+  }
+  if (shapeNow !== orb.shape) {
+    // O desenho atual (se já assentado) vira partículas exatamente sobre as linhas; senão, elas seguem de onde estão.
+    const settled = t - orb.since > PART_OUT[1];
+    burst(orb.p, settled ? geometry(orb.shape, t, orb.lvl, orb.act) : null);
+    orb.shape = shapeNow;
+    orb.since = t;
+  }
+  const since = t - orb.since;
+  const lineA = smoothstep(LINE_IN[0], LINE_IN[1], since);
+  const partA = 1 - smoothstep(PART_OUT[0], PART_OUT[1], since);
+  const strokes = geometry(orb.shape, t, orb.lvl, orb.act);
+  if (partA > 0) stepParticles(orb.p, strokes, since, t, dt);
+  const goal = HALO[orb.shape] + (orb.shape === 1 ? 0.4 * orb.lvl : orb.shape === 3 ? 0.25 * orb.act : 0);
+  orb.halo += (goal - orb.halo) * Math.min(1, dt * 4);
+  return paint(orb, strokes, size, lineA, partA);
+}
+
+let seq = 0;
+
+export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, state = "idle", activity, level, interactive = false, onPress, announce = false }: Props) {
   const active = useAmbientActive();
+  const [id] = useState(() => `orb-${++seq}`);
   const zero = useSharedValue(0);
   const pulse = activity ?? zero;
   const amp = level ?? zero;
+  const shape = useSharedValue(SHAPE[state]);
+  // Menos partículas nos tamanhos pequenos: a forma continua legível e o quadro fica mais leve.
+  const count = size >= 180 ? 460 : size >= 110 ? 320 : 200;
+  const empty = useMemo(() => createPicture(() => undefined, { width: size, height: size }), [size]);
+  const picture = useSharedValue<SkPicture>(empty);
 
-  // Parâmetros do estado, interpolados (desacelerar ao terminar é mais lento que acelerar).
-  const target = TARGET[state];
-  const speed = useSharedValue(target.speed);
-  const energy = useSharedValue(target.energy);
-  const hue = useSharedValue(target.hue);
-  const glow = useSharedValue(target.glow);
-  const dim = useSharedValue(target.dim);
   useEffect(() => {
-    const t = TARGET[state];
-    const slowDown = t.speed < speed.value;
-    speed.value = withSpring(t.speed, { ...spring.state, duration: slowDown ? 1800 : 900 });
-    energy.value = withSpring(t.energy, spring.state);
-    hue.value = withSpring(t.hue, spring.state);
-    glow.value = withSpring(t.glow, spring.state);
-    dim.value = withSpring(t.dim, spring.state);
-  }, [state, speed, energy, hue, glow, dim]);
+    shape.value = SHAPE[state];
+  }, [state, shape]);
 
-  // Relógio e fases integradas na UI thread.
-  const time = useSharedValue(0);
-  const a0 = useSharedValue(0);
-  const a1 = useSharedValue(0);
-  const a2 = useSharedValue(0);
-  const c0 = useSharedValue(0);
-  const c1 = useSharedValue(0);
-  const c2 = useSharedValue(0);
-  const glowPhase = useSharedValue(0);
-  // Atividade e voz suavizadas (posição e velocidade de um filtro criticamente amortecido).
-  const act = useSharedValue(0);
-  const actV = useSharedValue(0);
-  const voice = useSharedValue(0);
-  const voiceV = useSharedValue(0);
-  const onFrame = useCallback((info: FrameInfo) => {
+  const ticker = useFrameCallback((info) => {
     "worklet";
     const dt = Math.min(info.timeSincePreviousFrame ?? 16, 48) / 1000;
-    time.value += dt;
-    // Filtro criticamente amortecido: segue o sinal sem degraus e sem passar do ponto. A
-    // atividade responde em ~0,6 s; a voz, em ~0,15 s.
-    const follow = (x: SharedValue<number>, v: SharedValue<number>, target: number, w: number) => {
-      "worklet";
-      const a = w * w * (target - x.value) - 2 * w * v.value;
-      v.value += a * dt;
-      x.value = Math.max(0, x.value + v.value * dt);
-    };
-    follow(act, actV, pulse.value, 7);
-    follow(voice, voiceV, amp.value, 22);
-    // Mais rápida com o texto chegando e com a voz; sem oscilação periódica de velocidade.
-    const s = speed.value * (1 + act.value * 0.28 + voice.value * 0.22);
-    a0.value += dt * (360 / RINGS[0].period) * RINGS[0].dir * s;
-    a1.value += dt * (360 / RINGS[1].period) * RINGS[1].dir * s;
-    a2.value += dt * (360 / RINGS[2].period) * RINGS[2].dir * s;
-    c0.value += dt * RINGS[0].cometSpeed * s;
-    c1.value += dt * RINGS[1].cometSpeed * s;
-    c2.value += dt * RINGS[2].cometSpeed * s;
-    // Luz: ciclo de ~3,6 s em repouso até ~2,1 s com energia máxima.
-    glowPhase.value += dt * ((Math.PI * 2) / (3.6 - energy.value * 1.5));
-  }, [time, energy, pulse, amp, speed, a0, a1, a2, c0, c1, c2, glowPhase, act, actV, voice, voiceV]);
-  const frame = useFrameCallback(onFrame, false);
+    picture.value = frame(id, shape.value, amp.value, pulse.value, size, count, info.timestamp / 1000, dt, false);
+  }, false);
+
   useEffect(() => {
-    frame.setActive(active);
-  }, [active, frame]);
+    ticker.setActive(active);
+    if (!active) {
+      // Parada (fora de foco, app em segundo plano, "reduzir movimento"): um quadro só, com o desenho do estado.
+      scheduleOnUI(() => {
+        "worklet";
+        picture.value = frame(id, shape.value, 0, 0, size, count, 0, 0.016, true);
+      });
+    }
+  }, [active, ticker, picture, id, shape, size, count, state]);
+
   useEffect(
     () => () => {
-      for (const v of [speed, energy, hue, glow, dim]) cancelAnimation(v);
+      scheduleOnUI(() => {
+        "worklet";
+        const g = globalThis as unknown as { __kallyOrbs?: Registry };
+        if (g.__kallyOrbs) delete g.__kallyOrbs[id];
+      });
     },
-    [speed, energy, hue, glow, dim],
+    [id],
   );
 
-  // Toque: compressão elástica; segurar intensifica o brilho.
+  // Toque: compressão elástica.
   const press = useSharedValue(0);
-  const hold = useSharedValue(0);
   const container = useAnimatedStyle(() => ({ transform: [{ scale: 1 - press.value * 0.08 }] }));
 
-  const c = size / 2;
-  const geometry = useMemo(() => {
-    return RINGS.map((ring) => {
-      const rx = size * ring.rx;
-      const ry = size * ring.ry;
-      const rect = { x: c - rx, y: c - ry, width: rx * 2, height: ry * 2 };
-      const full = Skia.PathBuilder.Make().addOval(rect).detach();
-      const back = Skia.PathBuilder.Make().addArc(rect, 180, 180).detach();
-      const front = Skia.PathBuilder.Make().addArc(rect, 0, 180).detach();
-      // Perímetro da elipse (Ramanujan), para o cometa ter comprimento proporcional.
-      const h = ((rx - ry) * (rx - ry)) / ((rx + ry) * (rx + ry));
-      const perimeter = Math.PI * (rx + ry) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
-      return { full, back, front, perimeter, width: Math.max(0.9, size * ring.width), tilt: (ring.tilt * Math.PI) / 180 };
-    });
-  }, [size, c]);
-  const angles = [a0, a1, a2];
-  const comets = [c0, c1, c2];
-  // Partículas só onde há espaço para vê-las (nos tamanhos pequenos o símbolo fica limpo).
-  const particles = size >= 72;
-
-  // Halo em anel: a luz fica na faixa por onde os anéis passam e o centro continua vazio (só os
-  // anéis, sem esfera). Cresce com a atividade; em repouso é quase só o traço.
-  const haloOpacity = useDerivedValue(() => Math.min(1, intensity * (glow.value * (0.88 + 0.12 * Math.sin(glowPhase.value)) * 0.62 + hold.value * 0.24 + act.value * 0.14 + voice.value * 0.22)));
-  const haloColors = useDerivedValue(() => {
-    const tone = interpolateColor(dim.value, [0, 1], [interpolateColor(hue.value, [0, 1], ["rgba(98,54,212,0.5)", "rgba(165,139,247,0.42)"]), "rgba(74,43,155,0.24)"]);
-    return ["rgba(0,0,0,0)", tone, "rgba(98,54,212,0.08)", "rgba(0,0,0,0)"];
-  });
+  const body = (
+    <Canvas style={{ width: size, height: size }} pointerEvents="none">
+      <Picture picture={picture} />
+    </Canvas>
+  );
 
   return (
     <Animated.View
@@ -201,204 +303,24 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
       accessibilityLiveRegion={announce ? "polite" : undefined}
       aria-hidden={!announce}
     >
-      <Canvas style={{ width: size, height: size }} pointerEvents="none">
-        <Circle cx={c} cy={c} r={c * 0.82} opacity={haloOpacity}>
-          <RadialGradient c={vec(c, c)} r={c * 0.82} colors={haloColors} positions={[0, 0.42, 0.75, 1]} />
-        </Circle>
-
-        {/* Metades de trás: mais finas e apagadas (perspectiva) */}
-        {geometry.map((ring, i) => (
-          <RingHalf key={`b${i}`} path={ring.back} width={ring.width * 0.8} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} back />
-        ))}
-        {particles
-          ? PARTICLES.map((p, k) => (
-              <Particle key={`pb${k}`} size={size} c={c} ring={RINGS[p.ring]} tilt={geometry[p.ring].tilt} angle={angles[p.ring]} travel={comets[p.ring]} offset={p.offset} speed={p.speed} energy={energy} dim={dim} back />
-            ))
-          : null}
-
-        {/* Metades da frente, cometas e partículas: por cima das de trás */}
-        {geometry.map((ring, i) => (
-          <Group key={`f${i}`}>
-            <RingHalf path={ring.front} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} energy={energy} hue={hue} dim={dim} glowPhase={glowPhase} phase={RINGS[i].phase} />
-            <Comet path={ring.full} width={ring.width} tilt={ring.tilt} c={c} angle={angles[i]} travel={comets[i]} perimeter={ring.perimeter} fraction={RINGS[i].comet} energy={energy} pulse={act} dim={dim} />
-          </Group>
-        ))}
-        {particles
-          ? PARTICLES.map((p, k) => (
-              <Particle key={`pf${k}`} size={size} c={c} ring={RINGS[p.ring]} tilt={geometry[p.ring].tilt} angle={angles[p.ring]} travel={comets[p.ring]} offset={p.offset} speed={p.speed} energy={energy} dim={dim} />
-            ))
-          : null}
-      </Canvas>
       {interactive ? (
         <Pressable
-          style={StyleSheet.absoluteFill}
-          accessibilityRole={onPress ? "button" : undefined}
-          accessibilityLabel={onPress ? STATE_LABEL[state] : undefined}
           onPress={onPress}
           onPressIn={() => {
             press.value = withSpring(1, spring.press);
           }}
           onPressOut={() => {
-            press.value = withSpring(0, { duration: 380, dampingRatio: 0.72 });
-            hold.value = withTiming(0, { duration: 600, easing: easing.standard });
+            press.value = withSpring(0, spring.release);
           }}
-          onLongPress={() => {
-            hold.value = withTiming(1, { duration: 700, easing: easing.standard });
-          }}
-          delayLongPress={280}
-        />
-      ) : null}
+          accessibilityRole={onPress ? "button" : undefined}
+        >
+          {body}
+        </Pressable>
+      ) : (
+        body
+      )}
     </Animated.View>
   );
 });
 
-/** Metade de um anel: gira com o anel; o gradiente varre o traço e oscila entre os roxos. */
-function RingHalf({
-  path,
-  width,
-  tilt,
-  c,
-  angle,
-  energy,
-  hue,
-  dim,
-  glowPhase,
-  phase,
-  back = false,
-}: {
-  path: SkPath;
-  width: number;
-  tilt: number;
-  c: number;
-  angle: SharedValue<number>;
-  energy: SharedValue<number>;
-  hue: SharedValue<number>;
-  dim: SharedValue<number>;
-  glowPhase: SharedValue<number>;
-  phase: number;
-  back?: boolean;
-}) {
-  const transform = useDerivedValue(() => [{ rotate: tilt + (angle.value * Math.PI) / 180 }]);
-  const sweep = useDerivedValue(() => {
-    // Cada anel oscila em fase própria: os tons nunca mudam todos juntos.
-    const mix = 0.5 + 0.5 * Math.sin(glowPhase.value + phase);
-    const k = Math.min(1, Math.max(0, hue.value + (mix - 0.5) * 0.34));
-    const deep = interpolateColor(k, [0, 0.5, 1], [DEEP[0], DEEP[1], DEEP[2]]);
-    const light = interpolateColor(k, [0, 0.5, 1], [LIGHT[0], LIGHT[1], LIGHT[2]]);
-    const orchid = interpolateColor(dim.value, [0, 1], [colors.orchid, colors.violet800]);
-    return [interpolateColor(dim.value, [0, 1], [light, colors.faint]), orchid, deep, interpolateColor(dim.value, [0, 1], [light, colors.faint])];
-  });
-  // Atrás bem apagado, na frente nítido: a profundidade vem do contraste, não do brilho.
-  const opacity = useDerivedValue(() => (back ? 0.2 + energy.value * 0.12 : 0.74 + energy.value * 0.26) * (1 - dim.value * 0.35));
-  return (
-    <Group origin={vec(c, c)} transform={transform} opacity={opacity}>
-      <Path path={path} style="stroke" strokeWidth={width} strokeCap="round">
-        <SweepGradient c={vec(c, c)} colors={sweep} />
-      </Path>
-    </Group>
-  );
-}
-
-/** Cometa: um trecho curto e claro que percorre o anel; mais forte com o streaming. */
-function Comet({
-  path,
-  width,
-  tilt,
-  c,
-  angle,
-  travel,
-  perimeter,
-  fraction,
-  energy,
-  pulse,
-  dim,
-}: {
-  path: SkPath;
-  width: number;
-  tilt: number;
-  c: number;
-  angle: SharedValue<number>;
-  travel: SharedValue<number>;
-  perimeter: number;
-  fraction: number;
-  energy: SharedValue<number>;
-  pulse: SharedValue<number>;
-  dim: SharedValue<number>;
-}) {
-  const transform = useDerivedValue(() => [{ rotate: tilt + (angle.value * Math.PI) / 180 }]);
-  const dashPhase = useDerivedValue(() => -travel.value * perimeter);
-  // Em repouso o cometa é quase só um reflexo; gerando, ele acende.
-  const opacity = useDerivedValue(() => interpolate(energy.value, [0, 1], [0.12, 0.78]) * (1 - dim.value) + pulse.value * 0.16);
-  const intervals = useMemo(() => [perimeter * fraction, perimeter * (1 - fraction)], [perimeter, fraction]);
-  return (
-    <Group origin={vec(c, c)} transform={transform} opacity={opacity}>
-      <Path path={path} style="stroke" strokeWidth={width * 1.5} strokeCap="round" color={colors.violet200}>
-        <DashPathEffect intervals={intervals} phase={dashPhase} />
-      </Path>
-    </Group>
-  );
-}
-
-/** Partículas: pontos de luz que correm sobre os anéis, em ritmos próprios (dois por anel). */
-const PARTICLES = [
-  { ring: 0, offset: 0.1, speed: 0.55 },
-  { ring: 0, offset: 0.62, speed: 0.55 },
-  { ring: 1, offset: 0.3, speed: 0.42 },
-  { ring: 1, offset: 0.85, speed: 0.42 },
-  { ring: 2, offset: 0.45, speed: 0.33 },
-  { ring: 2, offset: 0.05, speed: 0.33 },
-] as const;
-
-/**
- * Partícula numa elipse inclinada. Cada uma é desenhada duas vezes (camada de trás e da
- * frente) e só aparece na metade certa, com transição suave nas pontas do anel: assim ela passa
- * por trás e volta pela frente sem salto.
- */
-function Particle({
-  size,
-  c,
-  ring,
-  tilt,
-  angle,
-  travel,
-  offset,
-  speed,
-  energy,
-  dim,
-  back = false,
-}: {
-  size: number;
-  c: number;
-  ring: (typeof RINGS)[number];
-  tilt: number;
-  angle: SharedValue<number>;
-  travel: SharedValue<number>;
-  offset: number;
-  speed: number;
-  energy: SharedValue<number>;
-  dim: SharedValue<number>;
-  back?: boolean;
-}) {
-  const rx = size * ring.rx;
-  const ry = size * ring.ry;
-  const point = useDerivedValue(() => {
-    const t = (travel.value * speed + offset) * Math.PI * 2;
-    const lx = Math.cos(t) * rx;
-    const ly = Math.sin(t) * ry;
-    const rot = tilt + (angle.value * Math.PI) / 180;
-    return { x: c + lx * Math.cos(rot) - ly * Math.sin(rot), y: c + lx * Math.sin(rot) + ly * Math.cos(rot), front: Math.sin(t) };
-  });
-  const cx = useDerivedValue(() => point.value.x);
-  const cy = useDerivedValue(() => point.value.y);
-  const opacity = useDerivedValue(() => {
-    // 0 atrás, 1 na frente, com rampa curta perto das pontas.
-    const f = Math.min(1, Math.max(0, (point.value.front + 0.15) / 0.3));
-    const visible = back ? 1 - f : f;
-    return visible * (back ? 0.32 : 0.85) * (0.45 + energy.value * 0.55) * (1 - dim.value);
-  });
-  return <Circle cx={cx} cy={cy} r={Math.max(0.8, size * (back ? 0.007 : 0.009))} color={colors.violet200} opacity={opacity} />;
-}
-
-/** Mantém o mesmo nome de import nos dois lados (celular e web). */
 export const KallyOrbital = KallyOrbitalSkia;
-

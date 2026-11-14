@@ -5,13 +5,17 @@ import { Easing, useSharedValue, withSequence, withTiming } from "react-native-r
  * Estados visuais da Kally, ligados a eventos reais do app:
  *  - idle: em repouso.
  *  - listening: gravando a voz da pessoa (reage ao nível real do microfone).
- *  - thinking: pedido enviado, nenhum texto chegou ainda (ou anexo sendo lido).
+ *  - thinking: pedido enviado, nenhum texto chegou ainda (entendendo, planejando, esperando o modelo).
+ *  - memory: a Kally usou memórias e pensamentos do ambiente (etapa "resumo" do servidor).
+ *  - research: buscando fontes na internet (etapas post-fontes e post-pesquisa, ou o resumo citando fontes).
+ *  - docs: lendo um anexo ou documento (anexo sendo processado, revisão de texto).
+ *  - post: escrevendo ou revisando o rascunho de um post (etapas post-leu, rascunho e revisao).
  *  - responding: texto do streaming chegando.
  *  - speaking: reprodução de voz da Kally. O app ainda não reproduz áudio; o estado existe
  *    para quando houver, e usa o mesmo `level` (amplitude real) do listening.
  *  - error: a última resposta falhou.
  */
-export type KallyOrbitalState = "idle" | "listening" | "thinking" | "responding" | "speaking" | "error";
+export type KallyOrbitalState = "idle" | "listening" | "thinking" | "memory" | "research" | "docs" | "post" | "responding" | "speaking" | "error";
 
 /**
  * Atividade do streaming (0–1): chame kick() a cada pedaço de texto recebido. Cada pedaço

@@ -47,10 +47,12 @@ function WebFrame({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (Platform.OS !== "web") return;
     document.body.style.backgroundColor = colors.bg;
-    // Foco visível ao navegar pelo teclado (o react-native-web remove o contorno padrão dos campos).
+    // Foco visível ao navegar pelo teclado (o react-native-web remove o contorno padrão dos campos). Campos dentro de
+    // uma moldura que já acende no foco (nativeID "frame-focus…", como a caixa da Kally) ficam de fora: o contorno
+    // retangular aparecia por dentro da moldura arredondada, desalinhado dela.
     const style = document.createElement("style");
     style.id = "mm-focus";
-    style.textContent = "input:focus-visible,textarea:focus-visible{outline:2px solid " + colors.violet400 + ";outline-offset:2px}";
+    style.textContent = "input:focus-visible:not([id^=frame-focus]),textarea:focus-visible:not([id^=frame-focus]){outline:2px solid " + colors.violet400 + ";outline-offset:2px}[id^=frame-focus]:focus{outline:none}";
     if (!document.getElementById(style.id)) document.head.appendChild(style);
   }, []);
   return <>{children}</>;

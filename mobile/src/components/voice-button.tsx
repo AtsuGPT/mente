@@ -23,12 +23,15 @@ export function VoiceButton({
   disabled,
   onLevel,
   onRecordingChange,
+  onTranscribingChange,
 }: {
   transcribe: (form: FormData) => Promise<{ text: string }>;
   onText: (text: string) => void;
   disabled?: boolean;
   onLevel?: (level: number) => void;
   onRecordingChange?: (recording: boolean) => void;
+  /** Gravação terminada e o áudio sendo transcrito (a órbita passa a "processando"). */
+  onTranscribingChange?: (busy: boolean) => void;
 }) {
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
@@ -38,6 +41,9 @@ export function VoiceButton({
     onRecordingChange?.(recording);
     if (!recording) onLevel?.(0);
   }, [recording, onRecordingChange, onLevel]);
+  useEffect(() => {
+    onTranscribingChange?.(state === "sending");
+  }, [state, onTranscribingChange]);
 
   // Gravando: o botão fica vermelho e respira com a voz.
   const on = useSharedValue(0);

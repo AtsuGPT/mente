@@ -161,9 +161,14 @@ export async function POST(request: Request, context: EnvContext) {
   // Administrador da plataforma e proprietários do ambiente usam a Kally sem o limite por pessoa.
   if (!platformAdmin && access.role !== "OWNER" && !allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
 
-  // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado).
+  // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado). Refazer numa conversa salva: a
+  // pergunta já está gravada e seria lida duas vezes (no histórico e como a mensagem atual).
+  const savedHistory = conversation?.messages ?? [];
+  const retryingSaved = body.retry === true && savedHistory.at(-1)?.role === "user" && savedHistory.at(-1)?.content === message;
   const history = conversation
-    ? conversation.messages
+    ? retryingSaved
+      ? savedHistory.slice(0, -1)
+      : savedHistory
     : (Array.isArray(body.history) ? body.history : [])
         .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && typeof (m as { content?: unknown }).content === "string")
         .slice(-10)
@@ -560,7 +565,7 @@ export async function POST(request: Request, context: EnvContext) {
               }
             }
           }
-          const guide = interpretation ? interpretationGuide(interpretation) : null;
+          const guide = [interpretation ? interpretationGuide(interpretation) : null, resumedNote(savedHistory.at(-1)?.createdAt)].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
@@ -1015,6 +1020,20 @@ export async function POST(request: Request, context: EnvContext) {
   headers.set("Content-Type", "text/event-stream; charset=utf-8");
   headers.set("X-Accel-Buffering", "no");
   return new Response(stream, { headers });
+}
+
+/**
+ * Conversa salva retomada depois de um tempo (a pessoa saiu e voltou no outro dia): a Kally sabe que houve uma pausa e
+ * continua o trabalho de onde parou, com naturalidade, em vez de agir como se a última mensagem fosse de agora ou
+ * começar do zero. Menos de 6 horas de pausa: nada muda.
+ */
+function resumedNote(lastAt?: Date | string) {
+  if (!lastAt) return null;
+  const hours = (Date.now() - new Date(lastAt).getTime()) / 3_600_000;
+  if (!Number.isFinite(hours) || hours < 6) return null;
+  const days = Math.round(hours / 24);
+  const gap = hours < 20 ? `${Math.round(hours)} horas` : days <= 1 ? "um dia (a conversa é de ontem)" : `${days} dias`;
+  return `RETOMADA: a pessoa voltou a esta conversa depois de ${gap}. Continue o trabalho de onde vocês pararam, usando o que já foi conversado acima. Se ajudar, lembre em uma frase onde a conversa estava; não repita o que já foi dito e não se apresente de novo.`;
 }
 
 export { preflight as OPTIONS } from "../../../_lib/http";

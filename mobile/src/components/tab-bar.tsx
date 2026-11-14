@@ -4,6 +4,7 @@ import type { Tabs } from "expo-router/js-tabs";
 import Animated, { interpolate, interpolateColor, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Touchable } from "@/components/ui/primitives";
+import { DashboardPanel } from "@/components/left-dashboard";
 import { spring, timing } from "@/theme/motion";
 import { colors, fonts, radius, tint } from "@/theme/tokens";
 
@@ -11,12 +12,14 @@ import { colors, fonts, radius, tint } from "@/theme/tokens";
  * Barra de abas do ambiente: preta, de ponta a ponta, como a de um app nativo.
  *
  * Uma única pílula roxa translúcida desliza com mola (interrompível: tocar em outra aba no meio
- * do caminho só muda o destino) até a aba escolhida; o ícone ativo ganha o lilás e os outros
- * ficam em cinza, em transição cruzada. Toque com resposta tátil.
+ * do caminho só muda o destino) até a aba escolhida. Só a aba escolhida fica inteira (opaca, no tamanho
+ * normal); as outras ficam na surdina, apagadas e um pouco menores, como se estivessem um passo atrás dela.
+ * Toque com resposta tátil.
  *
  *  - bottom: celular (abaixo de 768 px), barra no rodapé, acima da área segura.
  *  - rail: tablet/janela média, coluna estreita.
- *  - side: notebook/monitor, coluna com rótulos ao lado; a pílula ocupa a linha.
+ *  - side: notebook/monitor, coluna com rótulos ao lado; a pílula ocupa a linha. Abaixo das abas fica o painel
+ *    de busca e pastas (left-dashboard.tsx), fixo.
  *
  * O toque segue o contrato da barra padrão (tabPress cancelável, tabLongPress); na web cada
  * aba é um link de verdade.
@@ -134,6 +137,11 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab, insets, 
     >
       {pill}
       {items}
+      {variant === "side" ? (
+        <View style={styles.dock}>
+          <DashboardPanel docked />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -178,6 +186,11 @@ function TabItem({
   const idleIcon = useAnimatedStyle(() => ({ opacity: 1 - on.value, transform: [{ scale: interpolate(on.value, [0, 1], [1, 0.92]) }] }));
   const text = useAnimatedStyle(() => ({ color: interpolateColor(Math.max(on.value, hover.value * 0.45), [0, 1], [colors.faint, variant === "side" ? colors.text : colors.violet200]) }));
   const surface = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(hover.value * (1 - on.value), [0, 1], ["rgba(255,255,255,0)", "rgba(255,255,255,0.05)"]) }));
+  // Profundidade: a escolhida inteira; as outras apagadas e menores (o passar do mouse as traz um pouco à frente).
+  const depth = useAnimatedStyle(() => {
+    const lift = Math.max(on.value, hover.value * 0.35);
+    return { opacity: interpolate(lift, [0, 1], [0.4, 1]), transform: [{ scale: interpolate(lift, [0, 1], [0.9, 1]) }] };
+  });
   const iconBox = variant === "bottom" ? styles.iconBottom : variant === "rail" ? styles.iconRail : styles.iconSide;
 
   return (
@@ -205,6 +218,7 @@ function TabItem({
       haptic={!focused}
       style={[styles.item, variant === "bottom" ? styles.itemBottom : variant === "rail" ? styles.itemRail : styles.itemSide, surface]}
     >
+      <Animated.View style={[styles.depth, variant === "side" && styles.depthSide, depth]}>
       <View style={iconBox}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, idleIcon]}>
           <Icon name={icon} size={22} color={colors.faint} strokeWidth={1.5} />
@@ -216,6 +230,7 @@ function TabItem({
       <Animated.Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.3} style={[styles.label, variant === "side" ? styles.labelSide : null, text]}>
         {label}
       </Animated.Text>
+      </Animated.View>
     </Touchable>
   );
 }
@@ -228,6 +243,9 @@ const styles = StyleSheet.create({
   side: { width: 236, paddingRight: 12, gap: 6 },
   indicator: { position: "absolute", left: 0, top: 0, backgroundColor: tint.selected, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder },
   center: { alignItems: "center", justifyContent: "center" },
+  depth: { alignItems: "center", gap: 3 },
+  depthSide: { flexDirection: "row", gap: 12, transformOrigin: "left center" } as object,
+  dock: { flex: 1, minHeight: 0, marginTop: 18, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   item: { alignItems: "center", justifyContent: "center" },
   itemBottom: { flex: 1, minHeight: 58, paddingTop: 7, gap: 3, justifyContent: "flex-start", borderRadius: radius.md },
   itemRail: { minHeight: 70, gap: 4, justifyContent: "flex-start" },

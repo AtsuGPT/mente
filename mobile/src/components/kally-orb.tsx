@@ -34,7 +34,6 @@ import { colors } from "@/theme/tokens";
 export type KallyOrbState = "idle" | "thinking" | "speaking";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /** graus por segundo da primeira fita em repouso (uma volta em ~7 s) */
 const BASE_SPEED = 52;

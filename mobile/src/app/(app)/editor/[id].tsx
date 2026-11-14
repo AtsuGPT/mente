@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
+import { ScrollView, StyleSheet, Switch, TextInput, View, type TextInputInstance } from "react-native";
 import { Alert } from "@/lib/alert";
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from "expo-router";
 import { readingMinutes, stripMarkdown } from "@shared/text";

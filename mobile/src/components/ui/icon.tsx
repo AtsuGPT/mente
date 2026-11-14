@@ -44,7 +44,8 @@ export type IconName =
   | "table"
   | "flow"
   | "copy"
-  | "expand";
+  | "expand"
+  | "panel";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
@@ -185,6 +186,7 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
         </>
       )}
       {name === "expand" && <Path d="M14.5 4.5h5v5M9.5 19.5h-5v-5M19.5 4.5l-6 6M4.5 19.5l6-6" {...p} />}
+      {name === "panel" && <Path d="M6 4.5h12A2.5 2.5 0 0 1 20.5 7v10a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17V7A2.5 2.5 0 0 1 6 4.5ZM9.5 4.5v15M5.8 8.5h1.6M5.8 11.5h1.6" {...p} />}
     </Svg>
   );
 }

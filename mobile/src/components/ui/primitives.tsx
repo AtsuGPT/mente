@@ -33,7 +33,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, elevation, fonts, gradients, radius, space, tint, type } from "@/theme/tokens";
 import { Surface } from "./surface";
-import { duration, easing, enter, spring, timing } from "@/theme/motion";
+import { easing, enter, spring, timing } from "@/theme/motion";
 import { Icon, type IconName } from "./icon";
 import { useTypeScale } from "@/theme/type-scale";
 

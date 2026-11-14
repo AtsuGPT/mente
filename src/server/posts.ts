@@ -67,7 +67,8 @@ function toFull(row: PostRow): PostFull {
 /* Sem escopo explícito, vale o do site (ambiente "mente", cookies).    */
 /* ------------------------------------------------------------------ */
 
-export const FEED_PAGE_SIZE = 10;
+/** Pensamentos por página no feed, na busca e nas pastas (15 de cada vez, pedido do dono do projeto, 14/11/2026). */
+export const FEED_PAGE_SIZE = 15;
 
 function parseSearchDate(value: string | undefined, endOfDay = false): Date | undefined {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;

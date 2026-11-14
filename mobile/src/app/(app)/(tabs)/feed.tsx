@@ -61,7 +61,7 @@ export default function FeedScreen() {
         onEndReached={feed.loadMore}
         ListHeaderComponent={
           <View style={{ gap: space.lg, marginBottom: space.xs }}>
-            <EnvironmentHeader title="Pensamentos" subtitle={environment.description || undefined} />
+            <EnvironmentHeader title="Feed" subtitle={environment.description || undefined} />
 
             <View style={styles.headingRow}>
               <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Recentes"}</AppText>

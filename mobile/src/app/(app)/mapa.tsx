@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import Animated from "react-native-reanimated";
@@ -10,7 +9,6 @@ import { formatDateShort, formatNumber } from "@/lib/format";
 import { layoutGraph, type LaidOutNode, type Layout } from "@/lib/graph-layout";
 import type { KnowledgeMapHandle } from "@/components/knowledge-map";
 import { MapCanvas } from "@/components/map-canvas";
-import { EnvironmentHeader } from "@/components/environment-header";
 import { AppText, Button, Chip, IconButton, StateView } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, elevation, radius, space } from "@/theme/tokens";
@@ -31,7 +29,6 @@ const PANEL_HEIGHT = 250;
 /** Área de arquivos como mapa de conexões: pastas, pensamentos e imagens reais. */
 export default function MapScreen() {
   const { api } = useCurrentEnvironment();
-  const insets = useSafeAreaInsets();
   const { sidebar } = useLayout();
   // Mapa fora de foco (outra aba aberta): o movimento ambiente para.
   const ambientActive = useAmbientActive();
@@ -97,13 +94,13 @@ export default function MapScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={[styles.top, { paddingTop: insets.top + space.md }]}>
-        <View style={styles.titleRow}>
-          <EnvironmentHeader
-            title="Mapa de conexões"
-            subtitle={layout ? `${counts.pasta} pastas · ${counts.pensamento} pensamentos · ${counts.imagem} imagens` : undefined}
-          />
-        </View>
+      {/* Tela própria (aberta pelo painel da esquerda): o título fica no cabeçalho da pilha. */}
+      <View style={[styles.top, { paddingTop: space.sm }]}>
+        {layout ? (
+          <View style={styles.titleRow}>
+            <AppText variant="small" color={colors.muted}>{`${counts.pasta} pastas · ${counts.pensamento} pensamentos · ${counts.imagem} imagens`}</AppText>
+          </View>
+        ) : null}
         {folders.length ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg }}>
             {folders.map((folder) => (

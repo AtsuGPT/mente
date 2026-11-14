@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "
 import { ActivityIndicator, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { cancelAnimation, Easing, interpolateColor, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { router, useLocalSearchParams } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
@@ -26,7 +26,9 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, elevation, gradients, radius, space, tint, type } from "@/theme/tokens";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 import { KallyOrbital, useKallyActivity, type KallyOrbitalState } from "@/components/kally/orbital";
-import { ORBIT_SIZE, OrbitDock, useOrbitDock } from "@/components/kally/orbit-dock";
+import { PresenceBand, PresenceLayer, phraseIn, phraseOut, useKallyPresence, usePresenceDim } from "@/components/kally/orbit-dock";
+import { DashboardButton } from "@/components/left-dashboard";
+import { useGreeting, useKallyPhrase, type PhraseKey } from "@/lib/kally-phrases";
 import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "@/components/ui/surface";
 import { Sheet } from "@/components/ui/sheet";
@@ -77,6 +79,8 @@ type Message = {
   queued?: boolean;
   /** resposta interrompida pelo botão Parar */
   stopped?: boolean;
+  /** resposta ainda sendo escrita no servidor (a pessoa saiu e voltou, ou a conexão caiu): o app confere até chegar */
+  waiting?: boolean;
 };
 type DevStats = {
   loadSeconds?: number;
@@ -165,8 +169,10 @@ export default function KallyScreen() {
 function Kally() {
   const insets = useSafeAreaInsets();
   const { gutter, width, short, size } = useLayout();
-  // Órbita da tela vazia: menor em celulares estreitos e em telas baixas (celular deitado), maior em tablets.
-  const orbSize = short ? 112 : width < 360 ? 132 : size === "compact" ? 156 : 184;
+  // Órbita da tela vazia: menor em celulares estreitos e em telas baixas (celular deitado), maior no computador.
+  // O desenho ocupa ~72% do quadro; o resto é o halo e o espaço do voo das partículas.
+  const orbSize = short ? 150 : width < 360 ? 184 : size === "compact" ? 210 : width >= 1100 ? 300 : 260;
+  const wide = width >= 900;
   const column = { flex: 1, width: "100%" as const, maxWidth: maxWidths.content + gutter * 2, alignSelf: "center" as const };
   const { api, environment, permissions, role } = useCurrentEnvironment();
   const [mode, setMode] = useState<KallyMode>("auto");
@@ -223,6 +229,7 @@ function Kally() {
   // Voz: nível real do microfone (0–1) alimenta a órbita no estado "escutando".
   const voiceLevel = useSharedValue(0);
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const onVoiceLevel = useCallback((value: number) => {
     voiceLevel.value = withTiming(value, { duration: 90 });
   }, [voiceLevel]);
@@ -386,6 +393,7 @@ function Kally() {
 
   function startNew() {
     if (loading) return;
+    void setItem(lastKey, "").catch(() => undefined);
     setConversationId(null);
     setReadingOwner(null);
     setMessages([]);
@@ -397,7 +405,8 @@ function Kally() {
 
   // Resposta que segue sendo escrita no servidor (a pessoa saiu antes do fim): o app confere até ficar pronta.
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
-  const WAITING = "A Kally ainda está escrevendo esta resposta. Ela aparece aqui assim que ficar pronta.";
+  const WAITING = "Ainda estou escrevendo esta resposta. Ela aparece aqui assim que ficar pronta.";
+  const INTERRUPTED = "Esta resposta não chegou a ser escrita. Toque em Refazer e eu continuo daqui.";
   useEffect(() => {
     if (!waitingFor) return;
     let alive = true;
@@ -413,7 +422,12 @@ function Kally() {
     };
   }, [waitingFor, api]);
 
-  async function resume(conversation: KallyConversation) {
+  /**
+   * Abre uma conversa salva com tudo o que já foi dito; a próxima mensagem continua dela (o servidor lê o histórico do
+   * banco). Resposta ainda sendo escrita: o app espera por ela. Pergunta sem resposta (o servidor reiniciou no meio, por
+   * exemplo): aparece "Refazer" para a Kally escrever de novo. silent: reabertura automática, sem alerta se falhar.
+   */
+  async function resume(conversation: KallyConversation, silent = false) {
     setShowHistory(false);
     try {
       const full = await api.kallyConversation(conversation.id);
@@ -421,10 +435,15 @@ function Kally() {
       setReadingOwner(full.owner ?? null);
       setSave(true);
       const list: Message[] = full.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources }));
-      if (full.generating) list.push({ id: `escrevendo-${full.id}`, role: "assistant", content: "", status: WAITING });
+      if (full.generating) list.push({ id: `escrevendo-${full.id}`, role: "assistant", content: "", status: WAITING, waiting: true });
+      else if (list.at(-1)?.role === "user" && !full.owner) list.push({ id: `interrompida-${full.id}`, role: "assistant", content: "", status: INTERRUPTED });
       setMessages(list);
       setWaitingFor(full.generating ? full.id : null);
     } catch (cause) {
+      if (silent) {
+        void setItem(lastKey, "").catch(() => undefined);
+        return;
+      }
       Alert.alert("Kally", cause instanceof Error ? cause.message : "Não consegui abrir a conversa.");
     }
   }
@@ -475,14 +494,34 @@ function Kally() {
     [api, mode, loadHistory],
   );
 
+  // Última conversa salva deste ambiente: guardada no aparelho e reaberta quando a Kally abre de novo (a pessoa saiu e
+  // voltou, mesmo no outro dia), para continuar o trabalho de onde parou. "Nova conversa" esquece.
+  const lastKey = `minha-mente.kally-ultima.${environment.id}`;
+  useEffect(() => {
+    if (conversationId && !readingOwner) void setItem(lastKey, conversationId).catch(() => undefined);
+  }, [conversationId, readingOwner, lastKey]);
+  const restored = useRef(false);
+
   // Conversa aberta pelo painel da Kally (/kally-painel → /perguntar?conversa=…).
   const { conversa } = useLocalSearchParams<{ conversa?: string }>();
   useEffect(() => {
     if (!conversa || conversa === conversationId) return;
+    restored.current = true;
     void resume({ id: conversa } as KallyConversation);
     router.setParams({ conversa: undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversa]);
+  useEffect(() => {
+    if (restored.current || conversa) return;
+    restored.current = true;
+    void getItem(lastKey)
+      .catch(() => null)
+      .then((id) => {
+        // Só se nada começou enquanto lia o aparelho (a pessoa já digitou e enviou, ou abriu outra conversa).
+        if (id && !messagesRef.current.length) void resume({ id } as KallyConversation, true);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function remove(conversation: KallyConversation) {
     const confirmDelete = async () => {
@@ -743,8 +782,8 @@ function Kally() {
       }
       // Conversa salva: a conexão caiu, mas a Kally continua escrevendo no servidor. Em vez do erro, espera a resposta.
       if (savedId) {
-        const text = "A conexão caiu, mas a Kally continua escrevendo. A resposta aparece aqui assim que ficar pronta.";
-        update((m) => ({ ...m, content: "", status: text, steps: addStep(m.steps, text, "conexao", Date.now()) }));
+        const text = "A conexão caiu, mas continuo escrevendo. A resposta aparece aqui assim que ficar pronta.";
+        update((m) => ({ ...m, content: "", status: text, waiting: true, steps: addStep(m.steps, text, "conexao", Date.now()) }));
         setWaitingFor(savedId);
         return;
       }
@@ -785,23 +824,48 @@ function Kally() {
     chaseLive.value = false;
     chase.setActive(loading && following);
   }, [loading, following, chase, chaseLive]);
-  // Estado real: escutando (gravando), preparando (sem texto ainda), respondendo (texto
-  // chegando), falha na última resposta, ou pronta.
-  const orbState: KallyOrbitalState = listening ? "listening" : loading ? (lastMessage?.role === "assistant" && lastMessage.content ? "responding" : "thinking") : lastMessage?.failed ? "error" : attachment?.status === "processing" ? "thinking" : "idle";
+  // Estado real: escutando (gravando), lendo um anexo, as etapas que o servidor manda enquanto prepara a resposta
+  // (memória, fontes, rascunho do post), respondendo (texto chegando), falha na última resposta, ou pronta.
+  const orbState: KallyOrbitalState = listening
+    ? "listening"
+    : transcribing
+      ? "thinking"
+      : loading
+      ? visualFromAnswer(lastMessage)
+      : lastMessage?.failed
+        ? "error"
+        : attachment?.status === "processing"
+          ? "docs"
+          : "idle";
+  // Acabou de responder: "Quer ajustar alguma coisa?" por alguns segundos, depois a frase some.
+  const [justDone, setJustDone] = useState(false);
+  const wasLoading = useRef(false);
+  useEffect(() => {
+    if (wasLoading.current && !loading) {
+      wasLoading.current = false;
+      setJustDone(true);
+      const timer = setTimeout(() => setJustDone(false), 6_000);
+      return () => clearTimeout(timer);
+    }
+    wasLoading.current = loading;
+  }, [loading]);
+  const phraseKey: PhraseKey | null = orbState === "idle" ? (justDone && started ? "done" : null) : orbState === "speaking" ? "responding" : orbState;
+  const phrase = useKallyPhrase(phraseKey);
+  const greeting = useGreeting(signedUser?.displayName);
   const engineLabel = `${answerCfg.model === "local" ? " · Kally 1.5" : answerCfg.model === "remote" ? " · Kally 32" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
   const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_ENGINE_LABEL[dev.engine]}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
-  // A órbita vai para o canto direito, logo acima da caixa de texto, quando o teclado abre (ou o
-  // campo ganha foco na web) e volta ao cabeçalho enquanto a Kally responde.
-  const orbit = useOrbitDock({ keyboardInset, composerFocus, answering: loading, gutter });
+  // A órbita fica no topo da conversa, com a frase de estado abaixo; vai para o meio (maior) quando a Kally escuta e
+  // para o canto, acima da caixa de texto, quando o teclado do celular abre (orbit-dock.tsx).
+  const presence = useKallyPresence({ keyboardInset, level: voiceLevel, listening, answering: loading, gutter, wide });
+  const dim = usePresenceDim(presence);
   // Respondendo: com a caixa vazia o botão é Parar; com texto, a mensagem vai para a fila.
   const sendDisabled = loading ? false : queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
 
   return (
     <KeyboardScreen insetMirror={keyboardInset}>
-      <View style={column} onLayout={orbit.onColumnLayout}>
+      <View style={column} onLayout={presence.onColumnLayout}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        {/* Lugar da órbita no cabeçalho: ela mesma flutua por cima (ver OrbitDock). */}
-        {started ? <View onLayout={orbit.onSlotLayout} style={styles.orbitSlot} /> : null}
+        <DashboardButton />
         <Animated.View layout={layoutTransition} style={{ flex: 1 }}>
           <Touchable onPress={goToEnvironments} pressScale={0.98} accessibilityRole="button" accessibilityLabel={`Trocar de ambiente (atual: ${environment.name})`} style={styles.envLink}>
             <AppText variant="label" color={colors.violet300} numberOfLines={1} style={{ flexShrink: 1 }}>{environment.name}</AppText>
@@ -825,7 +889,10 @@ function Kally() {
         </View>
       ) : null}
 
-      <View style={{ flex: 1 }}>
+      {/* Lugar da órbita e da frase no topo da conversa: a órbita mesma flutua por cima (PresenceLayer). */}
+      {started ? <PresenceBand presence={presence} /> : null}
+
+      <Animated.View onLayout={presence.onListLayout} style={[{ flex: 1 }, started && dim]}>
       <Animated.FlatList
         ref={list}
         data={messages}
@@ -848,12 +915,17 @@ function Kally() {
         removeClippedSubviews={Platform.OS !== "web"}
         windowSize={9}
         ListEmptyComponent={
-          <Animated.View entering={enter.rise} exiting={exit.fade} style={styles.empty}>
+          <Animated.View entering={enter.rise} style={styles.empty}>
             <KallyOrbital size={orbSize} state={orbState} activity={activity} level={voiceLevel} interactive announce />
-            <AppText variant="hero" style={{ textAlign: "center", marginTop: space.lg }}>Oi! Sobre o que{"\n"}vamos conversar?</AppText>
-            <AppText color={colors.muted} style={{ textAlign: "center", marginTop: space.sm }}>
-              Fale do seu dia, tire uma dúvida, peça ajuda para escrever ou revisar. Em {environment.name}, a Kally consulta seus pensamentos quando isso ajuda.
-            </AppText>
+            <View style={[styles.greetingSlot, { marginTop: -Math.round(orbSize * 0.1) }]}>
+              {phrase || greeting ? (
+                <Animated.View key={phrase || greeting} entering={phraseIn} exiting={phraseOut} style={styles.greetingLine}>
+                  <AppText variant={phrase ? "ui" : "title"} color={phrase ? colors.muted : colors.text} style={[styles.greeting, !phrase && wide && styles.greetingWide]}>
+                    {phrase || greeting}
+                  </AppText>
+                </Animated.View>
+              ) : null}
+            </View>
             <Touchable onPress={() => setSave((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: save }} aria-checked={save} pressScale={0.98} style={{ alignSelf: "stretch", marginTop: space.xl }}>
               <Surface active={save} contentStyle={styles.saveToggle}>
                 <View style={[styles.check, save && styles.checkOn]}>{save ? <Icon name="check" size={14} color="#FFFFFF" strokeWidth={2.4} /> : null}</View>
@@ -867,6 +939,9 @@ function Kally() {
         }
         renderItem={renderItem}
       />
+      {started ? (
+        <LinearGradient pointerEvents="none" colors={[colors.bg, "rgba(0,0,0,0)"]} style={styles.listFade} />
+      ) : null}
       {!following && messages.length ? (
         <Animated.View entering={enter.fade} exiting={exit.fade} style={[styles.jump, { right: gutter }]}>
           <Touchable accessibilityLabel="Ir para a última mensagem" onPress={() => goToEnd(true)} pressScale={0.92} style={styles.jumpButton}>
@@ -876,10 +951,10 @@ function Kally() {
           </Touchable>
         </Animated.View>
       ) : null}
-      </View>
+      </Animated.View>
 
       {/* Tudo o que fica embaixo da lista: a órbita para logo acima disso quando o teclado abre. */}
-      <View onLayout={orbit.onBottomLayout}>
+      <View onLayout={presence.onBottomLayout}>
       {transcribed ? (
         <Animated.View entering={enter.fade} exiting={exit.fade} layout={layoutTransition}>
           <AppText variant="small" color={colors.warning} style={styles.note}>Transcrição do áudio: revise e edite antes de enviar.</AppText>
@@ -957,6 +1032,7 @@ function Kally() {
           maxLength={mode === "revisar" ? 4000 : 4000}
           multiline
           accessibilityLabel="Mensagem para a Kally"
+          nativeID="frame-focus-kally"
           style={styles.composerInput}
         />
         <View style={styles.composerBar}>
@@ -980,6 +1056,7 @@ function Kally() {
             disabled={loading || !permissions.publish}
             onLevel={onVoiceLevel}
             onRecordingChange={setListening}
+            onTranscribingChange={setTranscribing}
             onText={(text) => {
               setDraft((value) => (value.trim() ? `${value.trim()}\n\n${text}` : text));
               setTranscribed(true);
@@ -994,9 +1071,9 @@ function Kally() {
       </View>
 
       {started ? (
-        <OrbitDock orbit={orbit}>
-          <KallyOrbital size={ORBIT_SIZE} state={orbState} activity={activity} level={voiceLevel} interactive announce />
-        </OrbitDock>
+        <PresenceLayer presence={presence} status={phrase}>
+          <KallyOrbital size={presence.canvas} state={orbState} activity={activity} level={voiceLevel} interactive announce />
+        </PresenceLayer>
       ) : null}
       </View>
 
@@ -1237,14 +1314,11 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer, on
         </View>
       ) : null}
       {!item.content ? (
-        item.steps?.length ? (
-          <View style={styles.typingColumn}>
-            <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{pending ? "Trabalhando no seu pedido…" : "Parei aqui."}</Shimmer></View>
-            <StepList steps={item.steps} startedAt={item.startedAt} finishedAt={item.finishedAt} live={pending} />
-          </View>
-        ) : (
-          <View style={styles.typing}><KallyOrbital size={34} state="thinking" /><Shimmer>{item.status ?? (item.mode === "revisar" ? "Revisando…" : "Pensando…")}</Shimmer></View>
-        )
+        <Animated.View exiting={exit.fade} style={styles.typingColumn}>
+          {pending || item.waiting ? <BuildBars live /> : null}
+          {item.steps?.length ? <StepList steps={item.steps} startedAt={item.startedAt} finishedAt={item.finishedAt} live={pending} /> : null}
+          {!pending ? <AppText variant="small" color={colors.faint}>{item.status ?? "Parei aqui."}</AppText> : null}
+        </Animated.View>
       ) : isUser ? (
         <>
           <AppText color="#FFFFFF" style={{ lineHeight: 22 }}>{item.content}</AppText>
@@ -1640,7 +1714,72 @@ function ToEditor({ content }: { content: string }) {
   );
 }
 
-/** Marca estática da Kally nas mensagens (a órbita animada fica no cabeçalho e no "pensando"). */
+/**
+ * Desenho da órbita enquanto a Kally prepara a resposta, pelas etapas reais que o servidor manda (nada inventado):
+ * fontes da internet → pesquisando; rascunho e revisão do post → post; o resumo do que ela usou (memórias e
+ * pensamentos, fontes, documentos) → o desenho correspondente; partes do modo aprofundado e texto chegando →
+ * respondendo; o resto (entender, planejar, esperar o modelo) → processando.
+ */
+function visualFromAnswer(message?: Message): KallyOrbitalState {
+  if (!message || message.role !== "assistant") return "thinking";
+  const steps = message.steps ?? [];
+  const current = steps[steps.length - 1];
+  const live = current && current.doneAt === undefined ? current : null;
+  const key = live?.key ?? "";
+  if (/^(rascunho|revisao|post-leu)/.test(key)) return "post";
+  if (message.content) return "responding";
+  if (/^post-(fontes|pesquisa)/.test(key)) return "research";
+  if (/^parte-/.test(key)) return "responding";
+  if (/^resumo/.test(key) && live) {
+    if (/lembrei|pensamento|conversa/i.test(live.text)) return "memory";
+    if (/fonte|site|p[aá]gina/i.test(live.text)) return "research";
+    if (/trecho|documento/i.test(live.text)) return "docs";
+  }
+  if (!steps.length && message.mode === "revisar") return "docs";
+  return "thinking";
+}
+
+/**
+ * Indicador de construção no chat: duas barras cinza oscilando, com um brilho que passa por elas, enquanto a resposta
+ * não começa (a lista de etapas reais aparece logo abaixo). Paradas com "reduzir movimento".
+ */
+function BuildBars({ live }: { live: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const wave = useSharedValue(0);
+  const sweep = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion || !live) return;
+    wave.value = withRepeat(withTiming(1, { duration: 1_700, easing: Easing.inOut(Easing.sin) }), -1, true);
+    sweep.value = withRepeat(withTiming(1, { duration: 1_500, easing: Easing.inOut(Easing.quad) }), -1, false);
+    return () => {
+      cancelAnimation(wave);
+      cancelAnimation(sweep);
+    };
+  }, [reduceMotion, live, wave, sweep]);
+  const first = useAnimatedStyle(() => ({ width: `${62 + wave.value * 22}%` }));
+  const second = useAnimatedStyle(() => ({ width: `${40 + (1 - wave.value) * 18}%` }));
+  const shine = useAnimatedStyle(() => ({ transform: [{ translateX: -160 + sweep.value * 520 }] }));
+  return (
+    <View style={styles.bars} accessibilityRole="progressbar" accessibilityLabel="A Kally está preparando a resposta">
+      <Animated.View style={[styles.bar, first]}>
+        {live && !reduceMotion ? (
+          <Animated.View style={[styles.barShine, shine]}>
+            <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.09)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
+        ) : null}
+      </Animated.View>
+      <Animated.View style={[styles.bar, styles.barShort, second]}>
+        {live && !reduceMotion ? (
+          <Animated.View style={[styles.barShine, shine]}>
+            <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.09)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
+        ) : null}
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Marca estática da Kally nas mensagens (a órbita animada fica no topo da conversa). */
 function KallyMark({ failed }: { failed: boolean }) {
   return (
     <View style={[styles.mark, failed && styles.markFailed]}>
@@ -1843,8 +1982,15 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 28, lineHeight: 32 },
   modes: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: space.xxl },
-  headerOrb: { marginRight: space.xs },
-  orbitSlot: { width: ORBIT_SIZE, height: ORBIT_SIZE },
+  listFade: { position: "absolute", left: 0, right: 0, top: 0, height: 22 },
+  greetingSlot: { minHeight: 76, alignItems: "center", justifyContent: "flex-start", alignSelf: "stretch" },
+  greetingLine: { position: "absolute", left: 0, right: 0, top: 0, alignItems: "center" },
+  greeting: { textAlign: "center", maxWidth: 420 },
+  greetingWide: { fontSize: 30, lineHeight: 36 },
+  bars: { gap: 8, paddingVertical: 4 },
+  bar: { height: 10, borderRadius: 6, backgroundColor: "#24222B", overflow: "hidden" },
+  barShort: { height: 8 },
+  barShine: { position: "absolute", top: 0, bottom: 0, width: 160 },
   jump: { position: "absolute", bottom: space.md },
   jumpButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong, ...elevation.float },
   attachedName: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: space.xs },
