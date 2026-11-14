@@ -13,6 +13,7 @@ import { enter, exit, layoutTransition, spring } from "@/theme/motion";
 import { splitDetails, type Segment } from "./details";
 import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
+import { ConvergenceAside, ConvergenceExplorer, parseConvergence } from "./convergence-block";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
 
@@ -219,6 +220,16 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
       // Diagramas: o bloco ```mermaid é desenhado (só depois de fechado, no streaming).
       if (isMermaid(code)) return <Diagram source={code.text} complete={fenceClosed(code.raw)} />;
       const lang = (code.lang ?? "").split(/\s/)[0];
+      // Símbolo da Mente ao vivo: ao lado do texto do bloco, ou interativo (convergence-block.tsx).
+      if (lang.toLowerCase() === "convergencia" && fenceClosed(code.raw)) {
+        const options = parseConvergence(code.lang ?? "");
+        if (options.interactive) return <ConvergenceExplorer />;
+        return (
+          <ConvergenceAside part={options.part} side={options.side}>
+            <Blocks tokens={lexer(code.text)} depth={depth + 1} />
+          </ConvergenceAside>
+        );
+      }
       return (
         <View style={styles.codeBlock}>
           {lang ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useId, useMemo } from "react";
 import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
@@ -8,8 +8,11 @@ import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, w
  * a luz acende: a conexão. Mesma geometria dos ícones (scripts/gerar-icones.py) e da peça de identidade.
  *
  * simple: para tamanhos pequenos (fios viram uma fita, os pontos somem, a emenda engrossa). Na abertura do app, as
- * interseções respiram devagar (paradas com "reduzir movimento").
+ * interseções respiram devagar (paradas com "reduzir movimento"). focus: uma parte em destaque e o resto apagado
+ * (posts que explicam o símbolo, bloco ```convergencia no Markdown).
  */
+
+export type ConvergencePart = "tudo" | "kayk" | "julia" | "emenda" | "conexao";
 
 const C = 500;
 const K = { rx: 360, ry: 128, rot: (-14 * Math.PI) / 180 };
@@ -91,8 +94,12 @@ function useGeometry() {
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 
-export function ConvergenceSymbol({ size = 160, simple = false, tile = false, breathe = false }: { size?: number; simple?: boolean; tile?: boolean; breathe?: boolean }) {
+export function ConvergenceSymbol({ size = 160, simple = false, tile = false, breathe = false, focus = "tudo" }: { size?: number; simple?: boolean; tile?: boolean; breathe?: boolean; focus?: ConvergencePart }) {
   const g = useGeometry();
+  // Nomes únicos para os degradês de cada cópia: com nomes repetidos, a página toda usava os da primeira cópia, e uma
+  // cópia escondida (em outra aba) apagava os arcos das outras.
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const ref = (name: string) => `cs-${name}-${uid}`;
   const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(0);
   useEffect(() => {
@@ -102,24 +109,30 @@ export function ConvergenceSymbol({ size = 160, simple = false, tile = false, br
   const flares = useAnimatedProps(() => ({ opacity: 0.72 + pulse.value * 0.28 }));
   const kw = simple ? 22 : 14;
   const sc = simple ? 1.6 : 1;
+  // Destaque: a parte escolhida inteira; o resto apagado, para ela se ler sozinha.
+  const kayk = focus === "julia" ? 0.1 : focus === "emenda" || focus === "conexao" ? 0.4 : 1;
+  const julia = focus === "kayk" ? 0.1 : focus === "emenda" || focus === "conexao" ? 0.4 : 1;
+  const seamOp = focus === "julia" ? 0.1 : 1;
+  const light = focus === "conexao" ? 1 : focus === "tudo" ? 1 : 0.25;
+  const grow = focus === "conexao" ? 1.3 : 1;
 
   return (
     <Svg width={size} height={size} viewBox="0 0 1000 1000" accessibilityRole="image" accessibilityLabel="Convergência, o símbolo da Mente">
       <Defs>
-        <RadialGradient id="cs-tile" cx="50%" cy="46%" r="72%">
+        <RadialGradient id={ref("tile")} cx="50%" cy="46%" r="72%">
           <Stop offset="0" stopColor="#06030B" />
           <Stop offset="0.58" stopColor="#0C0618" />
           <Stop offset="0.86" stopColor="#24105A" />
           <Stop offset="1" stopColor="#3D1A92" />
         </RadialGradient>
-        <LinearGradient id="cs-kayk" x1="0" y1="0.35" x2="1" y2="0.65">
+        <LinearGradient id={ref("kayk")} x1="0" y1="0.35" x2="1" y2="0.65">
           <Stop offset="0" stopColor="#6B45DE" />
           <Stop offset="0.3" stopColor="#A58BF7" />
           <Stop offset="0.52" stopColor="#E7DEFF" />
           <Stop offset="0.74" stopColor="#9A78F3" />
           <Stop offset="1" stopColor="#5A33CC" />
         </LinearGradient>
-        <LinearGradient id="cs-julia" x1="0.22" y1="0" x2="0.78" y2="1">
+        <LinearGradient id={ref("julia")} x1="0.22" y1="0" x2="0.78" y2="1">
           <Stop offset="0" stopColor="#F7CBA8" />
           <Stop offset="0.16" stopColor="#E99A7E" />
           <Stop offset="0.36" stopColor="#C98BC8" />
@@ -128,70 +141,79 @@ export function ConvergenceSymbol({ size = 160, simple = false, tile = false, br
           <Stop offset="0.84" stopColor="#E99A7E" />
           <Stop offset="1" stopColor="#F7CBA8" />
         </LinearGradient>
-        <RadialGradient id="cs-flare" cx="50%" cy="50%" r="50%">
+        <RadialGradient id={ref("flare")} cx="50%" cy="50%" r="50%">
           <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.95} />
           <Stop offset="0.18" stopColor="#F1E6FF" stopOpacity={0.75} />
           <Stop offset="0.5" stopColor="#B58CF5" stopOpacity={0.22} />
           <Stop offset="1" stopColor="#8461F0" stopOpacity={0} />
         </RadialGradient>
-        <RadialGradient id="cs-warm" cx="50%" cy="50%" r="50%">
+        <RadialGradient id={ref("warm")} cx="50%" cy="50%" r="50%">
           <Stop offset="0" stopColor="#F2D7B8" stopOpacity={0.45} />
           <Stop offset="1" stopColor="#F2D7B8" stopOpacity={0} />
         </RadialGradient>
       </Defs>
 
-      {tile ? <Rect x={36} y={36} width={928} height={928} rx={214} fill="url(#cs-tile)" stroke="rgba(165,139,247,0.22)" strokeWidth={2} /> : null}
+      {tile ? <Rect x={36} y={36} width={928} height={928} rx={214} fill={`url(#${ref("tile")})`} stroke="rgba(165,139,247,0.22)" strokeWidth={2} /> : null}
 
       {/* Brilho largo (sem desfoque: traços largos e quase transparentes) */}
-      <Path d={g.kaykLoop} fill="none" stroke="#8461F0" strokeWidth={46} strokeOpacity={0.07} />
-      <Path d={g.juliaFront} fill="none" stroke="#E7A08C" strokeWidth={38} strokeOpacity={0.08} />
+      <Path d={g.kaykLoop} fill="none" stroke="#8461F0" strokeWidth={46} strokeOpacity={0.07 * kayk} />
+      <Path d={g.juliaFront} fill="none" stroke="#E7A08C" strokeWidth={38} strokeOpacity={0.08 * julia} />
 
       {/* Metades de trás */}
-      <Path d={g.kaykBack} fill="none" stroke="url(#cs-kayk)" strokeWidth={kw} strokeOpacity={0.42} strokeLinecap="round" />
+      <Path d={g.kaykBack} fill="none" stroke={`url(#${ref("kayk")})`} strokeWidth={kw} strokeOpacity={0.42 * kayk} strokeLinecap="round" />
+      <G opacity={julia}>
       {simple ? (
-        <Path d={g.juliaBack} fill="none" stroke="url(#cs-julia)" strokeWidth={20} strokeOpacity={0.45} strokeLinecap="round" />
+        <Path d={g.juliaBack} fill="none" stroke={`url(#${ref("julia")})`} strokeWidth={20} strokeOpacity={0.45} strokeLinecap="round" />
       ) : (
         <G opacity={0.45}>
           {g.strands.map((s, i) => (
-            <Path key={`b${i}`} d={s.back} fill="none" stroke="url(#cs-julia)" strokeWidth={s.width} strokeLinecap="round" />
+            <Path key={`b${i}`} d={s.back} fill="none" stroke={`url(#${ref("julia")})`} strokeWidth={s.width} strokeLinecap="round" />
           ))}
         </G>
       )}
-      {simple ? null : <Path d={g.dotsBack} fill="#EDE5FF" opacity={0.42} />}
+      </G>
+      {simple ? null : <Path d={g.dotsBack} fill="#EDE5FF" opacity={0.42 * kayk} />}
 
       {/* Metades da frente */}
+      <G opacity={julia}>
       {simple ? (
-        <Path d={g.juliaFront} fill="none" stroke="url(#cs-julia)" strokeWidth={20} strokeLinecap="round" />
+        <Path d={g.juliaFront} fill="none" stroke={`url(#${ref("julia")})`} strokeWidth={20} strokeLinecap="round" />
       ) : (
         <G>
-          <Path d={g.juliaFront} fill="none" stroke="url(#cs-julia)" strokeWidth={14} strokeOpacity={0.22} />
+          <Path d={g.juliaFront} fill="none" stroke={`url(#${ref("julia")})`} strokeWidth={14} strokeOpacity={0.22} />
           {g.strands.map((s, i) => (
-            <Path key={`f${i}`} d={s.front} fill="none" stroke="url(#cs-julia)" strokeWidth={s.width} strokeLinecap="round" />
+            <Path key={`f${i}`} d={s.front} fill="none" stroke={`url(#${ref("julia")})`} strokeWidth={s.width} strokeLinecap="round" />
           ))}
         </G>
       )}
-      <Path d={g.kaykFront} fill="none" stroke="url(#cs-kayk)" strokeWidth={kw} strokeLinecap="round" />
-      {simple ? null : (
-        <>
-          <Path d={g.kaykSheen} fill="none" stroke="#F6F1FF" strokeWidth={1.6} strokeOpacity={0.6} strokeLinecap="round" />
-          <Path d={g.dotsFront} fill="#F7F3FF" opacity={0.9} />
-        </>
-      )}
+      </G>
+      <G opacity={kayk}>
+        <Path d={g.kaykFront} fill="none" stroke={`url(#${ref("kayk")})`} strokeWidth={kw} strokeLinecap="round" />
+        {simple ? null : (
+          <>
+            <Path d={g.kaykSheen} fill="none" stroke="#F6F1FF" strokeWidth={1.6} strokeOpacity={0.6} strokeLinecap="round" />
+            <Path d={g.dotsFront} fill="#F7F3FF" opacity={0.9} />
+          </>
+        )}
+      </G>
 
       {/* Emenda (8º ponto): um corte fino e duas faixas claras que o costuram */}
-      <G transform={`translate(${g.seam[0].toFixed(1)} ${g.seam[1].toFixed(1)}) rotate(${g.tangent.toFixed(1)}) scale(${sc})`}>
-        <Circle cx={0} cy={0} r={18} fill="url(#cs-warm)" />
+      {focus === "emenda" ? <Circle cx={g.seam[0]} cy={g.seam[1]} r={48} fill="none" stroke="#F2E6D8" strokeWidth={2} strokeDasharray="3 8" opacity={0.85} /> : null}
+      <G opacity={seamOp} transform={`translate(${g.seam[0].toFixed(1)} ${g.seam[1].toFixed(1)}) rotate(${g.tangent.toFixed(1)}) scale(${focus === "emenda" ? sc * 1.5 : sc})`}>
+        <Circle cx={0} cy={0} r={18} fill={`url(#${ref("warm")})`} />
         <Rect x={-0.8} y={-(kw + 1) / 2} width={1.6} height={kw + 1} fill="#120A1E" opacity={0.55} />
         <Rect x={-4.15} y={-(kw * 1.15) / 2} width={1.5} height={kw * 1.15} rx={0.75} fill="#FFF4E8" opacity={0.95} />
         <Rect x={2.65} y={-(kw * 1.15) / 2} width={1.5} height={kw * 1.15} rx={0.75} fill="#FFF4E8" opacity={0.95} />
       </G>
 
       {/* Interseções: a conexão */}
-      <AnimatedG animatedProps={flares}>
-        {g.hits.map((h, i) => (
-          <Circle key={i} cx={h.x} cy={h.y} r={(simple ? 44 : 34) + 9 * h.front} fill="url(#cs-flare)" opacity={0.45 + 0.275 * h.front} />
-        ))}
-      </AnimatedG>
+      <G opacity={light}>
+        <AnimatedG animatedProps={flares}>
+          {g.hits.map((h, i) => (
+            <Circle key={i} cx={h.x} cy={h.y} r={((simple ? 44 : 34) + 9 * h.front) * grow} fill={`url(#${ref("flare")})`} opacity={0.45 + 0.275 * h.front} />
+          ))}
+        </AnimatedG>
+      </G>
     </Svg>
   );
 }
