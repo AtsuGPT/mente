@@ -46,15 +46,24 @@ export async function createUser(input: { username: string; displayName: string;
   }
 }
 
-/** Conta correspondente a uma credencial do .env, criada (uma vez) no primeiro login. */
+/**
+ * Conta correspondente a uma credencial do .env, criada (uma vez) no primeiro login.
+ *
+ * A conta é achada pelo nome de usuário e, se ele tiver mudado, pelo papel do .env (legacyKind): trocar o nome de
+ * usuário ou de exibição no banco não pode criar outra identidade. Antes, só o nome de usuário contava: quando o @ do
+ * administrador mudou de e-mail para "atsu", o login seguinte criou uma segunda conta de administrador com o e-mail,
+ * e os posts, conversas e memórias novos foram para ela (unificadas em 14/11/2026).
+ */
 export async function ensureLegacyUser(kind: LegacyKind, rawUsername: string) {
   const username = normalizeUsername(rawUsername);
-  const user = await db.user.upsert({
-    where: { username },
-    update: { legacyKind: kind },
-    create: { username, displayName: kind === "ADMIN" ? site.author : username, legacyKind: kind },
-    select: publicUserSelect,
-  });
+  const existing =
+    (await db.user.findUnique({ where: { username }, select: publicUserSelect })) ??
+    (await db.user.findFirst({ where: { legacyKind: kind }, orderBy: { createdAt: "asc" }, select: publicUserSelect }));
+  const user = existing
+    ? existing.legacyKind === kind
+      ? existing
+      : await db.user.update({ where: { id: existing.id }, data: { legacyKind: kind }, select: publicUserSelect })
+    : await db.user.create({ data: { username, displayName: kind === "ADMIN" ? site.author : username, legacyKind: kind }, select: publicUserSelect });
 
   const role = kind === "ADMIN" ? "OWNER" : "VIEWER";
   await db.membership.upsert({
