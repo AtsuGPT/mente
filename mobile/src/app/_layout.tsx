@@ -16,7 +16,7 @@ import { InstrumentSans_600SemiBold } from "@expo-google-fonts/instrument-sans/6
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { EnvironmentProvider, useEnvironment } from "@/lib/environment";
 import { AppText, Button } from "@/components/ui/primitives";
-import { NeuralBrain } from "@/components/neural-brain";
+import { ConvergenceSymbol } from "@/components/convergence-symbol";
 import { ScreenBackdrop, ScreenFrame } from "@/components/ui/surface";
 import { AlertHost } from "@/components/ui/alert-host";
 import { colors, fonts, space } from "@/theme/tokens";
@@ -128,7 +128,7 @@ function RootStack() {
     return (
       <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}>
         <ScreenBackdrop />
-        <NeuralBrain width={200} />
+        <ConvergenceSymbol size={180} breathe />
       </Animated.View>
     );
   }
@@ -137,7 +137,7 @@ function RootStack() {
     return (
       <Animated.View entering={enter.fade} style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: space.xxl }}>
         <ScreenBackdrop />
-        <NeuralBrain width={180} />
+        <ConvergenceSymbol size={150} />
         <AppText variant="title" style={{ marginTop: space.xl, textAlign: "center" }}>Sem conexão</AppText>
         <AppText color={colors.muted} style={{ marginTop: space.sm, textAlign: "center" }}>{state.message}</AppText>
         <Button label="Tentar de novo" onPress={() => void retry()} style={{ marginTop: space.xl, alignSelf: "center", width: "100%", maxWidth: 360 }} />

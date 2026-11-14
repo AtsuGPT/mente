@@ -278,7 +278,7 @@ export async function setEnvironmentImage(environmentId: string, dataUrl: string
 
 /** Arquivar não apaga nada: o ambiente some das listas e só o proprietário o vê. */
 export async function setArchived(environmentId: string, archived: boolean) {
-  if (environmentId === DEFAULT_ENVIRONMENT_ID) return { ok: false as const, error: "O ambiente Minha Mente é o do site e não pode ser arquivado." };
+  if (environmentId === DEFAULT_ENVIRONMENT_ID) return { ok: false as const, error: "O ambiente original é o do site e não pode ser arquivado." };
   await db.environment.update({ where: { id: environmentId }, data: { archivedAt: archived ? new Date() : null } });
   return { ok: true as const };
 }

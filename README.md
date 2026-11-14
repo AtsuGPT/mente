@@ -1,6 +1,6 @@
-# Minha Mente
+# Mente
 
-Plataforma de ambientes de pensamentos: um app (Expo, em `mobile/`) para celular e web, com backend em Next.js e SQLite.
+Plataforma de ambientes de pensamentos (o endereço continua minhamente.space): um app (Expo, em `mobile/`) para celular e web, com backend em Next.js e SQLite.
 
 ## Estrutura
 

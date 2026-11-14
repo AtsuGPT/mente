@@ -15,7 +15,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   return (
     <main id="conteudo" className="standalone">
       <div className="standalone-card">
-        <p className="eyebrow">Convite · Minha Mente</p>
+        <p className="eyebrow">Convite · Mente</p>
         {preview.ok ? (
           <>
             <h1>{preview.environment.name}</h1>
@@ -27,7 +27,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
         <div className="standalone-panel">
           {preview.ok ? (
             <p>
-              Abra o Minha Mente, escolha <strong>Adicionar ambiente</strong> e informe o código{" "}
+              Abra a Mente, escolha <strong>Adicionar ambiente</strong> e informe o código{" "}
               <strong className="code">{preview.code}</strong> (ou cole este link).
             </p>
           ) : (
@@ -36,7 +36,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
         </div>
         <div className="standalone-actions">
           <a href="/" className="button button-primary">
-            Abrir o Minha Mente
+            Abrir a Mente
           </a>
         </div>
       </div>

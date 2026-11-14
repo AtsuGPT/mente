@@ -8,7 +8,7 @@ import { AppText, Button, SectionLabel, TextField, Touchable } from "./ui/primit
 import { Icon } from "./ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
 
-/** Paleta sugerida (qualquer #RRGGBB vale); o roxo é o padrão do Minha Mente. */
+/** Paleta sugerida (qualquer #RRGGBB vale); o roxo é o padrão da Mente. */
 const SWATCHES = ["#7C5CE0", "#9D5CF0", "#4F7CFF", "#2BB3A3", "#E0A23B", "#E05C8A", "#5CA8E0", "#8AA05C"];
 
 /** Formulário de ambiente (criar e configurar), com prévia de como ele aparece na central. */

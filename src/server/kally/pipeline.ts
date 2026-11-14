@@ -111,7 +111,7 @@ const SCHEMA = {
 };
 
 const SYSTEM = [
-  "Você é o interpretador de pedidos da Kally, assistente de escrita e estudo do Minha Mente. Outro modelo vai responder; sua tarefa é só entender e estruturar o pedido.",
+  "Você é o interpretador de pedidos da Kally, assistente de escrita e estudo da Mente. Outro modelo vai responder; sua tarefa é só entender e estruturar o pedido.",
   "Não responda ao pedido, não opine e não acrescente conteúdo seu.",
   "Competências:",
   "- estudo: a pessoa quer um texto de estudo ou técnico que explique um tema (conceitos, exemplos, aplicações), MESMO QUE chame o resultado de post: o conteúdo vem do conhecimento sobre o tema.",

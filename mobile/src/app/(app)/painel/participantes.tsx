@@ -149,7 +149,7 @@ function InvitesSection({ invites, assignable, onChange }: { invites: Invite[]; 
   const [busy, setBusy] = useState(false);
 
   async function share(invite: Invite) {
-    await Share.share({ message: `Convite para ${environment.name} no Minha Mente.\nCódigo: ${invite.code}\n${invite.link}` }).catch(() => undefined);
+    await Share.share({ message: `Convite para ${environment.name} na Mente.\nCódigo: ${invite.code}\n${invite.link}` }).catch(() => undefined);
   }
 
   async function create() {

@@ -49,7 +49,7 @@ export default function RegisterScreen() {
     <KeyboardScreen header>
       <ScrollView contentContainerStyle={[{ padding: space.xl, gap: space.lg }, container]} keyboardShouldPersistTaps="handled">
         <View>
-          <AppText variant="hero">Sua conta no Minha Mente</AppText>
+          <AppText variant="hero">Sua conta na Mente</AppText>
           <AppText color={colors.muted} style={{ marginTop: space.xs }}>
             {intent ? `Depois de criar, continuamos para ${intent.name}.` : "Com uma conta você cria ambientes e aceita convites."}
           </AppText>

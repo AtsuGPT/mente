@@ -7,7 +7,7 @@
  *  - "Um arquivo pessoal do que penso, ou do que ainda estou tentando pensar."
  */
 export const site = {
-  name: "Minha Mente",
+  name: "Mente",
   author: "kayk",
   authorHandle: "@kayk",
   tagline: "Um arquivo de pensamentos, ideias e fragmentos de uma mente em construção.",

@@ -130,10 +130,11 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
           <Path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" {...p} />
         </>
       )}
+      {/* "brain" (nome antigo, guardado nos ambientes): agora o símbolo Convergência, dois arcos que se cruzam. */}
       {name === "brain" && (
         <>
-          <Path d="M9.5 4.5a3 3 0 0 0-3 3 3 3 0 0 0-2 5.2A3 3 0 0 0 6.5 18a2.8 2.8 0 0 0 3 2.5V4.5ZM14.5 4.5a3 3 0 0 1 3 3 3 3 0 0 1 2 5.2 3 3 0 0 1-2 5.3 2.8 2.8 0 0 1-3 2.5V4.5Z" {...p} />
-          <Path d="M9.5 9H8M9.5 14H7.5M14.5 9H16M14.5 14h2" {...p} />
+          <Ellipse cx={12} cy={12} rx={9.4} ry={3.5} transform="rotate(-14 12 12)" {...p} />
+          <Ellipse cx={12} cy={12} rx={3.7} ry={9.2} transform="rotate(-28 12 12)" {...p} />
         </>
       )}
       {name === "book" && <Path d="M12 6.5c-2-1.6-4.6-2-8-2v13c3.4 0 6 .4 8 2 2-1.6 4.6-2 8-2v-13c-3.4 0-6 .4-8 2Zm0 0v13" {...p} />}

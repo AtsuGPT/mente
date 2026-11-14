@@ -96,7 +96,7 @@ export default function EnvironmentSettingsScreen() {
           <Card style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
             <EnvironmentGlyph color={environment.color} icon={environment.icon} image={session.image} size={64} />
             <AppText variant="small" color={colors.muted} style={{ flex: 1 }}>
-              {isOriginal ? "No Minha Mente, é a mesma foto de perfil do site." : "Opcional: aparece no lugar do ícone."} JPG, PNG ou WebP, até 700 KB.
+              {isOriginal ? "Neste ambiente, é a mesma foto de perfil do site." : "Opcional: aparece no lugar do ícone."} JPG, PNG ou WebP, até 700 KB.
             </AppText>
           </Card>
           <Button label="Escolher foto" icon="image" variant="secondary" loading={busy === "upload"} disabled={!!busy} onPress={() => void upload()} />

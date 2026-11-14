@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Minha Mente",
+    "name": "Mente",
     "slug": "minha-mente",
     "scheme": "minhamente",
     "version": "1.0.0",
@@ -36,7 +36,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 120,
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#07060B"
         }
@@ -44,12 +44,12 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O Minha Mente usa suas fotos para inserir imagens nos pensamentos."
+          "photosPermission": "A Mente usa suas fotos para inserir imagens nos pensamentos."
         }
       ],
       [
         "expo-audio",
-        { "microphonePermission": "O Minha Mente usa o microfone para você falar ideias à Kally." }
+        { "microphonePermission": "A Mente usa o microfone para você falar ideias à Kally." }
       ]
     ]
   }

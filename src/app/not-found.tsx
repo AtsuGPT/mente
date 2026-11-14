@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="lead">O endereço pode ter mudado ou o conteúdo não está mais disponível.</p>
         <div className="standalone-actions">
           <a href="/" className="button button-primary">
-            Abrir o Minha Mente
+            Abrir a Mente
           </a>
         </div>
       </div>

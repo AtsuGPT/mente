@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import { Easing, FadeIn, FadeInDown, FadeOut, FadeOutDown, LinearTransition, ReduceMotion, type WithSpringConfig, type WithTimingConfig } from "react-native-reanimated";
 
 /**
- * Sistema de movimento do Minha Mente. Cada tipo de movimento tem a sua duração e curva:
+ * Sistema de movimento da Mente. Cada tipo de movimento tem a sua duração e curva:
  * o que é toque responde rápido, o que muda de lugar desacelera, o que é ambiente é lento.
  * Tudo respeita "reduzir movimento" do sistema (ReduceMotion.System): o valor final é
  * aplicado sem animação, e os laços ambientais nem começam (ver useAmbientActive).

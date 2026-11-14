@@ -121,7 +121,7 @@ export default function EnvironmentTab() {
 
       <Section title="Neste ambiente">
         <Row icon="folder" label="Pastas" href="/pastas" />
-        <Row icon="doc" label={environment.id === "mente" ? "Sobre o Minha Mente" : `Sobre ${environment.name}`} href="/sobre" />
+        <Row icon="doc" label={environment.id === "mente" ? "Sobre a Mente" : `Sobre ${environment.name}`} href="/sobre" />
         {role !== "GUEST" ? <Row icon="users" label="Participantes" hint={permissions.manageMembers ? "Convites, papéis e permissões" : undefined} href="/painel/participantes" /> : null}
       </Section>
 

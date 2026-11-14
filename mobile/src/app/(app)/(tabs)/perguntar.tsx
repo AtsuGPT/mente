@@ -1302,7 +1302,7 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer, on
         <View style={styles.assistantHead}>
           <KallyMark failed={!!item.failed} />
           <AppText variant="label" color={item.failed ? colors.danger : colors.faint} numberOfLines={1} style={{ flexShrink: 1 }}>
-            {item.local ? "Minha Mente" : `Kally${item.dev && technical ? " · dev" : ""}${item.model && technical ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
+            {item.local ? "Mente" : `Kally${item.dev && technical ? " · dev" : ""}${item.model && technical ? ` · ${item.model}` : ""}${item.mode && item.mode !== "chat" ? ` · ${modeLabel(item.mode) ?? item.mode}` : ""}`}
           </AppText>
         </View>
       )}

@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useEnvironment } from "@/lib/environment";
 import { ApiError } from "@/lib/api";
 import { API_SOURCE, API_URL } from "@/lib/config";
-import { NeuralBrain } from "@/components/neural-brain";
+import { ConvergenceSymbol } from "@/components/convergence-symbol";
 import { AppText, Button, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, elevation, fonts, radius, space } from "@/theme/tokens";
@@ -59,13 +59,13 @@ export default function LoginScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }, container]}
       >
         <Animated.View entering={FadeIn.duration(900)} style={{ alignItems: "center" }}>
-          <NeuralBrain width={illustration} />
+          <ConvergenceSymbol size={Math.round(illustration * 0.82)} breathe />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.brand}>
           <AppText variant="label" color={colors.violet300}>{intent ? `Entre para abrir ${intent.name}` : "Sua conta"}</AppText>
           <AppText variant="display" style={styles.title}>
-            Minha <AppText variant="display" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
+            <AppText variant="display" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
           </AppText>
           <AppText color={colors.muted} style={{ textAlign: "center" }}>Pensamentos guardados, ideias em movimento.</AppText>
         </Animated.View>

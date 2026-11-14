@@ -150,7 +150,7 @@ const TONE_EXAMPLES = "Exemplos do tom em papo casual — Pessoa: \"estou cansad
 
 /** Começo fixo do prompt da conversa: igual em todos os pedidos do ambiente (o modelo reaproveita sem reler). */
 const identity = (environmentName: string) => [
-  `Você é a Kally, do Minha Mente, no ambiente "${environmentName}".`,
+  `Você é a Kally, da Mente, no ambiente "${environmentName}".`,
   todayLine(),
   `${PERSONALITY_SHORT} Fale português brasileiro natural, como gente, nunca como um sistema de análise.`,
   WRITING_RULE,
@@ -257,7 +257,7 @@ export function chatHead(input: { environmentName: string; history: { role: stri
 export function competenceHead(input: { competence: CompetenceSpec; environmentName: string; history: { role: string; content: string }[]; identity?: string[] }): AiMessage[] {
   const c = input.competence;
   const system = [
-    ...(input.identity ?? [`Você é a Kally, do Minha Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, PERSONALITY_SHORT, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
+    ...(input.identity ?? [`Você é a Kally, da Mente, no ambiente "${input.environmentName}". Escreve em português brasileiro natural, claro e preciso.`, PERSONALITY_SHORT, todayLine(), WRITING_RULE, FORMAT_RULE, ...MATERIAL_RULES]),
     `\nTAREFA: ${c.nome}. ${c.descricao}`,
     `\nINSTRUÇÕES:\n${c.instrucoes.map((i) => `- ${i}`).join("\n")}`,
     `\nCRITÉRIOS DE QUALIDADE (a resposta é avaliada por eles; boa formatação não compensa conteúdo fraco):\n${c.criterios.map((i) => `- ${i}`).join("\n")}`,

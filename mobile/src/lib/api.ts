@@ -73,7 +73,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw new ApiError(
       aborted
         ? "O servidor demorou demais para responder."
-        : `Não consegui conectar ao Minha Mente em ${API_URL}. Confira sua conexão e se o servidor está ligado.`,
+        : `Não consegui conectar à Mente em ${API_URL}. Confira sua conexão e se o servidor está ligado.`,
       0,
     );
   } finally {

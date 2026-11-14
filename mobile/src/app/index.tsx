@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useEnvironment } from "@/lib/environment";
 import type { EnvironmentCard, InvitePreview } from "@/lib/types";
 import { EnvironmentGlyph, withAlpha } from "@/components/environment-glyph";
-import { NeuralBrain } from "@/components/neural-brain";
+import { ConvergenceSymbol } from "@/components/convergence-symbol";
 import { AppText, Button, SectionLabel, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { LinearGradient } from "expo-linear-gradient";
@@ -116,11 +116,11 @@ export default function EnvironmentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
       >
         <Animated.View entering={appear.fade} style={styles.brandRow}>
-          <NeuralBrain width={118} />
+          <ConvergenceSymbol size={104} />
           <View style={{ flex: 1 }}>
             <AppText variant="label" color={colors.violet300}>Plataforma de ambientes</AppText>
             <AppText variant="hero" style={{ marginTop: 2 }}>
-              Minha <AppText variant="hero" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
+              <AppText variant="hero" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
             </AppText>
           </View>
         </Animated.View>

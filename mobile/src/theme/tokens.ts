@@ -1,5 +1,5 @@
 /**
- * Sistema visual do Minha Mente (app e site), versão 3: preto como base absoluta, cinzas muito
+ * Sistema visual da Mente (app e site), versão 3: preto como base absoluta, cinzas muito
  * escuros (com um sopro de violeta) para dar profundidade, e o roxo só onde ele significa algo:
  * interação, seleção, estado e a identidade da Kally. Nada de fundos iluminados nem grandes
  * superfícies roxas; gradientes só como luz sutil.
