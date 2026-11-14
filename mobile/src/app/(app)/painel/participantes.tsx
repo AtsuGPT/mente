@@ -11,6 +11,7 @@ import { useContainer } from "@/theme/layout";
 
 const ROLE_LABEL: Record<MemberRole, string> = { OWNER: "Proprietário", ADMIN: "Administrador", MEMBER: "Membro", VIEWER: "Leitor" };
 const FLAGS = [
+  { key: "canSeePrivate", perm: "seePrivate", label: "Ver pensamentos privados" },
   { key: "canPublish", perm: "publish", label: "Publicar" },
   { key: "canEditOwn", perm: "editOwn", label: "Editar os próprios" },
   { key: "canManageContent", perm: "manageContent", label: "Gerenciar todo o conteúdo" },
@@ -91,10 +92,14 @@ export default function MembersScreen() {
                 </View>
                 {FLAGS.filter((f) => f.key !== "canManageMembers" || myRole === "OWNER").map((flag) => (
                   <View key={flag.key} style={styles.flagRow}>
-                    <AppText style={{ flex: 1 }}>{flag.label}</AppText>
+                    <View style={{ flex: 1 }}>
+                      <AppText>{flag.label}</AppText>
+                      {flag.key === "canSeePrivate" && member.permissions.manageContent ? <AppText variant="small" color={colors.faint}>Sempre, para quem gerencia todo o conteúdo</AppText> : null}
+                    </View>
                     {member[flag.key] !== null ? <AppText variant="label" color={colors.violet300} style={{ fontSize: 11, letterSpacing: 1 }}>Ajustado</AppText> : null}
                     <Switch
                       value={member.permissions[flag.perm]}
+                      disabled={flag.key === "canSeePrivate" && member.permissions.manageContent}
                       onValueChange={(value) => void run(() => api.updateMember(member.userId, { [flag.key]: value }))}
                       trackColor={{ true: colors.violet600, false: colors.lineStrong }}
                       thumbColor={colors.text}
@@ -105,7 +110,7 @@ export default function MembersScreen() {
                   label="Voltar ao padrão do papel"
                   variant="ghost"
                   compact
-                  onPress={() => void run(() => api.updateMember(member.userId, { canPublish: null, canEditOwn: null, canManageContent: null, ...(myRole === "OWNER" ? { canManageMembers: null } : {}) }))}
+                  onPress={() => void run(() => api.updateMember(member.userId, { canSeePrivate: null, canPublish: null, canEditOwn: null, canManageContent: null, ...(myRole === "OWNER" ? { canManageMembers: null } : {}) }))}
                 />
                 <Button
                   label="Remover do ambiente"

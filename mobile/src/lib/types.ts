@@ -62,6 +62,7 @@ export type Member = {
   canEditOwn: boolean | null;
   canManageContent: boolean | null;
   canManageMembers: boolean | null;
+  canSeePrivate: boolean | null;
   createdAt: string;
   user: { username: string; displayName: string };
   permissions: Permissions;

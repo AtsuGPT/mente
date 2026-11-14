@@ -26,13 +26,13 @@ export type Permissions = {
   manageSettings: boolean;
 };
 
-type Adjustable = Pick<Permissions, "publish" | "editOwn" | "manageContent" | "manageMembers">;
+type Adjustable = Pick<Permissions, "seePrivate" | "publish" | "editOwn" | "manageContent" | "manageMembers">;
 
 const ROLE_DEFAULTS: Record<MemberRole, Adjustable> = {
-  OWNER: { publish: true, editOwn: true, manageContent: true, manageMembers: true },
-  ADMIN: { publish: true, editOwn: true, manageContent: true, manageMembers: true },
-  MEMBER: { publish: true, editOwn: true, manageContent: false, manageMembers: false },
-  VIEWER: { publish: false, editOwn: false, manageContent: false, manageMembers: false },
+  OWNER: { seePrivate: true, publish: true, editOwn: true, manageContent: true, manageMembers: true },
+  ADMIN: { seePrivate: true, publish: true, editOwn: true, manageContent: true, manageMembers: true },
+  MEMBER: { seePrivate: true, publish: true, editOwn: true, manageContent: false, manageMembers: false },
+  VIEWER: { seePrivate: true, publish: false, editOwn: false, manageContent: false, manageMembers: false },
 };
 
 const ROLE_RANK: Record<MemberRole, number> = { OWNER: 3, ADMIN: 2, MEMBER: 1, VIEWER: 0 };
@@ -44,6 +44,7 @@ type MembershipFlags = {
   canEditOwn: boolean | null;
   canManageContent: boolean | null;
   canManageMembers: boolean | null;
+  canSeePrivate: boolean | null;
 };
 
 export function permissionsFor(membership: MembershipFlags | null, guestAccess: boolean): Permissions {
@@ -53,12 +54,14 @@ export function permissionsFor(membership: MembershipFlags | null, guestAccess: 
   const base = ROLE_DEFAULTS[membership.role];
   // O proprietário tem tudo; os ajustes só valem para os outros papéis.
   const pick = (flag: boolean | null, fallback: boolean) => (membership.role === "OWNER" ? true : flag ?? fallback);
+  const manageContent = pick(membership.canManageContent, base.manageContent);
   return {
     view: true,
-    seePrivate: true,
+    // Quem gerencia todo o conteúdo já vê os privados na lista de gerenciar; não dá para esconder dele.
+    seePrivate: manageContent || pick(membership.canSeePrivate, base.seePrivate),
     publish: pick(membership.canPublish, base.publish),
     editOwn: pick(membership.canEditOwn, base.editOwn),
-    manageContent: pick(membership.canManageContent, base.manageContent),
+    manageContent,
     manageMembers: pick(membership.canManageMembers, base.manageMembers),
     manageSettings: membership.role === "OWNER",
   };
@@ -138,7 +141,7 @@ export async function resolveAccess(environmentRef: string, userId: string | nul
     userId,
     role: membership?.role ?? (asDev ? "DEV" : "GUEST"),
     permissions,
-    scope: { environmentId: environment.id, canSeePrivate: permissions.seePrivate },
+    scope: { environmentId: environment.id, canSeePrivate: permissions.seePrivate, viewerId: userId },
     platformDev,
   };
 }
@@ -184,7 +187,7 @@ export async function listEnvironmentsFor(userId: string | null) {
   const memberships = userId
     ? await db.membership.findMany({
         where: { userId, environment: { OR: [{ archivedAt: null }, { ownerId: userId }] } },
-        select: { role: true, canPublish: true, canEditOwn: true, canManageContent: true, canManageMembers: true, environment: { select: environmentSelect } },
+        select: { role: true, canPublish: true, canEditOwn: true, canManageContent: true, canManageMembers: true, canSeePrivate: true, environment: { select: environmentSelect } },
         orderBy: { createdAt: "asc" },
       })
     : [];
@@ -201,14 +204,16 @@ export async function listEnvironmentsFor(userId: string | null) {
         orderBy: { createdAt: "asc" },
       })
     : [];
-  const memberStats = await counts([...mineIds, ...closed.map((e) => e.id)], false);
-  const openStats = await counts(open.map((e) => e.id), true);
+  // Quem não vê os privados também não vê quantos existem: conta como visitante.
+  const seesPrivate = new Set(memberships.filter((m) => permissionsFor(m, m.environment.guestAccess).seePrivate).map((m) => m.environment.id));
+  const memberStats = await counts([...seesPrivate, ...closed.map((e) => e.id)], false);
+  const openStats = await counts([...open.map((e) => e.id), ...[...mineIds].filter((id) => !seesPrivate.has(id))], true);
 
   const shape = async (environment: EnvironmentRow, role: MemberRole | "GUEST" | "DEV", permissions: Permissions) => ({
     ...environment,
     role,
     permissions,
-    stats: (role === "GUEST" ? openStats : memberStats).get(environment.id) ?? { posts: 0, members: 0 },
+    stats: (permissions.seePrivate ? memberStats : openStats).get(environment.id) ?? { posts: 0, members: 0 },
     image: await environmentImage(environment),
   });
 
@@ -290,6 +295,7 @@ export async function listMembers(environmentId: string) {
       canEditOwn: true,
       canManageContent: true,
       canManageMembers: true,
+      canSeePrivate: true,
       createdAt: true,
       user: { select: { username: true, displayName: true } },
     },
@@ -310,6 +316,7 @@ export type MemberUpdate = {
   canEditOwn?: boolean | null;
   canManageContent?: boolean | null;
   canManageMembers?: boolean | null;
+  canSeePrivate?: boolean | null;
 };
 
 export async function updateMember(actor: Access, userId: string, update: MemberUpdate) {
@@ -326,6 +333,7 @@ export async function updateMember(actor: Access, userId: string, update: Member
       ...(update.canEditOwn !== undefined ? { canEditOwn: update.canEditOwn } : {}),
       ...(update.canManageContent !== undefined ? { canManageContent: update.canManageContent } : {}),
       ...(update.canManageMembers !== undefined ? { canManageMembers: update.canManageMembers } : {}),
+      ...(update.canSeePrivate !== undefined ? { canSeePrivate: update.canSeePrivate } : {}),
     },
   });
   return { ok: true as const, member };

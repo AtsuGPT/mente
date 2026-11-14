@@ -11,7 +11,8 @@ import { ROLES } from "@/lib/auth/role";
 
 export const DEFAULT_ENVIRONMENT_ID = "mente";
 
-export type Scope = { environmentId: string; canSeePrivate: boolean };
+/** viewerId: quem lê. Sem "ver privados", a pessoa ainda vê os privados que ela mesma escreveu. */
+export type Scope = { environmentId: string; canSeePrivate: boolean; viewerId?: string | null };
 
 /** Escopo do site: ambiente "mente"; INTIMO e ADMIN veem os privados, como sempre. */
 export async function webScope(): Promise<Scope> {

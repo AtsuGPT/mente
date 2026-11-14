@@ -27,9 +27,12 @@ export function publiclyVisible(now = new Date()): Prisma.PostWhereInput {
   return { status: "PUBLISHED", publishedAt: { lte: now } };
 }
 
-/** Pensamentos do ambiente do escopo; privados só para quem pode vê-los. */
+/** Pensamentos do ambiente do escopo; privados só para quem pode vê-los (e para o autor, nos dele). */
 export function scopeFilter(scope: Scope): Prisma.PostWhereInput {
-  return { environmentId: scope.environmentId, ...(scope.canSeePrivate ? {} : { private: false }) };
+  if (scope.canSeePrivate) return { environmentId: scope.environmentId };
+  if (!scope.viewerId) return { environmentId: scope.environmentId, private: false };
+  // AND, para não colidir com um OR de quem espalha este filtro (kally-memory).
+  return { environmentId: scope.environmentId, AND: [{ OR: [{ private: false }, { authorId: scope.viewerId }] }] };
 }
 
 const ordering = [{ position: "asc" }, { name: "asc" }] as const;

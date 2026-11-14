@@ -88,6 +88,8 @@ model Membership {
   canEditOwn       Boolean?
   canManageContent Boolean?
   canManageMembers Boolean?
+  /// Ver os pensamentos privados do ambiente (quem gerencia todo o conteúdo sempre vê).
+  canSeePrivate    Boolean?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 

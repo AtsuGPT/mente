@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ env: string; userId: string }> };
 
-const FLAGS = ["canPublish", "canEditOwn", "canManageContent", "canManageMembers"] as const;
+const FLAGS = ["canSeePrivate", "canPublish", "canEditOwn", "canManageContent", "canManageMembers"] as const;
 
 /** Papel e ajustes de permissão de um participante. */
 export async function PATCH(request: Request, context: Context) {

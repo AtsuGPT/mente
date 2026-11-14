@@ -166,7 +166,7 @@ export function envApi(environmentId: string) {
     removeImage: () => request<{ ok: true }>(`${base}/settings/image`, { method: "DELETE" }),
 
     members: () => request<{ members: Member[]; canManage: boolean; myRole: string }>(`${base}/members`),
-    updateMember: (userId: string, update: Partial<Pick<Member, "role" | "canPublish" | "canEditOwn" | "canManageContent" | "canManageMembers">>) =>
+    updateMember: (userId: string, update: Partial<Pick<Member, "role" | "canSeePrivate" | "canPublish" | "canEditOwn" | "canManageContent" | "canManageMembers">>) =>
       request<{ ok: true }>(`${base}/members/${encodeURIComponent(userId)}`, { method: "PATCH", json: update }),
     removeMember: (userId: string) => request<{ ok: true }>(`${base}/members/${encodeURIComponent(userId)}`, { method: "DELETE" }),
     leave: () => request<{ ok: true }>(`${base}/leave`, { method: "POST" }),
