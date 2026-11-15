@@ -92,13 +92,20 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
     return [
       `Extensão: ${size}.`,
       input.shortPost ? `${POST_RULES}\n${SHORT_POST}` : POST_RULES,
+      // Figura no post casual: só quando ela pede um desenho (teste de 15/11: a figura saía no fim, ilegível e
+      // comentada no próprio post, "o desenho acima ilustra…").
+      "Figura: só se ela pedir um desenho ou uma ilustração; aí, uma única figura ao lado do parágrafo que ela ilustra, seguindo as regras abaixo.",
+      DRAWING_RULE,
       `${PERSONALITY}\nSem jargão de sistema e sem emojis.`,
     ].join("\n");
   }
   return [
     "MODO DE ALTA QUALIDADE (substitui os alvos de tamanho e formato anteriores; as regras sobre o material, a privacidade, a autoria e a fidelidade continuam valendo integralmente).",
     "Entenda primeiro o que a pessoa realmente precisa: a intenção por trás do pedido, o nível dela e o uso que vai fazer da resposta. Se o pedido tiver ambiguidade, assuma a leitura mais útil e diga em uma frase qual foi.",
-    "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos e específicos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",
+    "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",
+    "Exemplos: prefira situações típicas e casos ilustrativos (\"imagine que…\", \"num computador comum…\"). Um caso real com data, lugar, número, nome ou trajetória só entra se estiver nas fontes [E…] ou se você tiver certeza absoluta; na dúvida, use um exemplo genérico. Exemplo ilustrativo (\"imagine que…\") não usa data, cidade nem evento real, e os números dele são redondos e ditos aproximados. Errar um fato concreto estraga a resposta inteira.",
+    "A pessoa está no Brasil: no que muda com o lugar (hemisfério, estações, como a Lua aparece no céu, unidades, leis, moeda, datas comemorativas), use o padrão brasileiro (hemisfério sul, sistema métrico, real) e diga quando for diferente em outro lugar. Escreva tudo em português; termo estrangeiro só quando não houver tradução comum, com a tradução entre parênteses.",
+    "Fontes: quando usar uma fonte [E…], cite no próprio parágrafo com link Markdown para o endereço exato, ex.: [título curto](URL). Nunca escreva a marca [E…], nunca liste fonte sem link, não use notas de rodapé ([^1]) e nunca cite estudo, autor ou número que não esteja nas fontes recebidas. Citação de fonte em outra língua vai traduzida.",
     `Extensão: ${size}. Cada parte precisa acrescentar algo; nada de repetir, de frases genéricas ou de encher.`,
     "Organização visual, usando só o que ajuda a entender: títulos curtos (##); listas; **negrito** nos conceitos-chave; uma tabela Markdown (com linha de cabeçalho) quando houver comparação, etapas com atributos ou dados; um diagrama em bloco ```mermaid (flowchart TD, um nó por linha no formato A[\"Rótulo curto\"], setas A --> B, sem HTML) quando houver processo, fluxo, decisão ou relação entre partes, seguido de uma frase dizendo o que ele mostra; uma citação (> ) para destacar a ideia central; uma lista de tarefas (- [ ]) quando houver passos para a pessoa fazer; e, para um aprofundamento opcional que não deve pesar na leitura, um bloco recolhível exatamente assim:\n:::details[Título do aprofundamento]\nconteúdo\n:::\nFórmulas: o app não desenha LaTeX. Nunca use $, $$, \\(, \\[, \\frac, \\cdot, \\hat, \\sum nem blocos ```math: escreva a fórmula em texto com símbolos (ŷ = β₀ + β₁·x, x², √x, Σ, ≤, ≥, ×, ≈), numa linha própria quando for central. Nada de HTML (<br>, <b>, <sup>); numa célula de tabela, nada de quebra de linha.",
     input.post ? STRUCTURED_POST_RULES : "Em respostas que explicam ou desenvolvem algo, termine com uma seção curta \"Próximos passos\" ou \"Para ir além\": 2 ou 3 sugestões concretas e proativas, específicas para esta pessoa e este pedido (o que melhorar, o que testar, o que ler ou perguntar a seguir). Em pergunta simples ou papo, no máximo uma sugestão, numa frase, se for natural.",

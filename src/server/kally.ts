@@ -1,5 +1,5 @@
 import "server-only";
-import { DRAWING_REMINDER, WANTS_DRAWING } from "@/server/kally/drawing";
+import { DRAWING_POST_REMINDER, DRAWING_REMINDER, WANTS_DRAWING } from "@/server/kally/drawing";
 import { db } from "@/lib/db";
 import { completeChat, type AiMessage } from "./ai";
 import type { CompetenceSpec, ReferenceExample } from "./kally/competences/types";
@@ -53,7 +53,9 @@ export function detectIntent(message: string): { mode: Exclude<KallyMode, "auto"
   // Pedido de estrutura ("me ajude a estruturar os tópicos", "monta o roteiro") não é pedido de rascunho agora: virava
   // Idealizar sem material e a Kally só devolvia uma pergunta (Yasmin, rodada 2). Medido nas 131 mensagens das
   // rodadas 1 a 5: só essa muda.
-  const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b/.test(m);
+  // "Faz um post completo e estruturado" pede o post (com estrutura), não um esboço: o nome do post com o verbo de criar
+  // vence (teste de 15/11: virava resposta comum, sem rascunho nem cartão de publicar).
+  const outlineOnly = /\b(estrutur\w*|t[oó]picos|roteiro|esbo[cç]o|sum[aá]rio|organiz\w* (os|as) (t[oó]picos|ideias|partes|se[cç][oõ]es))\b/.test(m) && !/\b(escrev[ae] (o|um|uma|pra|para) |pode escrever|monte o texto|cri[ae] (o|um) (post|texto)|rascunho)\b|\b(fa[zç]a?|fazer|cri[ae]|criar|mont[ae]|montar|escrev[ae]|escrever) (um |o |uma )?(post|pensamento|publica[cç][aã]o)\b/.test(m);
   // "Quero um post: …", "faz um post sobre…", "monta um post com isso" (teste de 10/11: caía em conversa e saía um texto
   // genérico, sem rascunho e sem o formato do post).
   if (!infoQuestion && !outlineOnly && /(\b(quero|queria) (fazer |montar |criar )?(um |o )?post\b|\b(fa[zç]a?|fazer|mont[ae]|montar) (um |o )?post\b|me ajud\w* a escrever|quero escrever|escrev(a|er|e) (um|o|uma) (post|texto|pensamento)|virar (um )?(post|pensamento)|\brascunho\b|transformar .{0,40}em (um )?(post|pensamento)|desenvolver (uma|essa|esta|minha) ideia|cri(e|a|ar) (um |o |uma )?(post|pensamento|publica)|\bpubli(que|car|ca)\b|\bpostar\b|\b(poste|posta) (isso|esse|essa|este|esta|assim|a[ií]|agora|o texto|o post|pra mim)\b|^\s*(poste|posta)\s*[.!]*\s*$|\b(deixa|deixe|do|d[aá]) (o )?texto assim\b)/.test(m)) {
@@ -91,8 +93,8 @@ export const FORMAT_RULE =
 /** Pedido explícito de estrutura: liga a regra de formatação mesmo numa mensagem curta, sem "?" (que a detecção trata como casual). */
 const WANTS_STRUCTURE = /\b(tabelas?|compar\w*|diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental|c[oó]digo|script)\b/i;
 /** Lembrete final de formato (o qwen3 segue melhor o que vem por último), só quando pedido. */
-export function structureReminder(message: string | null | undefined) {
-  if (message && WANTS_DRAWING.test(message)) return DRAWING_REMINDER;
+export function structureReminder(message: string | null | undefined, draft = false) {
+  if (message && WANTS_DRAWING.test(message)) return draft ? DRAWING_POST_REMINDER : DRAWING_REMINDER;
   if (!message || !WANTS_STRUCTURE.test(message)) return "";
   return /\b(diagramas?|fluxogramas?|mermaid|organogramas?|mapa mental)\b/i.test(message)
     ? " Formato: entregue o diagrama num bloco ```mermaid (flowchart TD, rótulos curtos) e explique em seguida."
@@ -429,7 +431,7 @@ export function buildCompetencePrompt(input: {
     ...head,
     { role: "system", content: late.join("\n") },
     { role: "user", content: material ? `${input.message}\n\n---\n${material}` : input.message },
-    { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}${structureReminder(input.message)}` },
+    { role: "system", content: `${holdDraft ? hold : c.lembrete} ${writingReminder(input.message, input.attachment?.text, input.reviewText, input.materialText, ...documents.map((doc) => doc.text))}${structureReminder(input.message, input.canDraft)}` },
   ];
 }
 

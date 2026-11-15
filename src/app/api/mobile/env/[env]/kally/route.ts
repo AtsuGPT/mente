@@ -1,4 +1,4 @@
-import { AiError, defaultChatModel, lightServes, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
+import { AiError, completeChat, defaultChatModel, lightServes, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { estimateTokens, lightConfig, remoteConfig, remoteHealth } from "@/server/ai/remote";
@@ -13,7 +13,7 @@ import { EFFORTS, effortFrom, onTopic, partPrompt, planAnswer, wholeText } from 
 import { markDone, markRunning } from "@/server/kally/running";
 import { personalOpener, say } from "@/server/kally/narration";
 import { latexToText } from "@/server/kally/math-text";
-import { createAnswerCleaner } from "@/server/kally/clean";
+import { cleanAnswer, createAnswerCleaner } from "@/server/kally/clean";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
 import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
@@ -129,6 +129,16 @@ const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slic
  * Responde em Server-Sent Events: { conversationId?, temporary, mode } → { sources } →
  * { review }? → { text }... → { done }.
  */
+/**
+ * Assunto de um pedido de post para a busca na internet: sem o pedido em volta ("faz um post completo, com fontes,
+ * sobre …"). Sem "sobre/a respeito de", tira só o verbo e o "post" do começo.
+ */
+function postTopic(message: string) {
+  const about = message.match(/\b(?:sobre|a respeito d[eoa]s?|acerca d[eoa]s?|falando d[eoa]s?)\s+([\s\S]{8,})$/i);
+  const topic = about ? about[1] : message.replace(/^[\s\S]{0,80}?\b(post|pensamento|texto|publica[cç][aã]o)\b[^,:]*[,:]?\s*/i, "");
+  return (topic.trim() || message).slice(0, 300);
+}
+
 export async function POST(request: Request, context: EnvContext) {
   const startedAt = Date.now();
   const access = await envAccess(context);
@@ -302,7 +312,9 @@ export async function POST(request: Request, context: EnvContext) {
       ? review.text.split("\n")[0].replace(/^#\s*/, "")
       : essential
         ? focus
-        : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
+        : mode === "ideia"
+          ? postTopic(message)
+          : message.replace(/^(me |por favor,? )?(pesquise|pesquisa|aprofunde|explique)( sobre)?\s*/i, "");
     web = await searchWeb(webQuery, 4);
   }
   // Pedido de conhecimento: fontes da internet automáticas, na local e na remota, para a resposta se apoiar nelas
@@ -361,6 +373,11 @@ export async function POST(request: Request, context: EnvContext) {
       ownWords.length > 1_500 ||
       interpretation?.profundidade === "aprofundada" ||
       /\b(post|texto|publica[cç][aã]o)\s+(bem\s+)?(elaborad[oa]|complet[oa]|detalhad[oa]|estruturad[oa]|aprofundad[oa]|long[oa]|grande|robust[oa]|informativ[oa]|t[eé]cnic[oa])\b|\b(com|use|usar|usando)\s+(subt[ií]tulos|se[cç][oõ]es|tabelas?|fontes|refer[eê]ncias|dados)\b|\bartigo\b/i.test(ownWords));
+  // Fontes da internet no post: só no post elaborado ou quando ela pede fontes, dados ou pesquisa. "Estudo"/"estudos"
+  // sozinhos são rotina ("estudo de manhã"), não pedido (teste de 15/11: o post casual esperava 17 s por uma busca).
+  const postWantsSources =
+    competence === "post" &&
+    (bigPost || /\b(fontes?|refer[eê]ncias?|com links?|embasad\w*|cient[ií]fic\w*|estat[ií]stic\w*|com dados|dados (reais|oficiais|de pesquisa)|(segundo|com base em|baseado em|baseada em|com) (estudos|pesquisas)|(estudos|pesquisas) (que|mostram|apontam|dizem|sobre)|pesquis(e|a|ar) (sobre|antes|na internet|o assunto))\b/i.test(ownWords));
   // Esforço acima do normal no Automático vai para a remota (no 8B cada parte levaria minutos) e espera a GPU ligar.
   const chosen = modelChoiceFrom(body.model, true);
   const choice = chosen === "auto" && effort !== "normal" ? "remote" : chosen;
@@ -506,7 +523,7 @@ export async function POST(request: Request, context: EnvContext) {
           const seq = statusSeq;
           const plans = [
             ...done,
-            competence === "post" ? "buscar fontes para o post e escrever o rascunho com a voz da pessoa, conferindo cada frase" : "",
+            competence === "post" ? (postWantsSources ? "buscar fontes para o post e escrever o rascunho com a voz da pessoa, conferindo cada frase" : "escrever o rascunho com a voz da pessoa, sem acrescentar fatos, conferindo cada frase") : "",
             effort !== "normal" && competence !== "post" ? "planejar e escrever a resposta em partes, conferindo cada uma" : "",
           ].filter(Boolean);
           void personalOpener({ message, plans }).then((frase) => {
@@ -545,8 +562,7 @@ export async function POST(request: Request, context: EnvContext) {
           // a pessoa vê cada etapa enquanto espera.
           // Só quando ela pede fontes, dados ou pesquisa: num post pessoal, as fontes viravam seção de "Referências" e o
           // post saía com cara de artigo (13/11/2026).
-          const wantsSources = bigPost || /\b(fontes?|refer[eê]ncias?|pesquis\w*|dados|estat[ií]stic\w*|estudos?|cient[ií]fic\w*|com links?|embasad\w*)\b/i.test(ownWords);
-          if (route.target === "remote" && competence === "post" && wantsSources && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
+          if (route.target === "remote" && competence === "post" && postWantsSources && !thinMaterial && postSourcesEnabled() && !intimateStory(ownWords)) {
             send({ status: say("postFontes"), step: "post-fontes" });
             const terms = interpretation?.termos ? { pt: interpretation.termos, en: interpretation.termosEn ?? [] } : await postSearchTerms(ownWords);
             if (terms.pt.length && !cancel.signal.aborted) {
@@ -714,6 +730,15 @@ export async function POST(request: Request, context: EnvContext) {
               }
               if (collect) {
                 draft += cleaner.flush();
+                // Post sem o formato <rascunho> (1 em 5 na bateria de 15/11, com um desenho pedido): sem ele não há cartão
+                // de publicar. Uma nova tentativa, com o formato pedido por último; se ainda faltar, fica o que veio.
+                if (!/<rascunho>/i.test(draft) && !cancel.signal.aborted) {
+                  const again = await completeChat(
+                    [...remotePrompt, { role: "assistant", content: draft }, { role: "system", content: "A resposta acima saiu sem o formato de rascunho. Reescreva-a agora no formato pedido: a frase que começa com \"Entendi:\", depois <rascunho> com # título, o texto do post e </rascunho>, e as linhas de fora. Mesmo conteúdo, sem acrescentar fatos; figura pedida vai num bloco ```desenho lado=direita com o parágrafo que ela ilustra." }],
+                    { target: "remote", temperature: 0.2, maxTokens: remoteMax, timeoutMs: 60_000, think: false, signal: cancel.signal },
+                  ).catch(() => "");
+                  if (/<rascunho>/i.test(again)) draft = cleanAnswer(again);
+                }
                 send({ status: say("revisao"), step: "revisao" });
                 const checked = await reviewPostFidelity({ ownWords, sources: web, draft });
                 postReview = { applied: checked.applied, proposed: checked.proposed, ms: checked.ms, ok: checked.ok };

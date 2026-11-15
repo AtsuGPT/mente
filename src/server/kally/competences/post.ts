@@ -41,7 +41,7 @@ export const post: CompetenceSpec = {
     aprofundada: "rascunho de cerca de 400 a 650 palavras, com no máximo dois subtítulos",
   },
   // Sem exemplos de frases proibidas: citá-las fazia o modelo usá-las.
-  lembrete: "Antes de responder: (1) escreva o rascunho nesta resposta, no formato <rascunho>, mesmo com pouca matéria; (2) post comum: casual, em parágrafos, sem referências, tabelas ou links (post elaborado: as regras dele); (3) nenhum fato concreto inventado (nome, lugar, data, número, episódio); (4) a frase de entendimento começa com \"Entendi:\".",
+  lembrete: "Antes de responder: (1) escreva o rascunho nesta resposta, no formato <rascunho>, mesmo com pouca matéria; (2) post comum: casual, em parágrafos, sem referências, tabelas ou links (post elaborado: as regras dele); (3) nenhum fato concreto inventado (nome, lugar, data, número, episódio); (4) a frase de entendimento começa com \"Entendi:\"; (5) se ela não disse o próprio gênero, nenhum adjetivo ou particípio sobre ela que o revele: escreva com substantivos e verbos; (6) o sentido do que ela disse fica igual (uma necessidade não vira decisão nem plano).",
   temperatura: 0.3,
   maxTokens: 2_048,
   exemplos: [

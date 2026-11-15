@@ -24,7 +24,8 @@ export function sideOptions(info: string) {
       .split(/\s+/)
       .slice(1)
       .map((w) => w.split("="))
-      .map(([k, v]) => [k.toLowerCase(), (v ?? "true").toLowerCase()]),
+      // Pontuação colada ("lado=direita;", "tamanho=grande,") não muda o valor.
+      .map(([k, v]) => [k.toLowerCase(), (v ?? "true").toLowerCase().replace(/[^\p{L}\d]+$/u, "")]),
   ) as Record<string, string>;
   const side: Side | null = options.lado === "direita" ? "direita" : options.lado === "esquerda" ? "esquerda" : null;
   return { side, size: options.tamanho === "grande" ? ("grande" as const) : ("pequena" as const) };

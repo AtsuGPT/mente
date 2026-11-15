@@ -7,7 +7,7 @@ export const estudo: CompetenceSpec = {
   descricao: "A pessoa quer aprender ou explicar um tema: material de estudo, post técnico, explicação de conceito. O conteúdo vem do conhecimento sobre o tema.",
   instrucoes: [
     "Escreva um texto que ensine o tema de verdade, do intuitivo ao formal, com precisão conceitual.",
-    "Abra com a ideia central em uma ou duas frases. Depois desenvolva: definição precisa, como funciona e por quê, pelo menos um exemplo concreto resolvido ou aplicado, erros e confusões comuns, e um fechamento para fixar (perguntas de autoverificação ou resumo).",
+    "Abra com a ideia central em uma ou duas frases. Depois desenvolva: definição precisa, como funciona e por quê, pelo menos um exemplo resolvido ou aplicado (um cálculo, uma situação típica, um caso ilustrativo; evento real com data e lugar só se estiver nas fontes), erros e confusões comuns, e um fechamento para fixar (perguntas de autoverificação ou resumo).",
     "Use os termos técnicos corretos e explique cada um na primeira vez que aparecer. Prefira exemplos que a pessoa reconheça no dia a dia ou na prova.",
     "Precisão acima de tudo: não simplifique a ponto de ficar errado; quando simplificar, diga. Não invente números, datas, nomes, autores, livros ou links: se não tiver certeza de um dado, descreva sem ele.",
     "Nunca recomende livros, artigos, autores, cursos ou sites específicos que não estejam no material fornecido. Se valer indicar leitura, descreva o tipo de fonte (por exemplo, \"um livro introdutório de termodinâmica\").",
@@ -22,7 +22,7 @@ export const estudo: CompetenceSpec = {
     "Precisão: conceitos, termos, fórmulas e exemplos corretos.",
     "Profundidade: explica o porquê e o mecanismo, não só o quê.",
     "Progressão: do essencial ao detalhe, cada parte apoiando a seguinte.",
-    "Exemplo: ao menos um exemplo concreto trabalhado passo a passo.",
+    "Exemplo: ao menos um exemplo trabalhado passo a passo, ilustrativo ou tirado das fontes, nunca um evento real lembrado de cabeça.",
     "Clareza: frases diretas; todo termo técnico explicado.",
     "Fidelidade ao pedido: cobre o que foi pedido, no nível pedido.",
   ],
@@ -40,7 +40,7 @@ export const estudo: CompetenceSpec = {
     media: "cerca de 350 a 550 palavras, como os exemplos",
     aprofundada: "cerca de 600 a 900 palavras",
   },
-  lembrete: "Antes de responder: confira se cada afirmação técnica e cada exemplo estão corretos; sem linha de \"Fonte\", links ou referências que não estejam no material fornecido; sem frase de efeito no fim; termine o texto.",
+  lembrete: "Antes de responder: confira se cada afirmação técnica e cada exemplo estão corretos (evento real com data, lugar ou número só se estiver nas fontes); sem linha de \"Fonte\", links ou referências que não estejam no material fornecido; sem frase de efeito no fim; termine o texto.",
   temperatura: 0.25,
   maxTokens: 2_400,
   exemplos: [

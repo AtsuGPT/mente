@@ -73,7 +73,7 @@ export type SourceKind = "referência" | "notícia nacional" | "notícia global"
 type Hit = WebResult & { kind: SourceKind; domain: string; score: number; date: number | null };
 
 const EXCLUDED = /(^|\.)(wikipedia\.org|wikinews\.org|wikiwand\.com|play\.google\.com|apps\.apple\.com)$/;
-const SOCIAL = /(^|\.)(reddit\.com|x\.com|twitter\.com|instagram\.com|facebook\.com|tiktok\.com|linkedin\.com|threads\.net|bsky\.app|medium\.com|substack\.com|quora\.com|tumblr\.com|piefed\.social|kbin\.social)$|^(mastodon|lemmy|mstdn|fosstodon|lemm)\./;
+const SOCIAL = /(^|\.)(reddit\.com|x\.com|twitter\.com|instagram\.com|facebook\.com|tiktok\.com|linkedin\.com|threads\.net|bsky\.app|medium\.com|substack\.com|quora\.com|tumblr\.com|pinterest\.com|piefed\.social|kbin\.social)$|^(mastodon|lemmy|mstdn|fosstodon|lemm)\./;
 const VIDEO = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com)$/;
 const REFERENCE = /(\.edu(\.[a-z]{2})?|\.gov(\.[a-z]{2})?|\.ac\.[a-z]{2})$|scielo|pubmed|ncbi\.nlm|nature\.com|sciencedirect|springer|frontiersin|apa\.org|who\.int|fiocruz|\.usp\.br|unicamp|ufrj|ufmg|ufu\.br|unesp|repositorio|periodicos|researchgate|jstor|britannica|psychologytoday|harvard|mit\.edu|stanford/;
 const BR_NEWS = /(globo\.com|uol\.com\.br|folha\.|estadao|cnnbrasil|exame\.com|abril\.com\.br|terra\.com\.br|metropoles|r7\.com|correiobraziliense|gazetadopovo|nexojornal|agenciabrasil|poder360|cartacapital|istoe|infomoney|bbc\.com|band\.com\.br|jc\.ne10|otempo|em\.com\.br|zh\.clicrbs|opovo|diariodepernambuco|revistagalileu|superinteressante|olhardigital|tecmundo|canaltech|napratica)/;
@@ -299,7 +299,23 @@ export async function findAnswerSources(question: string, options: { timeoutMs?:
   // Pergunta: a página precisa ter metade ou mais das palavras-chave (no mínimo 2 quando houver 2 ou mais).
   const keys = roots([q]);
   const need = keys.length >= 2 ? Math.max(2, Math.ceil(keys.length * 0.5)) : keys.length;
-  return { ...rank(batches, [keys], 8, (have) => keys.filter((k) => have.has(k)).length >= need), ms: Date.now() - started };
+  const ranked = rank(
+    batches.map((b) => ({ ...b, results: b.results.filter((r) => !isSocialOrVideo(r.url)) })),
+    [keys],
+    8,
+    (have) => keys.filter((k) => have.has(k)).length >= need,
+  );
+  return { ...ranked, ms: Date.now() - started };
+}
+
+/** Rede social ou vídeo: base fraca para explicar um conceito (fica para o post elaborado, que pede variedade). */
+function isSocialOrVideo(url: string) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return SOCIAL.test(host) || VIDEO.test(host);
+  } catch {
+    return false;
+  }
 }
 
 /**
