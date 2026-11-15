@@ -49,8 +49,21 @@
       ],
       [
         "expo-audio",
-        { "microphonePermission": "A Mente usa o microfone para você falar ideias à Kally." }
+        {
+          "microphonePermission": "A Mente usa o microfone para você falar ideias à Kally."
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "fe5176c5-750a-4a4d-afc8-ec9b5fe0f91b"
+      }
+    },
+    "owner": "56tester"
   }
 }

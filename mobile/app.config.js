@@ -4,5 +4,9 @@
 module.exports = ({ config }) => ({
   ...config,
   web: { ...config.web, output: "single" },
+  // Link fixo no Expo Go (EAS Update): cada publicação manda o app para o Expo, e o Expo Go abre a versão mais nova pelo
+  // mesmo link, sem depender do túnel do PC. O Expo Go só aceita atualizações marcadas com a versão do SDK.
+  runtimeVersion: { policy: "sdkVersion" },
+  updates: { ...config.updates, url: `https://u.expo.dev/${config.extra?.eas?.projectId}` },
   experiments: { ...config.experiments, ...(process.env.EXPO_PUBLIC_WEB_BASE ? { baseUrl: process.env.EXPO_PUBLIC_WEB_BASE } : {}) },
 });
