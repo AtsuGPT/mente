@@ -47,6 +47,12 @@ export function artifactTask(message: string, context: { hasArtifact: boolean; a
 
 /** "cria um simulador" → "simulador": para a frase de andamento ("Vou montar o simulador…"). */
 export function requestedThing(message: string) {
-  const m = fold(message).match(OBJECT);
-  return m ? m[0].replace(/^simule$/, "simulação") : "artefato";
+  // fold tira só os acentos (mesmo tamanho do texto em NFC): o trecho achado é recortado do original, com os acentos
+  // ("simulação", não "simulacao"). Palavras que só qualificam ("interativo", "em 3D") viram "o artefato".
+  const raw = message.normalize("NFC");
+  const m = OBJECT.exec(fold(raw));
+  if (!m || /^(interativ|animad|em 3d|modelo 3d)/.test(m[0])) return "o artefato";
+  const thing = m[0] === "simule" ? "simulação" : raw.slice(m.index, m.index + m[0].length).toLowerCase().trim();
+  const feminine = /(ção|cao|dade|ora|enta|ilha|agem|lista|a)$/.test(thing.split(" ")[0]) && !/^(sistema|diagrama|programa|mapa|tema|esquema)\b/.test(thing);
+  return `${feminine ? "a" : "o"} ${thing}`;
 }
