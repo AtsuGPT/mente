@@ -50,7 +50,8 @@ const THEME =
   ":root{--mm-bg:#000;--mm-surface:#0B0A0E;--mm-surface-2:#131217;--mm-line:#2A2732;--mm-text:#F2EFFA;--mm-muted:#AAA4BF;--mm-faint:#867FA1;--mm-roxo:#8461F0;--mm-roxo-claro:#A58BF7;--mm-roxo-escuro:#4A2B9B;--mm-verde:#8FDDB0;--mm-amarelo:#E8C07D;--mm-vermelho:#F2777A;--mm-fonte:system-ui,sans-serif}";
 
 /** Script que vem ANTES do artefato: guarda os erros e troca o que a caixa do app também troca. */
-const BEFORE = `window.__mm={erros:[]};
+const BEFORE = `window.__mm={erros:[],nulos:[],testando:false};
+(function(){function marca(q){if(!__mm.testando&&__mm.nulos.indexOf(q)<0&&__mm.nulos.length<12)__mm.nulos.push(q)}var g=Document.prototype.getElementById;Document.prototype.getElementById=function(id){var r=g.call(this,id);if(!r)marca("#"+id);return r};var qs=Document.prototype.querySelector;Document.prototype.querySelector=function(q){var r=qs.call(this,q);if(!r)marca(q);return r};var eq=Element.prototype.querySelector;Element.prototype.querySelector=function(q){var r=eq.call(this,q);if(!r)marca(q);return r}})();
 addEventListener("error",function(e){if(e&&e.message)__mm.erros.push(e.message+(e.lineno?" (linha "+e.lineno+")":""));else if(e&&e.target&&(e.target.src||e.target.href))__mm.erros.push("Não carregou: "+(e.target.src||e.target.href))},true);
 addEventListener("unhandledrejection",function(e){__mm.erros.push(String(e&&e.reason&&e.reason.message||e&&e.reason||"erro"))});
 window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now())},16)};window.cancelAnimationFrame=function(id){clearTimeout(id)};
@@ -70,16 +71,17 @@ function mudar(s,v){var el=q(s);if(el.type==="checkbox"||el.type==="radio"){if(e
 function texto(s){var el=document.querySelector(s);return el?(el.innerText||el.textContent||"").trim():""}
 function esperar(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function afirmar(c,m){if(c)ok++;else falhas.push(String(m||"afirmação falhou"))}
-function fim(extra){var pre=document.createElement("pre");pre.id="__mm_resultado";pre.textContent=JSON.stringify(Object.assign({erros:window.__mm.erros.slice(0,5),falhas:falhas.slice(0,10),ok:ok},extra||{}));document.documentElement.appendChild(pre)}
+function fim(extra){var pre=document.createElement("pre");pre.id="__mm_resultado";pre.textContent=JSON.stringify(Object.assign({erros:window.__mm.erros.slice(0,5),falhas:falhas.slice(0,10),ok:ok,nulos:window.__mm.nulos},extra||{}));document.documentElement.appendChild(pre)}
 var codigo=${JSON.stringify(test).replace(/</g, "\\u003c")};
 addEventListener("load",function(){setTimeout(async function(){
 // O teste é compilado à parte: erro de sintaxe nele vira falha do teste, não da página.
+__mm.testando=true;
 try{var Async=Object.getPrototypeOf(async function(){}).constructor;await new Async("clicar","digitar","mudar","visivel","texto","existe","esperar","afirmar",codigo)(clicar,digitar,mudar,visivel,texto,existe,esperar,afirmar)}catch(e){falhas.push("o teste parou: "+(e&&e.message||e))}
 fim()},400)});
 })();`;
 }
 
-export type RuntimeReport = { ran: boolean; ok: boolean; errors: string[]; failures: string[]; passed: number; ms: number; reason?: string };
+export type RuntimeReport = { ran: boolean; ok: boolean; errors: string[]; failures: string[]; passed: number; ms: number; reason?: string; /** seletores que o código procurou e não existem */ missing?: string[] };
 
 function page(source: string, test: string) {
   const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${THEME}html{background:var(--mm-bg);color:var(--mm-text);font-family:var(--mm-fonte)}body{margin:0}</style><script>${BEFORE}</script>`;
@@ -102,7 +104,8 @@ export async function runArtifact(source: string, test: string, timeoutMs = 25_0
   const dir = await mkdtemp(path.join(tmpdir(), "mm-artefato-"));
   try {
     const file = path.join(dir, "artefato.html");
-    await writeFile(file, page(source, test), "utf8");
+    const html = page(source, test);
+    await writeFile(file, html, "utf8");
     const args = [
       "--headless=new",
       "--disable-gpu",
@@ -139,9 +142,17 @@ export async function runArtifact(source: string, test: string, timeoutMs = 25_0
     const m = out.match(/<pre id="__mm_resultado">([\s\S]*?)<\/pre>/);
     if (!m) return { ran: true, ok: false, errors: ["A página não terminou de carregar (o teste não chegou a rodar)."], failures: [], passed: 0, ms: Date.now() - started };
     const decoded = m[1].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
-    const r = JSON.parse(decoded) as { erros: string[]; falhas: string[]; ok: number };
-    const errors = r.erros.filter((e) => !/^ResizeObserver loop/.test(e));
-    return { ran: true, ok: !errors.length && !r.falhas.length, errors, failures: r.falhas, passed: r.ok, ms: Date.now() - started };
+    const r = JSON.parse(decoded) as { erros: string[]; falhas: string[]; ok: number; nulos?: string[] };
+    // Erro com a linha: junta o trecho de código daquela linha (a Kally vê exatamente onde quebrou).
+    const lines = html.split("\n");
+    const errors = r.erros
+      .filter((e) => !/^ResizeObserver loop/.test(e))
+      .map((e) => {
+        const n = Number(e.match(/\(linha (\d+)\)/)?.[1]);
+        const code = n && lines[n - 1] ? lines[n - 1].trim().slice(0, 160) : "";
+        return code && code.length < 160 && !code.startsWith("<meta") ? `${e} → código: ${code}` : e;
+      });
+    return { ran: true, ok: !errors.length && !r.falhas.length, errors, failures: r.falhas, passed: r.ok, ms: Date.now() - started, missing: r.nulos ?? [] };
   } catch (cause) {
     return { ran: false, ok: true, errors: [], failures: [], passed: 0, ms: Date.now() - started, reason: cause instanceof Error ? cause.message : String(cause) };
   } finally {

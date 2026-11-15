@@ -229,7 +229,9 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
           report.edits = edits.reduce((n, e) => n + e.edits.length, 0);
           if (edits.length) {
             note = edits.map((e) => e.note).filter(Boolean).join("; ");
-            const applied = applyEdits(base.source, edits.flatMap((e) => e.edits));
+            const all = edits.flatMap((e) => e.edits);
+            // Dezenas de trocas não são uma mudança localizada (15/11: 442 trocas e 7 minutos): reescreve inteiro.
+            const applied = all.length > 40 ? ({ ok: false, reason: `trocas demais (${all.length})` } as const) : applyEdits(base.source, all);
             if (applied.ok) {
               const block = serializeArtifact({ title: base.title, kind: base.kind, ref: base.id, format: base.format === "markdown" ? "markdown" : "html", source: applied.source });
               final = final.replace(edits[0].raw, block);
@@ -273,9 +275,12 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
                 send({ status: test ? "Testando o artefato num navegador: clicando e conferindo o que você pediu." : "Rodando o artefato num navegador para ver se carrega sem erro.", step: "artefato-teste" });
                 run = await runArtifact(v.artifact.source, test);
                 if (run.ran && !run.ok) problems = [...run.errors.map((e) => `Erro de JavaScript ao rodar: ${e}`), ...run.failures.map((f) => `No teste, falhou: ${f}`)];
+                // Quais elementos o código procurou e não existem: a causa mais comum de "null.addEventListener".
+                if (run.ran && !run.ok && run.missing?.length) problems.push(`O código procura elementos que não existem no HTML: ${run.missing.join(", ")}. Crie esses elementos com exatamente esse id ou classe, ou corrija o seletor no script.`);
               }
             }
-            if (!problems.length || attempt >= 2 || cancel.signal.aborted) {
+            // Teto de tempo: depois de ~2 minutos, entrega o melhor que tem (com o aviso) em vez de deixar a pessoa esperando.
+            if (!problems.length || attempt >= 2 || cancel.signal.aborted || Date.now() - input.startedAt > 120_000) {
               report.problems = problems;
               break;
             }
