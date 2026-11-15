@@ -19,6 +19,8 @@ import { FigureBlock, SideFigure, parseFigure, splitFigure } from "./figure";
 import { DrawingFigure, SideBySide, SideDrawing, sideOptions, splitDrawing, splitImage, useSideSize } from "./drawing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
+import { parseEmbed } from "@/lib/artifact";
+import { ArtifactEditPending, ChatArtifact, EmbeddedArtifact } from "@/components/artifact/chat-artifact";
 
 /**
  * Renderiza o Markdown dos pensamentos com componentes nativos.
@@ -256,6 +258,15 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
     }
     case "code": {
       const code = token as Tokens.Code;
+      // Artefatos (components/artifact): o da Kally funcionando na conversa, as mudanças ainda sendo aplicadas e o
+      // artefato salvo incorporado num pensamento.
+      const fence = (code.lang ?? "").split(/\s/)[0].toLowerCase();
+      if (fence === "artefato") return <ChatArtifact body={code.text} complete={fenceClosed(code.raw)} />;
+      if (fence === "artefato-edicao" || fence === "artefato-edição") return <ArtifactEditPending complete={fenceClosed(code.raw)} />;
+      if (fence === "artefato-ref") {
+        const embed = parseEmbed(code.text);
+        if (embed) return <EmbeddedArtifact id={embed.id} title={embed.title} />;
+      }
       // Diagramas: o bloco ```mermaid é desenhado (só depois de fechado, no streaming).
       if (isMermaid(code)) return <Diagram source={code.text} complete={fenceClosed(code.raw)} />;
       const lang = (code.lang ?? "").split(/\s/)[0];

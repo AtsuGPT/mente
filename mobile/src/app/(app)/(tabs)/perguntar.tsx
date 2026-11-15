@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, FlatList, Image, Linking, Platform, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,6 +35,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { enter, exit, layoutTransition, spring, timing } from "@/theme/motion";
 import { maxWidths, useContainer, useLayout } from "@/theme/layout";
 import { QuizContext } from "@/components/markdown/quiz";
+import { ArtifactChatContext, artifactKey, type ArtifactChat } from "@/components/artifact/chat-artifact";
+import { lastArtifactIn } from "@/lib/artifact";
 
 /**
  * Kally: assistente de aprendizagem do ambiente atual, numa tela só para conversar,
@@ -182,6 +184,9 @@ function Kally() {
   const [save, setSave] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  // Artefatos desta conversa: o aberto pela pessoa ("Editar com a Kally") e os já salvos (pelo código).
+  const [attachedArtifact, setAttachedArtifact] = useState<{ id: string; title: string } | null>(null);
+  const [savedArtifacts, setSavedArtifacts] = useState<Record<string, { id: string; version: number }>>({});
   const [transcribed, setTranscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [web, setWeb] = useState(false);
@@ -504,7 +509,23 @@ function Kally() {
   const restored = useRef(false);
 
   // Conversa aberta pelo painel da Kally (/kally-painel → /perguntar?conversa=…).
-  const { conversa } = useLocalSearchParams<{ conversa?: string }>();
+  const { conversa, rascunho, artefato } = useLocalSearchParams<{ conversa?: string; rascunho?: string; artefato?: string }>();
+  // Vindo da biblioteca de artefatos: "Pedir à Kally" (texto pronto na caixa) e "Editar com a Kally" (o artefato salvo
+  // fica em jogo nas próximas mensagens, até a pessoa tirá-lo).
+  useEffect(() => {
+    if (rascunho) {
+      setDraft(rascunho);
+      router.setParams({ rascunho: undefined });
+    }
+    if (artefato) {
+      router.setParams({ artefato: undefined });
+      api
+        .artifact(artefato)
+        .then((r) => setAttachedArtifact({ id: r.artifact.id, title: r.artifact.title }))
+        .catch(() => undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rascunho, artefato]);
   useEffect(() => {
     if (!conversa || conversa === conversationId) return;
     restored.current = true;
@@ -640,6 +661,18 @@ function Kally() {
     const known = messagesRef.current;
     const upTo = options.userId ? known.findIndex((m) => m.id === options.userId) : known.length;
     const temporaryHistory = conversationId ? undefined : known.slice(0, upTo < 0 ? known.length : upTo).filter((m) => !m.local && !m.queued).slice(-10).map(({ role, content: c }) => ({ role, content: c }));
+    // Artefato em jogo: o aberto pela pessoa, ou o último que a Kally entregou nesta conversa. Salvo, vai só o id (o
+    // servidor lê o código pela biblioteca); não salvo, vai o código (para ela mudar sem recriar).
+    const lastAnswer = [...known.slice(0, upTo < 0 ? known.length : upTo)].reverse().find((m) => m.role === "assistant" && !m.local)?.content ?? "";
+    const lastBlock = attachedArtifact ? null : lastArtifactIn(lastAnswer);
+    const lastSaved = lastBlock ? savedArtifacts[artifactKey(lastBlock.source)]?.id ?? lastBlock.ref : null;
+    const artifactContext = attachedArtifact
+      ? { id: attachedArtifact.id, attached: true }
+      : lastBlock
+        ? lastSaved
+          ? { id: lastSaved }
+          : { source: lastBlock.source, title: lastBlock.title, kind: lastBlock.kind, format: lastBlock.format }
+        : undefined;
     if (options.userId) {
       // Da fila ou refazer: a bolha da pessoa já existe; a resposta entra logo depois dela.
       setMessages((current) => {
@@ -674,6 +707,7 @@ function Kally() {
       // Modo aprofundado: o modelo e o esforço que a pessoa escolheu (no menu de modo).
       model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
       effort: answerCfg.effort !== "normal" ? answerCfg.effort : undefined,
+      artifact: artifactContext,
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -762,6 +796,14 @@ function Kally() {
         const extra = event as { model?: string; stats?: DevStats };
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
+        // Texto final montado pelo servidor (artefato validado, ou as mudanças já aplicadas): substitui o que chegou.
+        const replaced = (event as { replace?: string }).replace;
+        if (typeof replaced === "string") {
+          queue = "";
+          if (ticker) clearInterval(ticker);
+          ticker = null;
+          update((m) => ({ ...m, content: replaced }));
+        }
         if (event.text) {
           kick();
           // O texto começou: a etapa em andamento termina (no modo em partes, as próximas etapas chegam depois).
@@ -864,8 +906,29 @@ function Kally() {
   // Quiz da Kally (quiz.tsx): o resultado vai como uma mensagem da pessoa, pelo sendRef (o valor do contexto fica
   // estável e as bolhas, que são memo, não redesenham).
   const quizSend = useCallback((text: string) => void sendRef.current?.(text), []);
+  // Artefatos da Kally (components/artifact/chat-artifact.tsx): salvar na biblioteca, salvar como versão nova e pedir
+  // correção quando o código deu erro ao rodar.
+  const artifactChat = useMemo<ArtifactChat>(
+    () => ({
+      saved: savedArtifacts,
+      canSave: permissions.publish,
+      save: async (block) => {
+        const r = await api.createArtifact({ title: block.title, kind: block.kind, description: block.description, category: block.category, format: block.format, source: block.source, origin: "kally", note: "Criado com a Kally", conversationId });
+        setSavedArtifacts((s) => ({ ...s, [artifactKey(block.source)]: { id: r.id, version: r.version } }));
+        return r;
+      },
+      saveVersion: async (block, id) => {
+        const r = await api.addArtifactVersion(id, { source: block.source, origin: "kally", note: "Mudança pedida à Kally" });
+        setSavedArtifacts((s) => ({ ...s, [artifactKey(block.source)]: { id: r.id, version: r.version } }));
+        return r;
+      },
+      askFix: (block, errors) => void sendRef.current?.(`O artefato «${block.title}» deu erro ao rodar: ${errors.join("; ")}. Corrige, por favor.`),
+    }),
+    [savedArtifacts, permissions.publish, api, conversationId],
+  );
 
   return (
+    <ArtifactChatContext.Provider value={artifactChat}>
     <QuizContext.Provider value={quizSend}>
     <KeyboardScreen insetMirror={keyboardInset}>
       <View style={column} onLayout={presence.onColumnLayout}>
@@ -999,6 +1062,16 @@ function Kally() {
           {attachment.status === "processing" ? <ActivityIndicator color={colors.violet300} /> : null}
           <IconButton name="close" label="Remover anexo" color={colors.muted} onPress={() => { setAttachment(null); setQueued(null); }} />
         </Animated.View>
+      ) : null}
+
+      {attachedArtifact ? (
+        <View style={styles.reviewBar}>
+          <Touchable onPress={() => router.push({ pathname: "/artefato/[id]", params: { id: attachedArtifact.id } })} style={[styles.tool, { flex: 1 }]}>
+            <Icon name="cube" size={14} color={colors.violet300} />
+            <AppText variant="small" numberOfLines={1} color={colors.violet200} style={{ flex: 1 }}>Editando com a Kally: {attachedArtifact.title}</AppText>
+          </Touchable>
+          <IconButton name="close" label="Parar de editar este artefato" color={colors.muted} onPress={() => setAttachedArtifact(null)} />
+        </View>
       ) : null}
 
       {mode === "revisar" ? (
@@ -1162,6 +1235,7 @@ function Kally() {
       </Sheet>
     </KeyboardScreen>
     </QuizContext.Provider>
+    </ArtifactChatContext.Provider>
   );
 }
 

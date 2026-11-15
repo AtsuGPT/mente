@@ -1,6 +1,10 @@
 import { API_URL, REQUEST_TIMEOUT_MS } from "./config";
 import type {
   AdminPost,
+  ArtifactCard,
+  ArtifactFull,
+  ArtifactInput,
+  ArtifactVersionMeta,
   AdminPostsPage,
   Category,
   EnvironmentCard,
@@ -31,6 +35,8 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly fieldErrors?: FieldErrors,
+    /** Detalhes da validação (ex.: por que um artefato foi recusado). */
+    readonly details?: string[],
   ) {
     super(message);
     this.name = "ApiError";
@@ -92,10 +98,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (!response.ok) {
-    const payload = (data ?? {}) as { error?: string; fieldErrors?: FieldErrors };
+    const payload = (data ?? {}) as { error?: string; fieldErrors?: FieldErrors; details?: unknown };
     // 401 com token = sessão inválida; sem token, é só um ambiente que pede login.
     if (response.status === 401 && authToken) onUnauthorized?.();
-    throw new ApiError(payload.error || `Erro ${response.status} no servidor.`, response.status, payload.fieldErrors);
+    throw new ApiError(payload.error || `Erro ${response.status} no servidor.`, response.status, payload.fieldErrors, Array.isArray(payload.details) ? payload.details.map(String) : undefined);
   }
   return data as T;
 }
@@ -196,6 +202,23 @@ export function envApi(environmentId: string) {
       request<{ id: string; slug: string; status: "PUBLISHED" | "DRAFT"; environment: { id: string; name: string } }>(`${base}/kally/rascunho`, { method: "POST", json: input }),
     kallyImages: (q: string) => request<{ images: KallyImage[] }>(`${base}/kally/imagens${query({ q })}`),
     kallyImportImage: (image: KallyImage) => request<{ src: string; markdown: string }>(`${base}/kally/imagens`, { method: "POST", json: image, timeoutMs: 60_000 }),
+
+    // Artefatos (biblioteca do ambiente; as permissões são as do ambiente, decididas no servidor)
+    artifacts: (params: { q?: string; tipo?: string; categoria?: string; favoritos?: boolean; meus?: boolean } = {}) =>
+      request<{ artifacts: ArtifactCard[]; categories: { name: string; count: number }[]; canCreate: boolean }>(
+        `${base}/artefatos${query({ q: params.q, tipo: params.tipo, categoria: params.categoria, favoritos: params.favoritos ? "1" : undefined, meus: params.meus ? "1" : undefined })}`,
+      ),
+    artifact: (id: string) => request<{ artifact: ArtifactFull; versions: ArtifactVersionMeta[] }>(`${base}/artefatos/${encodeURIComponent(id)}`),
+    artifactVersion: (id: string, n: number) => request<{ version: { number: number; source: string; note: string; origin: string; createdAt: string } }>(`${base}/artefatos/${encodeURIComponent(id)}/versoes/${n}`),
+    createArtifact: (input: ArtifactInput) => request<{ id: string; version: number; warnings: string[] }>(`${base}/artefatos`, { method: "POST", json: input, timeoutMs: 60_000 }),
+    addArtifactVersion: (id: string, input: { source: string; note?: string; origin?: "kally" | "manual"; title?: string; description?: string }) =>
+      request<{ id: string; version: number; warnings: string[] }>(`${base}/artefatos/${encodeURIComponent(id)}/versoes`, { method: "POST", json: input, timeoutMs: 60_000 }),
+    updateArtifact: (id: string, input: { title?: string; description?: string; category?: string; private?: boolean; kind?: string }) =>
+      request<{ ok: true }>(`${base}/artefatos/${encodeURIComponent(id)}`, { method: "PATCH", json: input }),
+    deleteArtifact: (id: string) => request<{ ok: true }>(`${base}/artefatos/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    restoreArtifact: (id: string, numero: number) => request<{ id: string; version: number }>(`${base}/artefatos/${encodeURIComponent(id)}/restaurar`, { method: "POST", json: { numero } }),
+    duplicateArtifact: (id: string) => request<{ id: string; version: number }>(`${base}/artefatos/${encodeURIComponent(id)}/duplicar`, { method: "POST" }),
+    setArtifactFavorite: (id: string, on: boolean) => request<{ favorite: boolean }>(`${base}/artefatos/${encodeURIComponent(id)}/favorito`, { method: on ? "PUT" : "DELETE" }),
 
     invites: () => request<{ invites: Invite[] }>(`${base}/invites`),
     createInvite: (input: { role: MemberRole; maxUses: number | null; expiresInDays: number | null }) =>

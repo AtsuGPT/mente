@@ -1,0 +1,164 @@
+import type { AiMessage } from "@/server/ai";
+import { parseArtifactBlocks, parseEditBlocks } from "./block";
+import { KIND_LABEL, type ArtifactKind } from "./kinds";
+import type { ArtifactTask } from "./intent";
+
+/**
+ * Prompt da Kally para artefatos. A ordem segue o que já foi medido nas outras competências: regras no começo
+ * (iguais entre pedidos, o provedor reaproveita), material e artefato atual no meio, um lembrete curto no fim, colado
+ * ao pedido (o GPT-OSS segue melhor o que vem por último). O lembrete dá o molde literal do bloco: com instruções em
+ * prosa, o 120B copiava pedaços da instrução para dentro da cerca (bateria de 15/11).
+ */
+
+/** Bibliotecas permitidas, com a versão fixa (a caixa de areia só carrega destes endereços). */
+export const LIBRARIES = [
+  ["Chart.js (gráficos 2D)", "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"],
+  ["Plotly (gráficos 3D, superfícies)", "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"],
+  ["D3 (visualizações e grafos)", "https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"],
+  ["Mermaid (fluxogramas, mapas mentais)", "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"],
+  ["KaTeX (fórmulas)", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js e o CSS https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"],
+  ["math.js (expressões e matrizes)", "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"],
+  ["React 18 sem compilação (React.createElement ou htm)", "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js, https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js, https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"],
+] as const;
+
+const EXAMPLE = `\`\`\`artefato
+titulo: Queda livre
+tipo: simulador
+descricao: Altura e velocidade de um objeto em queda, com a gravidade ajustável.
+categoria: Física
+---
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Queda livre</title>
+<style>
+  body{margin:0;padding:16px;background:var(--mm-bg);color:var(--mm-text);font-family:var(--mm-fonte)}
+  .painel{display:grid;gap:12px;max-width:720px;margin:0 auto}
+  label{display:flex;justify-content:space-between;color:var(--mm-muted);font-size:14px}
+  input[type=range]{width:100%;accent-color:var(--mm-roxo)}
+  canvas{width:100%;height:auto;background:var(--mm-surface);border:1px solid var(--mm-line);border-radius:12px}
+  button{background:var(--mm-roxo);color:#fff;border:0;border-radius:999px;padding:10px 18px;font:inherit;min-height:40px}
+</style></head><body>
+<div class="painel">
+  <label>Gravidade <b id="gv">9,8 m/s²</b></label><input id="g" type="range" min="1" max="25" step="0.1" value="9.8">
+  <canvas id="c" width="640" height="320"></canvas>
+  <button id="soltar">Soltar</button>
+  <p id="saida">Pronto para soltar.</p>
+</div>
+<script>
+  // ... estado, desenho no canvas e laço com requestAnimationFrame ...
+</script>
+</body></html>
+\`\`\``;
+
+function rules(task: ArtifactTask) {
+  return [
+    "Você é a Kally, a assistente do Minha Mente. Além de responder, você constrói ARTEFATOS: pequenas ferramentas digitais que funcionam de verdade (simuladores com parâmetros ajustáveis, gráficos e visualizações, diagramas interativos, calculadoras, quizzes e exercícios, componentes e demonstrações em HTML/CSS/JS ou React, documentos estruturados). A pessoa vê o artefato funcionando na conversa e pode salvá-lo na biblioteca do ambiente.",
+    "",
+    "COMO ENTREGAR",
+    "- Uma frase curta antes dizendo o que você construiu (sem repetir o pedido). Depois o bloco ```artefato. Depois, em 1 a 3 linhas, o que experimentar nele ou o que dá para pedir a seguir. Nada de outros blocos de código fora do artefato.",
+    "- O bloco tem o cabeçalho (titulo, tipo, descricao, categoria), uma linha com --- e o código. tipo é um de: simulador, grafico, diagrama, documento, codigo, ferramenta. categoria é uma pasta curta (\"Física\", \"Cálculo\", \"Programação\"...).",
+    "- Documento (resumo, relatório, roteiro de estudo, texto estruturado): use \"formato: markdown\" no cabeçalho e escreva o documento em Markdown no lugar do HTML.",
+    "",
+    "REGRAS DO CÓDIGO (HTML)",
+    "- Uma página completa e autossuficiente: <!doctype html>, CSS e JavaScript dentro da própria página. Prefira JavaScript puro com <canvas> ou SVG; use biblioteca só quando ela simplificar muito.",
+    `- Bibliotecas permitidas (só estes endereços, com a versão exata): ${LIBRARIES.map(([name, url]) => `${name}: ${url}`).join("; ")}. Qualquer outro endereço é bloqueado.`,
+    "- O artefato roda isolado, numa caixa de areia SEM internet e sem acesso ao app: nada de fetch, XMLHttpRequest, WebSocket, imagens ou fontes de outros sites, iframes, formulários que enviam dados, alert/confirm/prompt, localStorage ou cookies (guarde o estado em variáveis). Todos os dados ficam no próprio código.",
+    "- Visual do Minha Mente: fundo preto com detalhes roxos. Use as variáveis que a caixa já define: var(--mm-bg) fundo, var(--mm-surface) cartões, var(--mm-line) bordas, var(--mm-text) texto, var(--mm-muted) texto secundário, var(--mm-roxo) e var(--mm-roxo-claro) destaques, var(--mm-verde), var(--mm-amarelo), var(--mm-vermelho) para estados, var(--mm-fonte) fonte. Bordas arredondadas, sem sombras pesadas, sem degradês chamativos.",
+    "- As variáveis --mm-* são de CSS. No JavaScript (Chart.js, Plotly, canvas), use as cores em hexadecimal (#8461F0 roxo, #A58BF7 roxo claro, #F2EFFA texto, #AAA4BF texto secundário, #2A2732 linhas, #0B0A0E cartões, #8FDDB0 verde, #E8C07D amarelo, #F2777A vermelho), nunca var(--mm-...).",
+    "- Gráficos com altura definida: ponha o <canvas> do Chart.js dentro de uma <div> com altura fixa em px (ex.: 320px) e use maintainAspectRatio: false, ou mantenha maintainAspectRatio: true; no Plotly, height fixa no layout. Nunca uma altura que dependa da altura da janela.",
+    "- Funciona no celular (a partir de 340 px de largura) e no computador: layout fluido, controles grandes (mínimo 40 px de altura), rótulos legíveis (14 px ou mais), o valor atual ao lado de cada controle deslizante. Não use altura de tela (100vh) no corpo; a altura vem do conteúdo.",
+    "- Tudo em português do Brasil: rótulos, unidades, números com vírgula decimal (toLocaleString('pt-BR')).",
+    "- Conteúdo correto: fórmulas, unidades e valores iniciais fisicamente e matematicamente certos. Mostre a fórmula usada quando ajudar a entender. Valores padrão que já mostram algo interessante ao abrir.",
+    "- Interativo de verdade: o resultado muda na hora quando a pessoa mexe nos controles (sem botão \"calcular\" quando não precisar). Inclua um botão de reiniciar quando houver animação.",
+    "- Código limpo e comentado nos pontos principais (a pessoa pode querer aprender com ele). Nunca use três crases dentro do código.",
+    "",
+    "EXEMPLO DE FORMATO (só a forma; o conteúdo é sempre o pedido):",
+    EXAMPLE,
+    "",
+    task === "editar"
+      ? [
+          "MUDANÇAS NUM ARTEFATO QUE JÁ EXISTE",
+          "- Não recrie o artefato do zero. Para mudanças localizadas, devolva só as trocas, num bloco ```artefato-edicao:",
+          "```artefato-edicao\nnota: (o que mudou, em poucas palavras)\n<<<<<<< BUSCAR\n(trecho copiado EXATAMENTE do código atual, com algumas linhas de contexto)\n=======\n(o trecho novo)\n>>>>>>> FIM\n```",
+          "- Pode haver várias trocas no mesmo bloco, uma após a outra. Cada trecho BUSCAR tem que aparecer uma única vez no código atual.",
+          "- Se a mudança reescreve mais da metade do código, entregue o artefato inteiro num bloco ```artefato (mesmo título, salvo se a pessoa pedir outro).",
+          "- Antes do bloco, uma frase dizendo o que você mudou; depois, no máximo uma linha.",
+        ].join("\n")
+      : "",
+    task === "explicar"
+      ? "AGORA: a pessoa pergunta sobre o artefato atual. Responda como tutora, explicando o código e a ideia por trás dele (cite as funções e trechos pelo nome). NÃO devolva bloco ```artefato nem ```artefato-edicao, a menos que ela peça uma mudança."
+      : "",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
+/** Histórico enxuto: os artefatos antigos viram uma linha (o código atual, se for o caso, entra à parte). */
+export function trimHistory(history: { role: "user" | "assistant"; content: string }[]): AiMessage[] {
+  return history.slice(-8).map((m) => {
+    if (m.role !== "assistant") return { role: "user", content: m.content.slice(0, 4000) };
+    let text = m.content;
+    for (const b of parseArtifactBlocks(text)) text = text.replace(b.raw, `[artefato «${b.title}» entregue aqui]`);
+    for (const e of parseEditBlocks(text)) text = text.replace(e.raw, "[mudanças no artefato aplicadas aqui]");
+    return { role: "assistant", content: text.slice(0, 3000) };
+  });
+}
+
+export type BaseArtifact = { id: string | null; title: string; kind: ArtifactKind; format: string; source: string; version?: number };
+
+export function artifactPrompt(input: {
+  task: Exclude<ArtifactTask, "listar">;
+  message: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  base: BaseArtifact | null;
+  environmentName: string;
+  userName?: string | null;
+  material: { title: string; excerpt: string; author?: string | null }[];
+}): AiMessage[] {
+  const messages: AiMessage[] = [{ role: "system", content: rules(input.task) }];
+  const context = [
+    `Ambiente: ${input.environmentName}.${input.userName ? ` Quem conversa com você: ${input.userName}.` : ""}`,
+    input.material.length
+      ? `Material do ambiente que a pessoa pediu para usar (dados reais; use só o que está aqui, sem inventar):\n${input.material.map((p, i) => `[${i + 1}] ${p.title}${p.author ? ` (${p.author})` : ""}: ${p.excerpt}`).join("\n")}`
+      : "",
+  ].filter(Boolean);
+  messages.push({ role: "system", content: context.join("\n\n") });
+  messages.push(...trimHistory(input.history));
+  if (input.base) {
+    const lang = input.base.format === "markdown" ? "markdown" : "html";
+    messages.push({
+      role: "system",
+      content: `ARTEFATO ATUAL: «${input.base.title}» (${KIND_LABEL[input.base.kind]}${input.base.version ? `, versão ${input.base.version}` : ""}). Código completo, exatamente como está:\n\n\`\`\`\`${lang}\n${input.base.source}\n\`\`\`\``,
+    });
+  }
+  messages.push({ role: "user", content: input.message.replace(/^\/artefato\s*/i, "").trim() || "Crie um artefato útil para o que estamos conversando." });
+  const reminder =
+    input.task === "criar"
+      ? "Lembrete: uma frase, uma linha em branco, o bloco ```artefato completo (cabeçalho, ---, a página inteira até </html>) e 1 a 3 linhas de uso. Documento (resumo, relatório, roteiro): tipo documento, \"formato: markdown\" e o texto em Markdown, sem HTML. Só os endereços de biblioteca permitidos; nada de rede; visual com as variáveis --mm-*."
+      : input.task === "editar"
+        ? "Lembrete: mudança localizada → bloco ```artefato-edicao com BUSCAR copiado exatamente do código atual; mudança grande → bloco ```artefato inteiro. Uma frase antes dizendo o que mudou."
+        : "Lembrete: explique o artefato atual em texto, sem devolver código novo, a menos que a pessoa peça uma mudança.";
+  messages.push({ role: "system", content: reminder });
+  return messages;
+}
+
+/** Pedido de conserto: o artefato saiu com erros de validação (ou cortado). */
+export function repairPrompt(original: AiMessage[], answer: string, problems: string[]): AiMessage[] {
+  return [
+    ...original,
+    { role: "assistant", content: answer },
+    {
+      role: "system",
+      content: `O artefato acima não pode ser entregue assim:\n- ${problems.join("\n- ")}\nReescreva a resposta inteira corrigindo isso: uma frase, o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e uma linha de uso.`,
+    },
+  ];
+}
+
+/** Pedido do artefato inteiro, quando as trocas não se encaixaram no código atual. */
+export function fullRewritePrompt(original: AiMessage[], answer: string, reason: string): AiMessage[] {
+  return [
+    ...original,
+    { role: "assistant", content: answer },
+    { role: "system", content: `As trocas não puderam ser aplicadas (${reason}). Entregue agora o artefato INTEIRO, já com as mudanças pedidas, num bloco \`\`\`artefato (mesmo título), com uma frase antes dizendo o que mudou.` },
+  ];
+}

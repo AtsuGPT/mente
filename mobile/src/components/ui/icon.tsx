@@ -45,7 +45,14 @@ export type IconName =
   | "flow"
   | "copy"
   | "expand"
-  | "panel";
+  | "panel"
+  | "cube"
+  | "sliders"
+  | "chart"
+  | "code"
+  | "star"
+  | "starFilled"
+  | "play";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
@@ -188,6 +195,25 @@ export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }
       )}
       {name === "expand" && <Path d="M14.5 4.5h5v5M9.5 19.5h-5v-5M19.5 4.5l-6 6M4.5 19.5l6-6" {...p} />}
       {name === "panel" && <Path d="M6 4.5h12A2.5 2.5 0 0 1 20.5 7v10a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 17V7A2.5 2.5 0 0 1 6 4.5ZM9.5 4.5v15M5.8 8.5h1.6M5.8 11.5h1.6" {...p} />}
+      {name === "cube" && (
+        <>
+          <Path d="M12 2.8 20.2 7.4v9.2L12 21.2l-8.2-4.6V7.4L12 2.8Z" {...p} />
+          <Path d="M3.8 7.4 12 12l8.2-4.6M12 12v9.2" {...p} />
+        </>
+      )}
+      {name === "sliders" && (
+        <>
+          <Path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1" {...p} />
+          <Circle cx={15} cy={6.5} r={2} {...p} />
+          <Circle cx={9} cy={12} r={2} {...p} />
+          <Circle cx={17} cy={17.5} r={2} {...p} />
+        </>
+      )}
+      {name === "chart" && <Path d="M4 4.5v15h16M7.5 15.5l3.5-4.5 3 2.5 5-6.5" {...p} />}
+      {name === "code" && <Path d="m8.5 7.5-5 4.5 5 4.5M15.5 7.5l5 4.5-5 4.5M13.5 4.5l-3 15" {...p} />}
+      {name === "star" && <Path d="m12 3.5 2.6 5.5 6 .8-4.4 4.2 1.1 5.9L12 17l-5.3 2.9 1.1-5.9-4.4-4.2 6-.8L12 3.5Z" {...p} />}
+      {name === "starFilled" && <Path d="m12 3.5 2.6 5.5 6 .8-4.4 4.2 1.1 5.9L12 17l-5.3 2.9 1.1-5.9-4.4-4.2 6-.8L12 3.5Z" {...p} fill={color} />}
+      {name === "play" && <Path d="M7.5 5.2v13.6a.8.8 0 0 0 1.2.7l11-6.8a.8.8 0 0 0 0-1.4l-11-6.8a.8.8 0 0 0-1.2.7Z" {...p} />}
     </Svg>
   );
 }

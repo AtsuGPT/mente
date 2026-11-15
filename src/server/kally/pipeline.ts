@@ -187,7 +187,14 @@ export async function interpret(
 // "premissas falsas" e "falhas identificadas". Esses pedidos seguem a conversa comum, com a memória.
 const ANALYSIS_RULE = /\banalis[ae]r?\b|\bcritique\b|\bcriticamente\b|\bavali(e|ar)\b|\bse sustenta\b|\besse argumento\b/;
 const STUDY_RULE = /\b(me )?expli(ca|que|car)\b|\b(material|texto|resumo|apostila|post) (de estudo|did[aá]tico|explicando)|\bcomo funciona\b|\bdiferen[çc]a entre\b/;
-const STUDY_POST_RULE = /\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
+/**
+ * Questão de prova: alternativas A) a E) (duas ou mais, em linhas próprias) ou a pessoa conferindo a resposta dela
+ * ("acertei?", "resposta final"). Na bateria de provas de 15/11, essas mensagens caíam na análise crítica: a Kally
+ * respondia com "Reconstrução da posição / Avaliação crítica", confirmou duas respostas erradas e pôs em dúvida uma
+ * certa.
+ */
+export const EXAM_QUESTION = /(^|\n)\s*\(?[A-E][).]\s+\S[^\n]*\n(?:[^\n]*\n)*?\s*\(?[B-E][).]\s+\S|\b(acertei|errei|minha resposta|resposta final|gabarito)\b/i;
+const STUDY_POST_RULE =/\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
 
 /**
  * Competência do pedido (competences/): da interpretação, se houve; senão do modo e das regras
@@ -208,6 +215,9 @@ export function competenceFor(input: { mode: string; interpretation: Interpretat
   if (input.mode === "ideia") return STUDY_POST_RULE.test(m) ? "estudo" : "post";
   // Revisão textual (sugestões trecho a trecho) segue o fluxo próprio; sem texto, a Kally só pede o texto.
   if (input.mode === "revisar") return input.reviewKind === "intelectual" ? "analise" : null;
+  // Questão de prova vai para o estudo (tutora), antes da análise: "avalie as afirmações" e "analise o código" são
+  // comandos de enunciado, não pedido de crítica de argumento.
+  if (EXAM_QUESTION.test(input.message)) return "estudo";
   if (ANALYSIS_RULE.test(m)) return "analise";
   if (input.mode === "aprender") return null;
   return STUDY_RULE.test(m) ? "estudo" : null;

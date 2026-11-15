@@ -20,6 +20,8 @@ export default function EnvironmentStack() {
       <Stack.Screen name="base" options={{ title: "Base de documentos" }} />
       <Stack.Screen name="kally-painel" options={{ title: "Kally" }} />
       <Stack.Screen name="sobre" options={{ title: "Sobre" }} />
+      {/* Artefato: ver vale para quem vê o ambiente; criar, editar e apagar são conferidos na tela e no servidor. */}
+      <Stack.Screen name="artefato/[id]" options={{ title: "Artefato" }} />
       <Stack.Screen name="painel/participantes" options={{ title: "Participantes" }} />
       <Stack.Protected guard={canWrite}>
         <Stack.Screen name="painel/index" options={{ title: "Pensamentos" }} />

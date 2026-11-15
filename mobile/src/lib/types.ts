@@ -191,3 +191,27 @@ export type KallyConversation = { id: string; mode: KallyMode; title: string; cr
 /** Item da memória da Kally (o que a pessoa contou em conversas salvas). */
 export type KallyMemoryItem = { id: string; text: string; kind: "preferencia" | "fato" | "objetivo" | "contexto"; conversationId: string | null; uses: number; lastUsedAt: string | null; createdAt: string; updatedAt: string };
 export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };
+
+/* ------------------------------- Artefatos ------------------------------- */
+
+export type ArtifactCard = {
+  id: string;
+  title: string;
+  description: string;
+  kind: "simulador" | "grafico" | "diagrama" | "documento" | "codigo" | "ferramenta";
+  format: "html" | "markdown";
+  category: string;
+  private: boolean;
+  version: number;
+  author: { name: string; username: string; isMe: boolean } | null;
+  createdAt: string;
+  updatedAt: string;
+  favorite: boolean;
+  canEdit: boolean;
+};
+
+export type ArtifactFull = ArtifactCard & { source: string; config: string; sourceArtifactId: string | null; canDuplicate: boolean; canFavorite: boolean };
+
+export type ArtifactVersionMeta = { number: number; note: string; origin: string; createdAt: string; author: string | null };
+
+export type ArtifactInput = { title: string; kind: string; description?: string; category?: string; format?: string; source: string; private?: boolean; note?: string; origin?: "kally" | "manual"; conversationId?: string | null };

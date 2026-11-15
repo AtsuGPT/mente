@@ -42,6 +42,7 @@ import {
   type KallyMode,
 } from "@/server/kally";
 import { searchWeb, type WebResult } from "@/server/web-search";
+import { maybeArtifactTurn } from "@/server/artifacts/turn";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
@@ -147,7 +148,8 @@ export async function POST(request: Request, context: EnvContext) {
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
   const userId = access.userId;
 
-  const body = await readJson(request, 80_000);
+  // 300 KB: o pedido pode levar o código do artefato em jogo (até 200 mil caracteres) para a Kally mudar.
+  const body = await readJson(request, 300_000);
   if (body instanceof Response) return body;
   const raw = text(body.message, MAX_MESSAGE_LENGTH + 1);
   if (!raw || raw.length > MAX_MESSAGE_LENGTH) return error(`Escreva uma mensagem de até ${MAX_MESSAGE_LENGTH} caracteres.`, 400);
@@ -184,6 +186,13 @@ export async function POST(request: Request, context: EnvContext) {
         .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && typeof (m as { content?: unknown }).content === "string")
         .slice(-10)
         .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
+
+  // Artefatos (src/server/artifacts): pedido para criar, mudar, explicar ou listar um artefato segue um caminho próprio
+  // (geração, validação e montagem do bloco ```artefato), com o mesmo protocolo de eventos. O resto não muda.
+  if ((requested === "auto" || requested === "chat") && !postCommand && !hasReviewPayload) {
+    const artifactResponse = await maybeArtifactTurn({ access, userId, userName: me?.displayName ?? null, message, history, body, conversation, startedAt, headers: new Headers(json(null).headers) });
+    if (artifactResponse) return artifactResponse;
+  }
 
   // Conversa de post em andamento: a mensagem seguinte, sem pergunta nova, continua o post (antes cada mensagem era lida
   // sozinha: "Atividades gerais" virava papo e "Poste isso" saía como texto solto, sem o cartão de publicar).
