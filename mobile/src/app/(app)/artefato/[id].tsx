@@ -9,6 +9,7 @@ import { handOffDraft } from "@/lib/draft-handoff";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { feedback } from "@/lib/feedback";
 import { formatDateShort } from "@/lib/format";
+import { chooseFileFormat, saveArtifactFile } from "@/lib/artifact-file";
 import type { ArtifactFull, ArtifactVersionMeta } from "@/lib/types";
 import { ArtifactFullscreen, ArtifactPreview } from "@/components/artifact/artifact-view";
 import { AppText, Button, Chip, StateView, TextField, Touchable } from "@/components/ui/primitives";
@@ -145,6 +146,20 @@ function ArtifactPage({ id }: { id: string }) {
     }
   };
 
+  const download = async () => {
+    const format = await chooseFileFormat(artifact.format === "markdown");
+    if (!format) return;
+    setSaving(true);
+    try {
+      await saveArtifactFile(environment.id, format, { id: artifact.id });
+      feedback.success();
+    } catch (cause) {
+      fail(cause);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const share = () => {
     void Share.share({ message: `«${artifact.title}» · ${info.label} na Mente (ambiente ${environment.name}).${artifact.description ? `\n${artifact.description}` : ""}\nAbra na aba Artefatos do ambiente.` }).catch(() => undefined);
   };
@@ -253,6 +268,7 @@ function ArtifactPage({ id }: { id: string }) {
         {artifact.canFavorite ? <ActionButton icon={artifact.favorite ? "starFilled" : "star"} label={artifact.favorite ? "Favorito" : "Favoritar"} active={artifact.favorite} onPress={toggleFavorite} /> : null}
         {artifact.canDuplicate ? <ActionButton icon="copy" label="Duplicar" onPress={duplicate} /> : null}
         {artifact.canDuplicate ? <ActionButton icon="doc" label="Usar num pensamento" onPress={useInPost} /> : null}
+        <ActionButton icon="doc" label={saving ? "Gerando…" : "Baixar (PDF e outros)"} onPress={() => void download()} />
         <ActionButton icon="share" label="Compartilhar" onPress={share} />
         {artifact.canEdit ? <ActionButton icon="edit" label="Detalhes" active={panel === "details"} onPress={() => setPanel(panel === "details" ? "none" : "details")} /> : null}
         {artifact.canEdit ? <ActionButton icon="trash" label="Excluir" danger onPress={remove} /> : null}

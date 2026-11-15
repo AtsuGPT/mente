@@ -6,6 +6,7 @@ import { AppText, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { KIND_INFO, parseArtifactBody, type ArtifactBlock } from "@/lib/artifact";
 import { useEnvironment } from "@/lib/environment";
+import { chooseFileFormat, saveArtifactFile } from "@/lib/artifact-file";
 import { feedback } from "@/lib/feedback";
 import type { ArtifactFull } from "@/lib/types";
 import { layoutTransition } from "@/theme/motion";
@@ -38,6 +39,7 @@ export const ArtifactChatContext = createContext<ArtifactChat | null>(null);
 /** Bloco ```artefato numa resposta da Kally: o artefato funcionando, com tela cheia, código e salvar. */
 export const ChatArtifact = memo(function ChatArtifact({ body, complete }: { body: string; complete: boolean }) {
   const chat = useContext(ArtifactChatContext);
+  const env = useEnvironment();
   const block = useMemo(() => parseArtifactBody(body), [body]);
   const info = KIND_INFO[block.kind];
   const key = artifactKey(block.source);
@@ -80,6 +82,22 @@ export const ChatArtifact = memo(function ChatArtifact({ body, complete }: { bod
   };
 
   const target = savedHere?.id ?? block.ref;
+  const download = async () => {
+    const environmentId = env.current?.session.environment.id;
+    if (!environmentId) return;
+    const format = await chooseFileFormat(block.format === "markdown");
+    if (!format) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const name = await saveArtifactFile(environmentId, format, { title: block.title, format: block.format, source: block.source });
+      setMessage(`Arquivo pronto: ${name}`);
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Não consegui gerar o arquivo.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <Animated.View layout={layoutTransition} style={styles.frame}>
       <View style={styles.head}>
@@ -136,6 +154,10 @@ export const ChatArtifact = memo(function ChatArtifact({ body, complete }: { bod
           ) : (
             <AppText variant="small" color={colors.faint}>Só quem pode publicar neste ambiente salva artefatos.</AppText>
           )}
+          <Touchable accessibilityRole="button" disabled={busy} onPress={() => void download()} style={[styles.button, styles.ghost]}>
+            <Icon name="doc" size={15} color={colors.muted} />
+            <AppText variant="small" color={colors.muted}>{block.format === "markdown" ? "Baixar PDF" : "Baixar"}</AppText>
+          </Touchable>
           {errors.length ? (
             <Touchable accessibilityRole="button" onPress={() => chat.askFix(block, errors)} style={[styles.button, styles.danger]}>
               <Icon name="kally" size={15} color={colors.danger} />

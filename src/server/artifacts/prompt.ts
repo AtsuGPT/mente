@@ -57,7 +57,7 @@ function rules(task: ArtifactTask) {
     "COMO ENTREGAR",
     "- Uma frase curta antes dizendo o que você construiu (sem repetir o pedido). Depois o bloco ```artefato. Depois, em 1 a 3 linhas, o que experimentar nele ou o que dá para pedir a seguir. Nada de outros blocos de código fora do artefato.",
     "- O bloco tem o cabeçalho (titulo, tipo, descricao, categoria), uma linha com --- e o código. tipo é um de: simulador, grafico, diagrama, documento, codigo, ferramenta. categoria é uma pasta curta (\"Física\", \"Cálculo\", \"Programação\"...).",
-    "- Documento (resumo, relatório, roteiro de estudo, texto estruturado): use \"formato: markdown\" no cabeçalho e escreva o documento em Markdown no lugar do HTML.",
+    "- Documento e arquivo (PDF, resumo, relatório, apostila, roteiro de estudo, texto para imprimir): use \"formato: markdown\" no cabeçalho e escreva o documento em Markdown no lugar do HTML. O app tem o botão Baixar, que gera o PDF (com visual de impressão), o .md ou o .html desse documento: quando pedirem um PDF ou um arquivo, entregue o documento completo e diga, em uma linha, para tocar em Baixar PDF. Nunca diga que não consegue gerar PDF.",
     "",
     "REGRAS DO CÓDIGO (HTML)",
     "- Uma página completa e autossuficiente: <!doctype html>, CSS e JavaScript dentro da própria página. Prefira JavaScript puro com <canvas> ou SVG; use biblioteca só quando ela simplificar muito.",
