@@ -30,7 +30,17 @@ import { browserPath, runArtifact, takeTest, type RuntimeReport } from "./runtim
  * - listar: os artefatos do ambiente, direto do banco (sem modelo).
  */
 
-type History = { role: "user" | "assistant"; content: string }[];
+/** ids do código original que sumiram no novo (só quando o original tem vários; os de layout contam igual). */
+function missingIds(before: string, after: string) {
+  const ids = (s: string) => new Set([...s.matchAll(/\bid\s*=\s*["']([\w-]+)["']/g)].map((m) => m[1]));
+  const a = ids(before);
+  if (a.size < 3) return [];
+  const b = ids(after);
+  const lost = [...a].filter((id) => !b.has(id));
+  return lost.length >= Math.max(1, Math.ceil(a.size * 0.15)) || lost.some((id) => new RegExp(`<(input|select|button|canvas|textarea)[^>]*id\\s*=\\s*["']${id}["']`).test(before)) ? lost : [];
+}
+
+type History ={ role: "user" | "assistant"; content: string }[];
 /** Histórico como a rota recebe (o papel vem como texto). */
 type LooseHistory = { role: string; content: string }[];
 
@@ -211,7 +221,8 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
 
         // Validação e montagem final.
         let final = answer;
-        const complete = (msgs: AiMessage[]) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "remote" ? 9_000 : 5_000, timeoutMs: 180_000, think: false, signal: cancel.signal });
+        // Consertos com raciocínio ligado (depurar pede pensar no fluxo inteiro); o teto de tokens cobre o pensar + a página.
+        const complete = (msgs: AiMessage[], think = false) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "remote" ? (think ? 14_000 : 9_000) : 5_000, timeoutMs: think ? 240_000 : 180_000, think, signal: cancel.signal });
         let note = "";
         if (task === "editar" && base) {
           const edits = parseEditBlocks(final);
@@ -228,7 +239,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
               report.editApplied = false;
               report.editFailure = applied.reason;
               send({ status: "As trocas não encaixaram no código atual; escrevendo o artefato inteiro já com a mudança.", step: "artefato-inteiro" });
-              final = await complete(fullRewritePrompt(prompt, answer, applied.reason));
+              final = await complete(fullRewritePrompt(prompt, answer, applied.reason)).catch(() => answer);
             }
           }
         }
@@ -252,7 +263,13 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             else {
               const v = validateArtifact({ title: b.title, kind: b.kind, description: b.description, category: b.category, format: b.format, source: b.source });
               if (!v.ok) problems = v.errors;
-              else if (v.artifact.format === "html" && browserPath()) {
+              // Mudança num artefato existente: o que já existia continua (ids de controles e áreas). Na bateria de
+              // 15/11, "deixa a velocidade ir de 0,1× a 5×" trocou o laboratório cósmico inteiro por outro programa.
+              const lost = task === "editar" && base && base.format === "html" && !/\b(remov|tir[ae]|apag|exclu|tira|sem o|sem a)\w*/i.test(message) ? missingIds(base.source, v.ok ? v.artifact.source : b.source) : [];
+              if (lost.length) problems = [...problems, `Você removeu o que já existia no artefato (${lost.slice(0, 8).map((i) => `#${i}`).join(", ")}${lost.length > 8 ? "…" : ""}). Parta do código atual e mude só o que a pessoa pediu, mantendo todo o resto.`];
+              if (!v.ok || lost.length) {
+                // já tem problema: conserta antes de testar
+              } else if (v.artifact.format === "html" && browserPath()) {
                 send({ status: test ? "Testando o artefato num navegador: clicando e conferindo o que você pediu." : "Rodando o artefato num navegador para ver se carrega sem erro.", step: "artefato-teste" });
                 run = await runArtifact(v.artifact.source, test);
                 if (run.ran && !run.ok) problems = [...run.errors.map((e) => `Erro de JavaScript ao rodar: ${e}`), ...run.failures.map((f) => `No teste, falhou: ${f}`)];
@@ -264,7 +281,9 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             }
             repairs.push(problems);
             send({ status: `Encontrei ${problems.length === 1 ? "um problema" : `${problems.length} problemas`} e vou corrigir antes de entregar: ${problems[0]}`, step: `artefato-conserto-${attempt}` });
-            const fixed = await complete(repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test));
+            const repair = repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test);
+            // Com raciocínio alto, às vezes o modelo gasta todos os tokens pensando e a resposta vem vazia: refaz sem ele.
+            const fixed = await complete(repair, true).catch(() => complete(repair, false)).catch(() => "");
             if (parseArtifactBlocks(fixed).length) final = fixed;
             else break;
           }

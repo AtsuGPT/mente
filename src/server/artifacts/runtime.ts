@@ -20,6 +20,8 @@ import path from "node:path";
  *
  * Como o resultado sai: --dump-dom imprime o HTML depois de os scripts rodarem (com tempo virtual, as esperas e as
  * animações correm sem esperar o relógio); o resultado do teste fica num <pre id="__mm_resultado">.
+ * Sem tela, o Chrome não desenha quadros e o requestAnimationFrame nunca dispara: aqui ele vira um setTimeout de 16 ms
+ * (medido em 15/11: 0 quadros em 1 s; o cronômetro e o laboratório pareciam parados e a Kally "consertava" código certo).
  */
 
 const CANDIDATES = [
@@ -51,6 +53,7 @@ const THEME =
 const BEFORE = `window.__mm={erros:[]};
 addEventListener("error",function(e){if(e&&e.message)__mm.erros.push(e.message+(e.lineno?" (linha "+e.lineno+")":""));else if(e&&e.target&&(e.target.src||e.target.href))__mm.erros.push("Não carregou: "+(e.target.src||e.target.href))},true);
 addEventListener("unhandledrejection",function(e){__mm.erros.push(String(e&&e.reason&&e.reason.message||e&&e.reason||"erro"))});
+window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now())},16)};window.cancelAnimationFrame=function(id){clearTimeout(id)};
 window.alert=function(){};window.confirm=function(){return true};window.prompt=function(_,d){return d==null?"":String(d)};
 (function(){function mem(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}["localStorage","sessionStorage"].forEach(function(n){try{Object.defineProperty(window,n,{value:mem(),configurable:true})}catch(_){}})})();`;
 
