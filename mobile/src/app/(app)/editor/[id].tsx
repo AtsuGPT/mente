@@ -14,6 +14,7 @@ import { AppText, Button, Chip, SectionLabel, TextField, Touchable } from "@/com
 import { colors, fonts, radius, space } from "@/theme/tokens";
 import { useContainer, useLayout } from "@/theme/layout";
 import { takeDraft } from "@/lib/draft-handoff";
+import { feedback } from "@/lib/feedback";
 import { blockAt, type StructuredBlock } from "@/lib/structured";
 import { DiagramEditorSheet, TableEditorSheet } from "@/components/editor/structure-sheets";
 import { Icon } from "@/components/ui/icon";
@@ -244,7 +245,10 @@ export default function EditorScreen() {
       await api.updatePost(id, form);
       setDirty(false);
       setOriginalSlug(slug);
-      if (intent === "publish") setStatus("PUBLISHED");
+      if (intent === "publish") {
+        setStatus("PUBLISHED");
+        feedback.success();
+      }
       if (intent === "unpublish") setStatus("DRAFT");
       setMessage({ tone: "ok", text: intent === "publish" ? "Pensamento publicado." : intent === "unpublish" ? "Voltou para rascunho." : "Alterações salvas." });
     } catch (cause) {

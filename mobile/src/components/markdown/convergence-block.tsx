@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import { ConvergenceSymbol, type ConvergencePart } from "@/components/convergence-symbol";
 import { AppText, Chip, Touchable } from "@/components/ui/primitives";
 import { enter, exit } from "@/theme/motion";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, panels, radius, space } from "@/theme/tokens";
 
 /**
  * Bloco ```convergencia dos posts: o símbolo da Mente desenhado ao vivo (nítido em qualquer tela), para explicar as
@@ -82,9 +82,9 @@ export function ConvergenceExplorer() {
 const styles = StyleSheet.create({
   aside: { flexDirection: "row", alignItems: "center", gap: space.lg, marginBottom: space.lg },
   asideRight: { flexDirection: "row-reverse" },
-  symbolBox: { borderRadius: radius.lg, backgroundColor: "rgba(19,11,38,0.55)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.22)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  symbolBox: { borderRadius: radius.lg, backgroundColor: panels.tile, borderWidth: StyleSheet.hairlineWidth, borderColor: panels.border, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   asideText: { flex: 1, minWidth: 0 },
-  explorer: { alignItems: "center", gap: space.md, marginVertical: space.lg, paddingVertical: space.lg, borderRadius: radius.xl, backgroundColor: "rgba(10,7,18,0.6)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.2)" },
+  explorer: { alignItems: "center", gap: space.md, marginVertical: space.lg, paddingVertical: space.lg, borderRadius: radius.xl, backgroundColor: panels.stage, borderWidth: StyleSheet.hairlineWidth, borderColor: panels.border },
   chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: space.sm, paddingHorizontal: space.md },
   captionSlot: { minHeight: 40, alignSelf: "stretch", paddingHorizontal: space.lg },
   caption: { position: "absolute", left: space.lg, right: space.lg, top: 0 },

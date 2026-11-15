@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { markOrigin } from "@/lib/feedback";
 import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -49,6 +50,7 @@ export const PostCard = memo(function PostCard({ post, author, avatar, featured 
     <Touchable
       accessibilityRole="link"
       accessibilityLabel={post.title}
+      onPressIn={(event) => markOrigin(event.nativeEvent.pageY)}
       onPress={() => router.push({ pathname: "/post/[slug]", params: { slug: post.slug } })}
       hover={hover}
       press={press}

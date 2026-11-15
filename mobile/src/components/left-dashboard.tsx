@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
 import { useDialogKeyboard } from "@/lib/use-dialog-keyboard";
+import { feedback } from "@/lib/feedback";
 import { formatDateShort } from "@/lib/format";
 import type { Category } from "@/lib/types";
 import { AppText, Chip, IconButton, SectionLabel, Touchable } from "@/components/ui/primitives";
@@ -18,8 +19,9 @@ import { colors, radius, space, type } from "@/theme/tokens";
 /**
  * Painel da esquerda: buscar pensamentos e chegar às pastas rápido, de qualquer aba.
  *
- *  - Celular e tablet: desliza da borda esquerda por cima das abas (botão no cabeçalho de cada aba); fecha tocando
- *    fora, arrastando para a esquerda, com Esc (web) ou com o voltar do Android.
+ *  - Celular e tablet: desliza da borda esquerda por cima das abas (botão no cabeçalho de cada aba, ou puxando da borda
+ *    esquerda da tela, com o painel acompanhando o dedo); fecha tocando fora, arrastando para a esquerda, com Esc (web)
+ *    ou com o voltar do Android.
  *  - Computador (barra lateral com rótulos): fica fixo na própria barra, abaixo das abas.
  *
  * A busca procura nos títulos e textos (a mesma do servidor), com filtro de pasta; sem busca, o painel mostra as
@@ -42,6 +44,8 @@ export function DashboardProvider({ docked, children }: { docked: boolean; child
   const [mounted, setMounted] = useState(false);
   const progress = useSharedValue(0);
   const drag = useSharedValue(0);
+  // Aberto pelo gesto da borda: o dedo leva o painel; a mola de abrir sozinha não entra.
+  const byEdge = useSharedValue(0);
 
   const open = useCallback(() => setMounted(true), []);
   const close = useCallback(() => {
@@ -56,8 +60,38 @@ export function DashboardProvider({ docked, children }: { docked: boolean; child
   useEffect(() => {
     if (!mounted) return;
     drag.value = 0;
+    if (byEdge.value) return;
     progress.value = reduceMotion ? 1 : withSpring(1, spring.sheet);
-  }, [mounted, progress, drag, reduceMotion]);
+  }, [mounted, progress, drag, reduceMotion, byEdge]);
+
+  const edge = usePanGesture({
+    enabled: !docked && Platform.OS !== "web",
+    activeOffsetX: 14,
+    failOffsetY: [-16, 16],
+    onActivate: () => {
+      "worklet";
+      byEdge.value = 1;
+      progress.value = 0;
+      scheduleOnRN(setMounted, true);
+    },
+    onUpdate: (event) => {
+      "worklet";
+      progress.value = Math.min(1, Math.max(0, event.translationX / panelWidth));
+    },
+    onDeactivate: (event) => {
+      "worklet";
+      const open = event.translationX > panelWidth * 0.35 || event.velocityX > 600;
+      byEdge.value = 0;
+      if (open) {
+        progress.value = withSpring(1, { ...spring.sheet, velocity: event.velocityX / panelWidth });
+        scheduleOnRN(feedback.tap);
+      } else {
+        progress.value = withSpring(0, spring.sheet, (finished) => {
+          if (finished) scheduleOnRN(setMounted, false);
+        });
+      }
+    },
+  });
   // Virou computador com o painel aberto: ele passa a ficar fixo na barra.
   useEffect(() => {
     if (docked && mounted) setMounted(false);
@@ -93,6 +127,12 @@ export function DashboardProvider({ docked, children }: { docked: boolean; child
   return (
     <DashboardContext.Provider value={value}>
       {children}
+      {!docked && Platform.OS !== "web" && !mounted ? (
+        // Faixa fina na borda esquerda (abaixo do cabeçalho, acima das abas): puxar dali abre o painel.
+        <GestureDetector gesture={edge}>
+          <View style={[styles.edge, { top: insets.top + 72, bottom: insets.bottom + 72 }]} />
+        </GestureDetector>
+      ) : null}
       {mounted && !docked ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]}>
@@ -262,6 +302,7 @@ function Shortcut({ icon, label, onPress }: { icon: IconName; label: string; onP
 
 const styles = StyleSheet.create({
   backdrop: { backgroundColor: "#000" },
+  edge: { position: "absolute", left: 0, width: 16 },
   drawer: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: colors.surface, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.lineStrong, paddingHorizontal: space.md },
   panel: { flex: 1, gap: space.sm, minHeight: 0 },
   head: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.xs, marginBottom: space.xs },

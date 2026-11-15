@@ -36,6 +36,7 @@ import { Surface } from "./surface";
 import { easing, enter, spring, timing } from "@/theme/motion";
 import { Icon, type IconName } from "./icon";
 import { useTypeScale } from "@/theme/type-scale";
+import { feedback } from "@/lib/feedback";
 
 /* ------------------------------- Texto -------------------------------- */
 
@@ -233,7 +234,10 @@ export function IconButton({ name, onPress, label, color = colors.text, active }
       accessibilityLabel={label}
       accessibilityState={{ selected: !!active }}
       hitSlop={4}
-      onPress={onPress}
+      onPress={() => {
+        feedback.tap();
+        onPress();
+      }}
       press={press}
       hover={hover}
       pressScale={0.9}
@@ -302,7 +306,14 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
     <Touchable
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              if (!selected) feedback.select();
+              onPress();
+            }
+          : undefined
+      }
       hover={hover}
       pressScale={0.95}
       style={[styles.chip, surface]}

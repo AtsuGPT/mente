@@ -23,7 +23,8 @@ export default function EnvironmentStack() {
       <Stack.Screen name="painel/participantes" options={{ title: "Participantes" }} />
       <Stack.Protected guard={canWrite}>
         <Stack.Screen name="painel/index" options={{ title: "Pensamentos" }} />
-        <Stack.Screen name="editor/[id]" options={{ title: "", gestureEnabled: false }} />
+        {/* O editor sobe de baixo (como uma folha para escrever) e desce ao voltar; o rascunho vindo da Kally entra junto. */}
+        <Stack.Screen name="editor/[id]" options={{ title: "", gestureEnabled: false, animation: "slide_from_bottom" }} />
       </Stack.Protected>
       <Stack.Protected guard={permissions.manageContent}>
         <Stack.Screen name="painel/categorias" options={{ title: "Categorias" }} />

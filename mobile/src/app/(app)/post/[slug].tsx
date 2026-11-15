@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import Animated from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
+import { takeOrigin } from "@/lib/feedback";
 import { readingMinutes, stripMarkdown } from "@shared/text";
 import { useCurrentEnvironment } from "@/lib/environment";
 import { formatDateLong, formatDateShort, formatNumber } from "@/lib/format";
@@ -10,7 +11,7 @@ import { Markdown } from "@/components/markdown/markdown";
 import { CategoryTag } from "@/components/post-card";
 import { ThoughtAssistant } from "@/components/thought-assistant";
 import { AppText, Divider, IconButton, SectionLabel, Skeleton, StateView, Touchable } from "@/components/ui/primitives";
-import { enter } from "@/theme/motion";
+import { enter, spring } from "@/theme/motion";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, space } from "@/theme/tokens";
 import { useContainer, useLayout } from "@/theme/layout";
@@ -25,6 +26,20 @@ export default function PostScreen() {
   const [related, setRelated] = useState<PostCard[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Aberto por um cartão: a página cresce a partir da altura do cartão (um pouco menor e deslocada até ele), junto
+  // com a transição da pilha. Por link, pela busca ou com "reduzir movimento", entra como sempre.
+  const { height } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const [origin] = useState(() => takeOrigin());
+  const offset = origin ? Math.max(-140, Math.min(140, (origin.y - height * 0.3) * 0.4)) : 0;
+  const grow = useSharedValue(origin && !reduceMotion ? 0 : 1);
+  useEffect(() => {
+    if (grow.value < 1) grow.value = withSpring(1, spring.sheet);
+  }, [grow]);
+  const expand = useAnimatedStyle(() => ({
+    opacity: 0.4 + 0.6 * grow.value,
+    transform: [{ translateY: (1 - grow.value) * offset }, { scale: 0.94 + 0.06 * grow.value }],
+  }));
 
   const load = useCallback(async () => {
     try {
@@ -74,7 +89,7 @@ export default function PostScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
         >
           {/* O post aparece aos poucos, de cima para baixo: pastas, título, data e então cada bloco do texto. */}
-          <View>
+          <Animated.View style={expand}>
             <Animated.View entering={enter.reveal(0)}>
               {primary ? <LinearGradient colors={[primary.color, `${primary.color}00`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rule} /> : null}
               <View style={styles.meta}>
@@ -108,7 +123,7 @@ export default function PostScreen() {
                 ))}
               </Animated.View>
             ) : null}
-          </View>
+          </Animated.View>
         </ScrollView>
       )}
     </>

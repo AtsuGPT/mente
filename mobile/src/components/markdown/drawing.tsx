@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { AppText } from "@/components/ui/primitives";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, panels, radius, space } from "@/theme/tokens";
 
 /**
  * Figuras dos posts e das respostas da Kally.
@@ -121,11 +121,11 @@ export function SideDrawing({ source, width }: { source: string; width: number }
 }
 
 const styles = StyleSheet.create({
-  figure: { alignItems: "center", paddingVertical: space.md, marginBottom: space.lg, borderRadius: radius.lg, backgroundColor: "rgba(19,11,38,0.45)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.2)" },
+  figure: { alignItems: "center", paddingVertical: space.md, marginBottom: space.lg, borderRadius: radius.lg, backgroundColor: panels.stage, borderWidth: StyleSheet.hairlineWidth, borderColor: panels.border },
   row: { flexDirection: "row", alignItems: "center", gap: space.lg, marginBottom: space.lg },
   rowRight: { flexDirection: "row-reverse" },
   visual: { flexShrink: 0 },
   text: { flex: 1, minWidth: 0 },
-  box: { padding: 6, borderRadius: radius.lg, backgroundColor: "rgba(19,11,38,0.55)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.22)", alignItems: "center", justifyContent: "center" },
+  box: { padding: 6, borderRadius: radius.lg, backgroundColor: panels.tile, borderWidth: StyleSheet.hairlineWidth, borderColor: panels.border, alignItems: "center", justifyContent: "center" },
   fallback: { alignItems: "center", justifyContent: "center", padding: space.md, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.lineStrong },
 });

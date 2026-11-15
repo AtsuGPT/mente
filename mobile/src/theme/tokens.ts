@@ -61,6 +61,15 @@ export const tint = {
   pressed: "rgba(255,255,255,0.05)",
 } as const;
 
+/** Painéis translúcidos sobre o preto: figuras e símbolo dentro dos posts, quadros de destaque. */
+export const panels = {
+  /** Quadro pequeno (símbolo ou figura ao lado do texto). */
+  tile: "rgba(19,11,38,0.55)",
+  /** Quadro grande (figura sozinha, símbolo interativo). */
+  stage: "rgba(10,7,18,0.6)",
+  border: "rgba(165,139,247,0.22)",
+} as const;
+
 /** Gradientes (início → fim). Sempre discretos: profundidade, não decoração. */
 export const gradients = {
   /** Fundo das telas: preto puro (mantido como par para quem desenha o fundo). */

@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { Canvas, Circle, DashPathEffect, FontHinting, Group, Path, Points, RadialGradient, RoundedRect, Skia, Text, useFont, vec, type SkFont, type SkPath } from "@shopify/react-native-skia";
-import { GestureDetector, useCompetingGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from "react-native-gesture-handler";
+import { feedback } from "@/lib/feedback";
+import { GestureDetector, useCompetingGestures, useExclusiveGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from "react-native-gesture-handler";
 import {
   cancelAnimation,
   Extrapolation,
@@ -286,11 +287,34 @@ export const KnowledgeMap = forwardRef<KnowledgeMapHandle, Props>(function Knowl
       ripple.value = 0;
       ripple.value = withTiming(1, { duration: 380, easing: easing.decelerate, reduceMotion: ReduceMotion.System });
       const hit = hitTest(layout, worldX, worldY, 16 / scale.value);
+      if (hit && hit.id !== selectedId) feedback.select();
       onSelect(hit?.id ?? null);
     },
   });
 
-  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), tap);
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    maxDistance: 16,
+    onActivate: (event) => {
+      "worklet";
+      stopCamera();
+      const zoomed = scale.value > Math.min(MAX_SCALE, fitScale * 2.2);
+      const next = zoomed ? fitScale : Math.min(MAX_SCALE, scale.value * 2);
+      const k = next / scale.value;
+      if (zoomed) {
+        tx.value = withSpring(width / 2 - center.x * next, spring.camera);
+        ty.value = withSpring(height / 2 - center.y * next, spring.camera);
+      } else {
+        // Mantém parado o ponto do mundo que está sob o dedo.
+        tx.value = withSpring(event.x - (event.x - tx.value) * k, spring.camera);
+        ty.value = withSpring(event.y - (event.y - ty.value) * k, spring.camera);
+      }
+      scale.value = withSpring(next, spring.camera);
+    },
+  });
+
+  // Toque duplo primeiro (o toque simples espera ele falhar), pan e pinça juntos.
+  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), useExclusiveGestures(doubleTap, tap));
 
   // Flutuação: um relógio próprio (não reinicia ao pausar, então nada salta ao voltar) que só
   // publica para o canvas ~20 vezes por segundo.

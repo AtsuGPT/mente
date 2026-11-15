@@ -62,7 +62,7 @@ function trail(out: Stroke[], rx: number, ry: number, rot: number, a0: number, a
   for (let k = 0; k < pieces; k++) {
     const f = (k + 1) / pieces;
     out.push({
-      p: ell(rx, ry, rot, a0 + ((a1 - a0) * k) / pieces, a0 + ((a1 - a0) * (k + 1)) / pieces, 4),
+      p: ell(rx, ry, rot, a0 + ((a1 - a0) * k) / pieces, a0 + ((a1 - a0) * (k + 1)) / pieces, 6),
       c: false,
       w: w0 + (w1 - w0) * f,
       a: alpha * Math.pow(f, pow),
@@ -85,10 +85,13 @@ export function geometry(shape: number, t: number, lvl: number, act: number): St
       // idle: as três órbitas achatadas da Kally, com o cometa claro em cada anel; no centro, uma esfera escura quase
       // invisível (desenhada à parte, em orbital-skia), com só um contorno fraco, que também guia as partículas.
       const rots = RINGS.map((R) => (R.tilt * Math.PI) / 180 + R.dir * t * (TAU / R.period) * 0.3);
-      for (let i = 0; i < 3; i++) add(ell(RINGS[i].rx, RINGS[i].ry, rots[i], Math.PI, TAU, 36), false, RINGS[i].w * 0.8, 0.28, STYLE.sweep, rots[i]);
+      // 64 pontos por metade: a curva continua lisa no tamanho grande (com 36 apareciam quinas no topo e na base).
+      for (let i = 0; i < 3; i++) add(ell(RINGS[i].rx, RINGS[i].ry, rots[i], Math.PI, TAU, 64), false, RINGS[i].w * 0.8, 0.28, STYLE.sweep, rots[i]);
       for (let i = 0; i < 3; i++) {
         const R = RINGS[i];
-        add(ell(R.rx, R.ry, rots[i], 0, Math.PI, 36), false, R.w, 0.9, STYLE.sweep, rots[i]);
+        add(ell(R.rx, R.ry, rots[i], 0, Math.PI, 64), false, R.w, 0.9, STYLE.sweep, rots[i]);
+        // Reflexo fino no meio da metade da frente (a parte mais perto de quem olha): dá volume sem mudar as cores.
+        add(ell(R.rx, R.ry, rots[i], Math.PI * 0.22, Math.PI * 0.78, 40), false, R.w * 0.3, 0.2, STYLE.light, rots[i]);
         const head = R.ph + t * R.cs * 1.7 * R.dir;
         const span = R.comet * TAU * R.dir;
         const front = Math.sin(((head % TAU) + TAU) % TAU) > 0 ? 1 : 0.35;

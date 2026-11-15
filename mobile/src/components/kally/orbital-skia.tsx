@@ -72,7 +72,7 @@ type Kit = {
   sweep: Float32Array[];
   dots: Float32Array[];
 };
-type Orb = { p: Particles; shape: number; since: number; last: number; lvl: number; act: number; halo: number; kit: Kit };
+type Orb = { p: Particles; shape: number; since: number; last: number; lvl: number; act: number; halo: number; drawn: number; kit: Kit };
 type Registry = Record<string, Orb>;
 
 function makeKit(): Kit {
@@ -221,14 +221,20 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
   );
 }
 
-/** Um quadro da órbita `id`. still: parada no desenho do estado (sem partículas nem tempo correndo). */
-function frame(id: string, shapeNow: number, lvlNow: number, actNow: number, size: number, count: number, t: number, dt: number, still: boolean): SkPicture {
+/** No repouso já assentado (sem partículas), a órbita gira devagar: 30 quadros por segundo bastam e poupam bateria. */
+const IDLE_STEP = 1 / 30;
+
+/**
+ * Um quadro da órbita `id`. still: parada no desenho do estado (sem partículas nem tempo correndo). null: este quadro
+ * pode ser pulado (repouso assentado, menos de IDLE_STEP desde o último desenho); o anterior continua na tela.
+ */
+function frame(id: string, shapeNow: number, lvlNow: number, actNow: number, size: number, count: number, t: number, dt: number, still: boolean): SkPicture | null {
   "worklet";
   const g = globalThis as unknown as { __kallyOrbs?: Registry };
   const registry = (g.__kallyOrbs ??= {});
   let orb = registry[id];
   if (!orb || orb.p.n !== count) {
-    orb = { p: makeParticles(count), shape: shapeNow, since: t, last: t, lvl: 0, act: 0, halo: HALO[shapeNow], kit: orb?.kit ?? makeKit() };
+    orb = { p: makeParticles(count), shape: shapeNow, since: t, last: t, lvl: 0, act: 0, halo: HALO[shapeNow], drawn: -1, kit: orb?.kit ?? makeKit() };
     registry[id] = orb;
   }
   orb.lvl += (lvlNow - orb.lvl) * Math.min(1, dt * (lvlNow > orb.lvl ? 18 : 6));
@@ -247,6 +253,8 @@ function frame(id: string, shapeNow: number, lvlNow: number, actNow: number, siz
     orb.since = t;
   }
   const since = t - orb.since;
+  if (orb.shape === 0 && since > PART_OUT[1] + 1 && t - orb.drawn < IDLE_STEP && t >= orb.drawn) return null;
+  orb.drawn = t;
   const lineA = smoothstep(LINE_IN[0], LINE_IN[1], since);
   const partA = 1 - smoothstep(PART_OUT[0], PART_OUT[1], since);
   const strokes = geometry(orb.shape, t, orb.lvl, orb.act);
@@ -277,7 +285,8 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
   const ticker = useFrameCallback((info) => {
     "worklet";
     const dt = Math.min(info.timeSincePreviousFrame ?? 16, 48) / 1000;
-    picture.value = frame(id, shape.value, amp.value, pulse.value, size, count, info.timestamp / 1000, dt, false);
+    const next = frame(id, shape.value, amp.value, pulse.value, size, count, info.timestamp / 1000, dt, false);
+    if (next) picture.value = next;
   }, false);
 
   useEffect(() => {
@@ -286,7 +295,7 @@ export const KallyOrbitalSkia = memo(function KallyOrbitalSkia({ size = 48, stat
       // Parada (fora de foco, app em segundo plano, "reduzir movimento"): um quadro só, com o desenho do estado.
       scheduleOnUI(() => {
         "worklet";
-        picture.value = frame(id, shape.value, 0, 0, size, count, 0, 0.016, true);
+        picture.value = frame(id, shape.value, 0, 0, size, count, 0, 0.016, true) ?? picture.value;
       });
     }
   }, [active, ticker, picture, id, shape, size, count, state]);
