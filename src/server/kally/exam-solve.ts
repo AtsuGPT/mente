@@ -1,6 +1,7 @@
 import "server-only";
 import { completeChat } from "@/server/ai";
-import { remoteConfig } from "@/server/ai/remote";
+import { codingServes, remoteConfig } from "@/server/ai/remote";
+import { asksForCode, asksForMath } from "./remote-style";
 import { EXAM_QUESTION } from "./pipeline";
 
 /**
@@ -52,7 +53,8 @@ async function solve(question: string): Promise<ExamKey | null> {
         content: `${question.slice(0, 6_000)}\n\nResponda exatamente assim, em duas linhas:\nRESPOSTA: ${options ? "<a letra da alternativa correta>" : "<o valor ou a expressão final>"}\nPOR QUÊ: <a justificativa em até 3 frases, citando o que decide a questão>`,
       },
     ],
-    { target: remoteConfig().enabled ? "remote" : "local", think: true, temperature: 0, maxTokens: 6_000, timeoutMs: 90_000 },
+    // Questão de exatas ou programação: o Kally Coding resolve (mais preciso e mais rápido nas contas, medido em 15/11).
+    { target: codingServes() && (asksForMath(question) || asksForCode(question)) ? "coding" : remoteConfig().enabled ? "remote" : "local", think: true, temperature: 0, maxTokens: 6_000, timeoutMs: 90_000 },
   ).catch(() => null);
   if (!text) return null;
   const answer = text.match(/RESPOSTA:\s*\**\s*([^\n*]+)/i)?.[1]?.trim();

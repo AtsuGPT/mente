@@ -3,7 +3,7 @@ import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/a
 import { logPerf, memorySampler } from "@/server/ai/perf";
 import { codingConfig, codingServes, estimateTokens, lightConfig, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
-import { asksForCode, remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
+import { asksForCode, asksForMath, remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
 import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
@@ -651,8 +651,9 @@ export async function POST(request: Request, context: EnvContext) {
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           // Nome do modelo que vai responder: a Kally 1.5 pela API aparece como ela (e não como o Qwen do PC, que é só reserva).
           const localName = devLight === "never" ? modelName : devLight === "only" || lightServes(model) ? lightConfig().model : modelName;
-          // Pedido de programação: o remoto é o Kally Coding (DeepSeek), se estiver disponível; o resto fica no principal.
-          const codingTurn = route.target === "remote" && asksForCode(message) && codingServes();
+          // Programação e contas: o remoto é o Kally Coding (DeepSeek), se estiver disponível; o resto fica no principal.
+          // Medido em 15/11 (20 contas difíceis, 3 vezes cada): DeepSeek 60/60 em 5 s; o principal 52/60 (8 sem resposta) em 19 s.
+          const codingTurn = route.target === "remote" && (asksForCode(message) || asksForMath(message)) && codingServes();
           if (showStats) send({ model: route.target === "remote" ? (codingTurn ? codingConfig().model : remoteConfig().model) : localName, backend: codingTurn ? "coding" : route.target });
           generationStarted = Date.now();
           // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
@@ -964,7 +965,7 @@ export async function POST(request: Request, context: EnvContext) {
                 { role: "assistant", content: answer },
                 { role: "system", content: `As questões acima foram conferidas por um cálculo independente e têm problemas:\n- ${check.problems.map((p) => p.text).join("\n- ")}\nRefaça a resposta inteira com as questões corrigidas: recalcule cada resposta a partir do enunciado, marque com * a alternativa que tem exatamente esse valor, deixe as outras com valores diferentes e escreva, logo depois das alternativas de cada questão numérica, a linha "= conta" (a conta em JavaScript com os números do enunciado, ex.: = 1500*3*30/1000). Mesmo assunto e mesmo formato, com o bloco \`\`\`quiz.` },
               ];
-              const fixOptions = { target: route.target === "remote" ? ("remote" as const) : ("local" as const), temperature: 0.2, maxTokens: 6_000, timeoutMs: 120_000, signal: cancel.signal };
+              const fixOptions = { target: codingTurn ? ("coding" as const) : route.target === "remote" ? ("remote" as const) : ("local" as const), temperature: 0.2, maxTokens: 6_000, timeoutMs: 120_000, signal: cancel.signal };
               // Com raciocínio; se vier vazio (o modelo gastou os tokens pensando) ou sem o quiz, de novo sem ele.
               let fixed = await completeChat(fixMessages, { ...fixOptions, think: true }).catch(() => "");
               if (!/```quiz/.test(fixed)) fixed = await completeChat(fixMessages, { ...fixOptions, think: false }).catch(() => "");

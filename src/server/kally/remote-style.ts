@@ -157,3 +157,18 @@ const NOT_CODE = /\bc[oó]digo (civil|penal|de defesa|tribut\w+|eleitoral|de [e�
 export function asksForCode(message: string): boolean {
   return CODE_SIGNAL.test(message) && !NOT_CODE.test(message);
 }
+
+/**
+ * Pedido de conta ou de questão de exatas (vai para o Kally Coding junto com programação, pedido de 15/11: "a precisão
+ * matemática é crucial"). Integral, derivada, limite, matriz, probabilidade, juros, circuito, ou uma expressão com números.
+ */
+const MATH_SIGNAL =
+  /\b(integr(al|ais|e|ar)|deriv(ada|adas|e|ar)|limite|equa[cç](ão|ões|ao|oes) (diferencial|do|de)|resolv(a|e|er) (a|o|as|os|esta|essa|este|esse)? ?(equa|sistema|conta|integral|problema|quest)|calcul(e|a|ar|o)|quanto (é|e|vale|d[aá])|matriz|determinante|autovalor|autovetor|vetor gradiente|probabilidade|combina[cç](ão|ões)|permuta[cç]|arranjo|juros|montante|parcela|tabela price|circuito el[eé]trico|resist[eê]ncia equivalente|imped[aâ]ncia|fator de pot[eê]ncia|bhaskara|logaritmo|trigonometr|seno|cosseno|s[eé]rie (geom|aritm|de taylor|de maclaurin|de fourier|de pot[eê]ncias)|progress[aã]o (aritm|geom)|desvio padr[aã]o|vari[aâ]ncia)\b|\d\s*[+\-*/^×÷]\s*\(?\d|∫|∑|√|∂/i;
+const MATH_SUBJECT = /\b(c[aá]lculo|[aá]lgebra|geometria|f[ií]sica|eletricidade|eletr[oô]nica|matem[aá]tica|estat[ií]stica|exatas|qu[ií]mica)\b/i;
+// Palavras do dia a dia (tensão, corrente, potência, média, circuito) só contam junto de números ou unidades.
+const MATH_WITH_NUMBERS =
+  /\b(tens[aã]o|corrente|pot[eê]ncia|resist[eê]ncia|resistor|capacitor|indutor|circuito|m[eé]dia|mediana|porcentagem|tangente)\b[^\n]{0,80}\d|\d[^\n]{0,40}\b(volts?|amp[eè]res?|ohms?|watts?|hz)\b|\d\s*(v|a|ω|w|kw|kva|μf|mh)\b/i;
+
+export function asksForMath(message: string): boolean {
+  return MATH_SIGNAL.test(message) || MATH_WITH_NUMBERS.test(message) || (MATH_SUBJECT.test(message) && /\b(prova|quiz|simulado|exerc[ií]cios?|quest(ão|ões|oes)|lista)\b/i.test(message));
+}
