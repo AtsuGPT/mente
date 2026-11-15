@@ -194,7 +194,9 @@ const STUDY_RULE = /\b(me )?expli(ca|que|car)\b|\b(material|texto|resumo|apostil
  * certa.
  */
 export const EXAM_QUESTION = /(^|\n)\s*\(?[A-E][).]\s+\S[^\n]*\n(?:[^\n]*\n)*?\s*\(?[B-E][).]\s+\S|\b(acertei|errei|minha resposta|resposta final|gabarito)\b/i;
-const STUDY_POST_RULE =/\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
+/** Pedido para montar prova, quiz, simulado ou exercícios: estudo (modelo maior, raciocínio e as contas conferidas). */
+export const EXAM_REQUEST = /\b(fa[zç]a?|monta|monte|cria|crie|gera|gere|prepara|prepare|elabora|elabore|me d[aá]|quero|preciso de|passa|passe)\b[^.?!\n]{0,40}\b(prova|simulado|quiz|teste|lista de exerc[ií]cios|exerc[ií]cios|quest(ões|oes)|perguntas)\b/i;
+const STUDY_POST_RULE = /\b(explican?do|expli(ca|que)|como funciona|o que (é|são)|tutorial|passo a passo)\b/;
 
 /**
  * Competência do pedido (competences/): da interpretação, se houve; senão do modo e das regras
@@ -211,7 +213,7 @@ export const asksOpinionOnly = (message: string) =>
 export function competenceFor(input: { mode: string; interpretation: Interpretation | null; message: string; reviewKind: "textual" | "intelectual" | null }): CompetenceId | null {
   const i = input.interpretation;
   // Questão de prova vale antes do interpretador (bateria de 15/11: ele mandava "acertei?" para a análise crítica).
-  if (input.mode !== "ideia" && input.mode !== "revisar" && EXAM_QUESTION.test(input.message)) return "estudo";
+  if (input.mode !== "ideia" && input.mode !== "revisar" && (EXAM_QUESTION.test(input.message) || EXAM_REQUEST.test(input.message))) return "estudo";
   if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" ? null : "analise";
   const m = input.message.toLowerCase();
   if (input.mode === "ideia") return STUDY_POST_RULE.test(m) ? "estudo" : "post";

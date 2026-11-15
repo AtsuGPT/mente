@@ -952,14 +952,15 @@ export async function POST(request: Request, context: EnvContext) {
             quizReport = { checked: check.checked, problems: check.problems.length, rounds: 0 };
             for (let round = 0; check.problems.length && round < 2 && !cancel.signal.aborted; round++) {
               send({ status: `Conferi as contas das questões e vou corrigir antes de você responder: ${check.problems[0].text}.`, step: `quiz-conserto-${round}` });
-              const fixed = await completeChat(
-                [
-                  ...fullPrompt,
-                  { role: "assistant", content: answer },
-                  { role: "system", content: `As questões acima foram conferidas por um cálculo independente e têm problemas:\n- ${check.problems.map((p) => p.text).join("\n- ")}\nRefaça a resposta inteira com as questões corrigidas: recalcule cada resposta a partir do enunciado, marque com * a alternativa que tem exatamente esse valor, deixe as outras com valores diferentes e mantenha a linha "= conta" de cada questão numérica. Mesmo assunto e mesmo formato.` },
-                ],
-                { target: route.target === "remote" ? "remote" : "local", temperature: 0.2, maxTokens: 5_000, timeoutMs: 120_000, think: true, signal: cancel.signal },
-              ).catch(() => "");
+              const fixMessages: AiMessage[] = [
+                ...fullPrompt,
+                { role: "assistant", content: answer },
+                { role: "system", content: `As questões acima foram conferidas por um cálculo independente e têm problemas:\n- ${check.problems.map((p) => p.text).join("\n- ")}\nRefaça a resposta inteira com as questões corrigidas: recalcule cada resposta a partir do enunciado, marque com * a alternativa que tem exatamente esse valor, deixe as outras com valores diferentes e escreva, logo depois das alternativas de cada questão numérica, a linha "= conta" (a conta em JavaScript com os números do enunciado, ex.: = 1500*3*30/1000). Mesmo assunto e mesmo formato, com o bloco \`\`\`quiz.` },
+              ];
+              const fixOptions = { target: route.target === "remote" ? ("remote" as const) : ("local" as const), temperature: 0.2, maxTokens: 6_000, timeoutMs: 120_000, signal: cancel.signal };
+              // Com raciocínio; se vier vazio (o modelo gastou os tokens pensando) ou sem o quiz, de novo sem ele.
+              let fixed = await completeChat(fixMessages, { ...fixOptions, think: true }).catch(() => "");
+              if (!/```quiz/.test(fixed)) fixed = await completeChat(fixMessages, { ...fixOptions, think: false }).catch(() => "");
               if (!/```quiz/.test(fixed)) break;
               answer = cleanAnswer(fixed);
               check = checkQuizzes(answer);

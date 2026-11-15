@@ -72,6 +72,8 @@ export function checkQuizzes(text: string): { problems: QuizProblem[]; checked: 
       index += 1;
       const right = q.options.filter((o) => o.right);
       if (q.options.length && right.length !== 1) problems.push({ question: index, text: `a questão ${index} tem ${right.length} alternativas marcadas como certas (precisa de exatamente uma)` });
+      // Questão numérica (todas as alternativas são números) sem a conta: não dá para conferir, então volta para a Kally.
+      if (!q.expr && q.options.length >= 2 && q.options.every((o) => numbersIn(o.text).length > 0)) problems.push({ question: index, text: `a questão ${index} é numérica e está sem a linha "= conta" que permite conferir o resultado` });
       if (!q.expr || right.length !== 1) continue;
       const value = evaluate(q.expr);
       if (value === null) {
