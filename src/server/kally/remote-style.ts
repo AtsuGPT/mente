@@ -132,6 +132,8 @@ export function remoteThinks(input: { competence: CompetenceId | null; mode: str
   if (setting === "nunca") return false;
   if (setting === "sempre") return true;
   if (input.brief) return false;
+  // Provas, quizzes e exercícios: as respostas precisam estar certas (pedido do dono do projeto, 15/11), então pensa antes.
+  if (/\b(prova|simulado|quiz|exerc[ií]cios?|quest(ão|ões|oes)|acertei|resposta final)\b/i.test(input.message)) return true;
   // Post: testado com raciocínio em 10/11 e não melhorou a fidelidade (os mesmos detalhes de cena inventados), com +11 s.
   return /```|\bdef |\bimport |\bfunction\b|\bprint\(|\btraceback\b|\b(c[oó]digo|bug|erro no|python|javascript)\b|\b(art\.?|artigo)s?\s*\d|\bcalcul|\bquanto (eu )?(ganho|lucro|custa)/i.test(input.message);
 }

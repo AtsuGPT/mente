@@ -210,6 +210,8 @@ export const asksOpinionOnly = (message: string) =>
 
 export function competenceFor(input: { mode: string; interpretation: Interpretation | null; message: string; reviewKind: "textual" | "intelectual" | null }): CompetenceId | null {
   const i = input.interpretation;
+  // Questão de prova vale antes do interpretador (bateria de 15/11: ele mandava "acertei?" para a análise crítica).
+  if (input.mode !== "ideia" && input.mode !== "revisar" && EXAM_QUESTION.test(input.message)) return "estudo";
   if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" ? null : "analise";
   const m = input.message.toLowerCase();
   if (input.mode === "ideia") return STUDY_POST_RULE.test(m) ? "estudo" : "post";

@@ -43,6 +43,8 @@ import {
 } from "@/server/kally";
 import { searchWeb, type WebResult } from "@/server/web-search";
 import { maybeArtifactTurn } from "@/server/artifacts/turn";
+import { asksVerdict, examGuide, examKey, findExamQuestion } from "@/server/kally/exam-solve";
+import { checkQuizzes } from "@/server/kally/quiz-check";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
@@ -203,6 +205,9 @@ export async function POST(request: Request, context: EnvContext) {
   }
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
   const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
+  // Questão de prova em jogo: o gabarito é resolvido já, em paralelo, sem ver a resposta da pessoa (exam-solve.ts).
+  const examQuestion = mode === "chat" || mode === "aprender" ? findExamQuestion(message, history) : null;
+  const examPromise = examQuestion ? examKey(examQuestion) : null;
 
   const attachment: Attachment | null =
     body.attachment && typeof body.attachment === "object"
@@ -561,6 +566,7 @@ export async function POST(request: Request, context: EnvContext) {
       let deepReport: { effort: string; parts: number; target: string; retried: number; dropped: number; skipped: number; trimmed: number; ms: number } | null = null;
       let sourceHunt: { terms: string[]; consulted: number; sites: number; byKind: Record<string, number>; picked: number; removed: number; ms: number } | null = null;
       let postReview: { applied: number; proposed: number; ms: number; ok: boolean } | null = null;
+      let quizReport: { checked: number; problems: number; rounds: number } | null = null;
       // Desempenho deste pedido (logs/kally-perf.jsonl).
       let modelName: string | null = null;
       let stats = null as GenerationStats | null;
@@ -605,7 +611,9 @@ export async function POST(request: Request, context: EnvContext) {
               }
             }
           }
-          const guide = [interpretation ? interpretationGuide(interpretation) : null, resumedNote(savedHistory.at(-1)?.createdAt)].filter(Boolean).join("\n") || null;
+          if (examPromise) send({ status: "Resolvendo a questão por conta própria, antes de conferir com você.", step: "gabarito" });
+          const exam = examPromise ? await examPromise : null;
+          const guide = [interpretation ? interpretationGuide(interpretation) : null, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName, general }
@@ -936,6 +944,29 @@ export async function POST(request: Request, context: EnvContext) {
           } finally {
             emit(cleaner.flush());
           }
+          // Questões montadas pela Kally (```quiz): cada "= conta" é calculada à parte e conferida com a alternativa marcada
+          // (quiz-check.ts). Divergência: a Kally refaz as questões (com raciocínio) antes de a pessoa responder, e o texto
+          // na tela é trocado pelo corrigido.
+          if (/```quiz/.test(answer) && !cancel.signal.aborted) {
+            let check = checkQuizzes(answer);
+            quizReport = { checked: check.checked, problems: check.problems.length, rounds: 0 };
+            for (let round = 0; check.problems.length && round < 2 && !cancel.signal.aborted; round++) {
+              send({ status: `Conferi as contas das questões e vou corrigir antes de você responder: ${check.problems[0].text}.`, step: `quiz-conserto-${round}` });
+              const fixed = await completeChat(
+                [
+                  ...fullPrompt,
+                  { role: "assistant", content: answer },
+                  { role: "system", content: `As questões acima foram conferidas por um cálculo independente e têm problemas:\n- ${check.problems.map((p) => p.text).join("\n- ")}\nRefaça a resposta inteira com as questões corrigidas: recalcule cada resposta a partir do enunciado, marque com * a alternativa que tem exatamente esse valor, deixe as outras com valores diferentes e mantenha a linha "= conta" de cada questão numérica. Mesmo assunto e mesmo formato.` },
+                ],
+                { target: route.target === "remote" ? "remote" : "local", temperature: 0.2, maxTokens: 5_000, timeoutMs: 120_000, think: true, signal: cancel.signal },
+              ).catch(() => "");
+              if (!/```quiz/.test(fixed)) break;
+              answer = cleanAnswer(fixed);
+              check = checkQuizzes(answer);
+              quizReport = { checked: check.checked, problems: check.problems.length, rounds: round + 1 };
+              send({ replace: answer });
+            }
+          }
           generationEnded = Date.now();
           // Fontes do post: a lista final mostra só as que o texto citou.
           if (postWeb.length) {
@@ -1037,6 +1068,7 @@ export async function POST(request: Request, context: EnvContext) {
             // Só contagens e tempo (o registro não guarda o texto das mensagens).
             essential: essential ? { by: essential.by, ms: essential.ms, words: essential.before, kept: essential.after } : null,
             postReview,
+            quizCheck: quizReport,
             executor: modelName
               ? {
                   // O modelo que gerou de fato (a Kally 1.5 pela API aparecia com o nome do Qwen de reserva).
