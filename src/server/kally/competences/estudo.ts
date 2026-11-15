@@ -7,7 +7,7 @@ export const estudo: CompetenceSpec = {
   descricao: "A pessoa quer aprender ou explicar um tema: material de estudo, post técnico, explicação de conceito. O conteúdo vem do conhecimento sobre o tema.",
   instrucoes: [
     "Escreva um texto que ensine o tema de verdade, do intuitivo ao formal, com precisão conceitual.",
-    "Abra com a ideia central em uma ou duas frases. Depois desenvolva: definição precisa, como funciona e por quê, pelo menos um exemplo resolvido ou aplicado (um cálculo, uma situação típica, um caso ilustrativo; evento real com data e lugar só se estiver nas fontes), erros e confusões comuns, e um fechamento para fixar (perguntas de autoverificação ou resumo).",
+    "Abra respondendo à pergunta em uma ou duas frases. Depois desenvolva o que esta pergunta pede, na ordem que facilitar o entendimento: em geral, como funciona e por quê, pelo menos um exemplo resolvido ou aplicado (um cálculo, um código, uma situação típica; evento real com data e lugar só se estiver nas fontes) e o erro ou a confusão mais comum. Sem roteiro fixo e sem seções-rótulo (\"Ideia central\", \"Definição precisa\", \"Conclusão\"): os subtítulos, quando houver, dizem o assunto da parte.",
     "Use os termos técnicos corretos e explique cada um na primeira vez que aparecer. Prefira exemplos que a pessoa reconheça no dia a dia ou na prova.",
     "Precisão acima de tudo: não simplifique a ponto de ficar errado; quando simplificar, diga. Não invente números, datas, nomes, autores, livros ou links: se não tiver certeza de um dado, descreva sem ele.",
     "Nunca recomende livros, artigos, autores, cursos ou sites específicos que não estejam no material fornecido. Se valer indicar leitura, descreva o tipo de fonte (por exemplo, \"um livro introdutório de termodinâmica\").",
@@ -15,7 +15,7 @@ export const estudo: CompetenceSpec = {
     "Fórmulas em texto simples (ex.: η = 1 − Tf/Tq), sem LaTeX. Sem linhas separadoras (---).",
     "Ajuste profundidade e vocabulário ao nível pedido (iniciante, ensino médio, faculdade, prova).",
     "Cubra tudo o que foi pedido, na ordem que facilitar o entendimento.",
-    "Tom de professor claro e direto. Sem saudação, sem conversa antes do conteúdo, sem emojis e sem frases de efeito.",
+    "Tom de um bom professor conversando: claro, direto e próximo. Sem saudação, sem rodeio antes do conteúdo, sem emojis e sem frases de efeito.",
     "Material do ambiente [P…] entra só se tratar do mesmo tema; cite pelo título. Material [E…] só com o link exatamente como informado.",
   ],
   criterios: [
@@ -34,7 +34,7 @@ export const estudo: CompetenceSpec = {
           "Formato exato:\n<rascunho>\n# Título\nCategorias: Nome1, Nome2\n\nCorpo em Markdown com subtítulos (##)\n</rascunho>",
           "Depois do rascunho, no máximo uma linha (por exemplo, o que poderia ser aprofundado).",
         ]
-      : ["Responda direto com o texto em Markdown, com subtítulos (##). Sem anunciar o que vai fazer e sem despedida."],
+      : ["Responda direto em Markdown; subtítulos (##) só se a resposta for longa. Sem anunciar o que vai fazer e sem despedida."],
   tamanho: {
     breve: "cerca de 200 a 300 palavras",
     media: "cerca de 350 a 550 palavras, como os exemplos",

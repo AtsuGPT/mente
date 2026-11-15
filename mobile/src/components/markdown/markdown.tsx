@@ -14,6 +14,7 @@ import { splitDetails, type Segment } from "./details";
 import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
 import { ConvergenceAside, ConvergenceExplorer, parseConvergence } from "./convergence-block";
+import { QuizBlock } from "./quiz";
 import { DrawingFigure, SideBySide, SideDrawing, sideOptions, splitDrawing, splitImage, useSideSize } from "./drawing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
@@ -277,6 +278,11 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
             </SideBySide>
           );
         }
+      }
+      // Perguntas interativas da Kally (quiz.tsx); ainda chegando, só um aviso.
+      if (lang.toLowerCase() === "quiz") {
+        if (!fenceClosed(code.raw)) return <AppText variant="small" color={colors.faint} style={{ marginBottom: space.lg }}>Preparando as perguntas…</AppText>;
+        return <QuizBlock source={code.text} />;
       }
       // Símbolo da Mente ao vivo: ao lado do texto do bloco, ou interativo (convergence-block.tsx).
       if (lang.toLowerCase() === "convergencia" && fenceClosed(code.raw)) {

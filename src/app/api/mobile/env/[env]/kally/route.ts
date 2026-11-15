@@ -14,6 +14,7 @@ import { markDone, markRunning } from "@/server/kally/running";
 import { personalOpener, say } from "@/server/kally/narration";
 import { latexToText } from "@/server/kally/math-text";
 import { cleanAnswer, createAnswerCleaner } from "@/server/kally/clean";
+import { asksEnvironment, GENERAL_MIN, needsFreshFacts } from "@/server/kally/need";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
 import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
@@ -249,6 +250,12 @@ export async function POST(request: Request, context: EnvContext) {
   // Texto de estudo e análise de algo externo: os posts do ambiente só entram se a pessoa se referir
   // a eles. Com a busca atual, posts pouco relacionados entravam e o modelo forçava a relação.
   const skipMemory = (competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message);
+  // Pergunta geral (need.ts): o ambiente só entra com um pensamento quase exatamente sobre o assunto, sem conversas
+  // antigas nem documentos, e a resposta vem do conhecimento da Kally, como num assistente comum. Pergunta que fala do
+  // ambiente ou da vida da pessoa (o que escreveu, alguém pelo nome, "lembra") consulta como antes.
+  // (O wantsMemory do detectIntent não entra: ele vale sempre no modo aprender, e "me ajuda a estudar recursão" puxava
+  // os pensamentos da pessoa.)
+  const generalGuess = !review && !attachment && mode !== "ideia" && mode !== "revisar" && !refersToOwnPosts(message) && !asksEnvironment(message);
 
   // Memória do ambiente: pela mensagem (curta? junta com a anterior), pelo texto revisado ou pelo anexo.
   // Primeiro filtro: o essencial do pedido (essential.ts), escrito pelo modelo, vai para todas as buscas e para o filtro
@@ -276,21 +283,27 @@ export async function POST(request: Request, context: EnvContext) {
           ? `${lastUser} ${message}`
           : message;
   // Conversas anteriores só entram em Conversar e Aprender: na revisão e na ideia elas se misturariam ao texto da pessoa.
-  const withConversations = mode === "chat" || mode === "aprender";
+  const withConversations = (mode === "chat" || mode === "aprender") && !generalGuess;
   const retrievalStarted = Date.now();
   // Papo casual não consulta a memória (mais rápido e sem puxar assunto do nada); revisão
   // sem texto também não (a Kally só pede o texto, em vez de "revisar" posts soltos).
-  const posts = casual || skipMemory || (mode === "revisar" && !review)
+  const found = casual || skipMemory || (mode === "revisar" && !review)
     ? []
-    : (
-        await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
-          userId: withConversations ? userId : null,
-          draftAuthorId: userId,
-          excludeConversationId: conversation?.id,
-          allDrafts: access.permissions.manageContent,
-        })
-      )
+    : await findRelevantPosts(access.scope, query, mode === "ideia" ? 3 : 5, {
+        userId: withConversations ? userId : null,
+        draftAuthorId: userId,
+        excludeConversationId: conversation?.id,
+        allDrafts: access.permissions.manageContent,
+      });
+  // Quem cita o autor de um pensamento encontrado ("o que o kayk pensa…", com o nome em minúscula) pergunta pelo ambiente.
+  const general = generalGuess && !found.some((p) => p.kind !== "conversa" && namesAuthor(message, p.author));
+  const posts = found
         .filter((p) => !review?.slug || p.slug !== review.slug)
+        // Pergunta geral: só o pensamento quase exatamente sobre o assunto (need.ts).
+        .filter((p) => !general || (p.kind !== "conversa" && p.score >= GENERAL_MIN))
+        // Aprender também tem nota mínima (antes, os 5 mais próximos entravam sempre: "estudar recursão" puxava
+        // "Sobrecarga" e "Realização" na bateria de 15/11).
+        .filter((p) => mode !== "aprender" || p.kind === "conversa" || p.score >= (intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
         // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
         // Conversas salvas já passaram pelo mínimo próprio (conversationMin) e entram com metade da nota para ficar
         // atrás dos posts; com o filtro de 0,4 elas nunca chegavam à conversa (simulação: a conversa do João sobre a
@@ -321,7 +334,9 @@ export async function POST(request: Request, context: EnvContext) {
   // e não afirmar o que não encontrou (post-sources.ts). Fora: papo casual, posts (busca própria) e relato pessoal.
   let answerHunt: { consulted: number; sites: number; picked: number; removed: number; ms: number } | null = null;
   const knowledgeAsk = competence === "estudo" || (competence === "analise" && mode !== "revisar") || mode === "aprender" || (mode === "chat" && needsOutsideHelp(posts) && (message.includes("?") || /\b(o que|como|por ?que|quando|quem|qual|quanto|explica|diferen[çc]a)\b/i.test(message)));
-  if (!web.length && autoWebEnabled() && !casual && competence !== "post" && mode !== "ideia" && knowledgeAsk && !intimateStory(message)) {
+  // Só no que muda com o tempo ou depende de um dado específico, ou com pedido de fontes (need.ts): explicação de
+  // conceito e dúvida de programação vêm do conhecimento da Kally (antes, 8 sites e 46 s num "como programo isso").
+  if (!web.length && autoWebEnabled() && !casual && competence !== "post" && mode !== "ideia" && knowledgeAsk && needsFreshFacts(message) && !intimateStory(message)) {
     const hunt = await findAnswerSources(focus);
     // Segundo filtro de assunto com o 32B, se ele estiver no ar (não liga a GPU por isso).
     const filtered = hunt.picked.length && remoteConfig().enabled && (await remoteHealth()).state === "disponivel" ? await filterRelevant(focus, hunt.picked) : { kept: hunt.picked, removed: 0 };
@@ -334,7 +349,7 @@ export async function POST(request: Request, context: EnvContext) {
   // (rodada 1), o post de divulgação da Sônia saiu com o faturamento, o aluguel e o código do documento
   // pessoal dela, e outra pessoa recebeu esses dados da Kally em seguida.
   const postUsesOwnDocs = /\b(meus?|minhas?) (documentos?|anota[cç](ão|ões)|notas|arquivos?|planilhas?|n[uú]meros|dados|caderno)\b|\b(do|no|o) (meu )?(documento|arquivo|pdf|caderno) que (eu )?(mandei|enviei|subi)\b/i.test(message);
-  const documentSearch = pipeline && !casual && (competence !== "post" || postUsesOwnDocs)
+  const documentSearch = pipeline && !casual && !general && (competence !== "post" || postUsesOwnDocs)
     ? await searchDocuments({ userId, query, limit: 4, institutional: competence !== "post" }).catch((cause) => {
         console.error("Kally documentos: busca indisponível:", cause instanceof Error ? cause.message : cause);
         return null;
@@ -344,7 +359,7 @@ export async function POST(request: Request, context: EnvContext) {
   const retrievalMs = Date.now() - retrievalStarted;
   let sources = toSources(posts, web, documents);
   // Memória da Kally: o que a pessoa contou em conversas salvas e tem a ver com esta mensagem (memory.ts).
-  const memories = await recallMemories(access.environment.id, userId, focus, casual ? 3 : 6);
+  const memories = await recallMemories(access.environment.id, userId, focus, casual || general ? 3 : 6);
 
   const canDraft = wantsDraft(competence, message, access.permissions.publish);
   // Post: o que a pessoa já contou (mensagens dela, sem o "crie o post agora" do /post, anexo e
@@ -584,7 +599,7 @@ export async function POST(request: Request, context: EnvContext) {
           const guide = [interpretation ? interpretationGuide(interpretation) : null, resumedNote(savedHistory.at(-1)?.createdAt)].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
-            ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName }
+            ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName, general }
             : null;
           // Memória da pessoa (só os itens ligados a esta mensagem) logo depois das regras do sistema.
           // Memória logo antes da pergunta (e não no começo): o começo do prompt e o histórico ficam iguais entre pedidos,
@@ -598,7 +613,7 @@ export async function POST(request: Request, context: EnvContext) {
           const promptWith = (w: WebResult[]) =>
             withMemory(competenceArgs
               ? buildCompetencePrompt({ ...competenceArgs, web: w })
-              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName }));
+              : buildPrompt({ mode, environmentName: access.environment.name, categories, history, message, posts, web: w, attachment, reviewText: review?.text ?? null, guide, toneExamples: !pipeline || casual, documents, userName: me?.displayName, general }));
           // Local (8B): versão reduzida das fontes, para o prompt não pesar na placa (localSources). Remota: todas.
           const reducedWeb = localSources(web);
           const prompt = promptWith(reducedWeb);
@@ -930,7 +945,7 @@ export async function POST(request: Request, context: EnvContext) {
               firstTextSeconds: firstText ? seconds(firstText - generationStarted) : null,
               wallSeconds: seconds(generationEnded - generationStarted),
               ...(evalEnvironment
-                ? { retrieval: { mode, competence, casual, skippedMemory: skipMemory, posts: posts.length, documents: documents.length, seconds: seconds(retrievalMs) } }
+                ? { retrieval: { mode, competence, casual, scope: general ? "geral" : "ambiente", skippedMemory: skipMemory, posts: posts.length, documents: documents.length, top: found.slice(0, 4).map((p) => `${p.title.slice(0, 32)} ${p.score.toFixed(2)}`), seconds: seconds(retrievalMs) } }
                 : {}),
               memory: await ollamaMemory(modelName),
               ...(pipeline

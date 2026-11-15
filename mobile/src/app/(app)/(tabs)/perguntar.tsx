@@ -34,6 +34,7 @@ import { Surface } from "@/components/ui/surface";
 import { Sheet } from "@/components/ui/sheet";
 import { enter, exit, layoutTransition, spring, timing } from "@/theme/motion";
 import { maxWidths, useContainer, useLayout } from "@/theme/layout";
+import { QuizContext } from "@/components/markdown/quiz";
 
 /**
  * Kally: assistente de aprendizagem do ambiente atual, numa tela só para conversar,
@@ -860,8 +861,12 @@ function Kally() {
   const dim = usePresenceDim(presence);
   // Respondendo: com a caixa vazia o botão é Parar; com texto, a mensagem vai para a fila.
   const sendDisabled = loading ? false : queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
+  // Quiz da Kally (quiz.tsx): o resultado vai como uma mensagem da pessoa, pelo sendRef (o valor do contexto fica
+  // estável e as bolhas, que são memo, não redesenham).
+  const quizSend = useCallback((text: string) => void sendRef.current?.(text), []);
 
   return (
+    <QuizContext.Provider value={quizSend}>
     <KeyboardScreen insetMirror={keyboardInset}>
       <View style={column} onLayout={presence.onColumnLayout}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
@@ -1156,6 +1161,7 @@ function Kally() {
             <Button label="Nova conversa" icon="plus" variant="secondary" onPress={() => { setShowHistory(false); startNew(); }} style={{ marginTop: space.md }} />
       </Sheet>
     </KeyboardScreen>
+    </QuizContext.Provider>
   );
 }
 

@@ -106,6 +106,23 @@ A remota recebe o texto inteiro, no fim do prompt; a local, uma versão condensa
 longo deixa o 8B mais lento nesta placa). O estilo da remota passou a responder pergunta simples de forma direta,
 sem seções, e deixa "Próximos passos" só para respostas que explicam algo.
 
+## Quando a Kally consulta o ambiente e a internet (15/11/2026)
+
+`src/server/kally/need.ts` decide antes de cada resposta do que ela precisa:
+
+- **Pergunta sobre o ambiente ou sobre a pessoa** (o que ela escreveu, os posts, alguém pelo nome, "lembra",
+  "meus princípios"): consulta os pensamentos, as conversas salvas e os documentos, como antes.
+- **Dúvida geral** (programação, estudo, um conceito): responde com o próprio conhecimento, num começo de prompt
+  de assistente (`generalIdentity` em `kally.ts`), sem falar do ambiente. Um pensamento só entra se for quase
+  exatamente sobre o assunto (nota 0,6 ou mais; os sem relação ficam entre 0,4 e 0,55).
+- **Internet automática**: só no que muda com o tempo ou depende de um dado específico (notícias, preços, "hoje",
+  versões, leis, estatísticas) ou com pedido de fontes. Com o botão Web ligado, vale a escolha da pessoa.
+
+O jeito de ajudar (código que funciona, tutor no estudo, sem roteiro fixo de seções) está em
+`src/server/kally/help.ts`, junto com o bloco ```quiz: perguntas de múltipla escolha que o app mostra com botões
+(`mobile/src/components/markdown/quiz.tsx`). No fim do quiz, o botão manda o resultado para a Kally, que comenta os
+erros.
+
 ## Resposta que continua sem a pessoa
 
 Numa conversa **salva**, a resposta continua sendo escrita no servidor mesmo que a pessoa saia do app ou do site
