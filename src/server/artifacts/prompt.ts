@@ -75,6 +75,9 @@ function rules(task: ArtifactTask) {
     "QUALIDADE DE PROGRAMAÇÃO (o artefato só vale se fizer exatamente o que a pessoa pediu, sem quebrar o que já existia)",
     "- Antes de escrever, liste para você o comportamento pedido, passo a passo, e confira no fim se cada passo funciona: clicar uma vez, clicar de novo, desfazer, repetir.",
     "- Esconder e mostrar: crie uma classe CSS (.oculto { display: none !important; }) e use element.classList.add/remove/toggle. Nunca devolva com style.display = 'block' (isso quebra layouts em flex ou grid). O controle que traz de volta algo escondido fica sempre visível e clicável (position: fixed, z-index acima do canvas e dos painéis) e funciona quantas vezes a pessoa quiser.",
+    "- Botões dizem a ação em palavras (\"Esconder painel\", \"Mostrar painel\", \"Calcular\"); botão só com ícone (✕, ▶, ☰) leva aria-label e title com a ação.",
+    "- Celular primeiro (a maioria abre no celular, com ~360 a 400 px de largura): nada de largura fixa maior que 340 px (use width: 100% e max-width); gráfico com altura entre 220 e 340 px (ex.: height: clamp(220px, 62vw, 340px)); Plotly com height de no máximo 360 e responsive: true; padding de 12 a 16 px; fonte de 14 a 16 px; controles empilhados em uma coluna até 600 px de largura (@media). No computador, centralize com max-width de 720 a 900 px.",
+    "- Quiz, prova ou lista de exercícios num artefato: monte TODAS as questões e respostas antes de escrever a interface, numa lista window.QUESTOES = [{ pergunta, opcoes: [...], correta: índice, explicacao, conta }] (conta: a conta em JavaScript, com os números do enunciado, que dá o valor da alternativa correta; só nas questões numéricas). A interface lê dessa lista e nunca recalcula a resposta de outro jeito. O servidor confere cada conta com a alternativa marcada.",
     "- Eventos: addEventListener em elementos que já existem (script no fim do <body>); ids únicos; nada de onclick no HTML apontando para funções que ficam dentro de um escopo fechado.",
     "- Canvas: ajuste ao tamanho do contêiner e ao devicePixelRatio, e redesenhe ao redimensionar. Animação com requestAnimationFrame, com pausa e reinício funcionando.",
     "- Antes de usar um atalho que já existe no código, leia como ele foi definido: se for const $ = id => document.getElementById(id), chame $('painel'), nunca $('#painel') nem $('.painel'). Para pegar um elemento que não tem id, dê um id a ele no HTML ou use document.querySelector. Todo elemento usado no script precisa existir no HTML com exatamente aquele id ou classe.",
@@ -164,7 +167,7 @@ export function repairPrompt(original: AiMessage[], answer: string, problems: st
     { role: "assistant", content: answer.slice(0, 6_000) },
     {
       role: "system",
-      content: `O artefato não pode ser entregue assim. Ele foi rodado num navegador de verdade e conferido:\n- ${problems.join("\n- ")}${current}${testNote}\n\nEncontre a causa no código (leia o fluxo inteiro do evento até o efeito na tela) e entregue a resposta inteira corrigida: uma frase dizendo o que você fez (sem mencionar o teste), o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e o bloco \`\`\`teste-artefato.`,
+      content: `O artefato não pode ser entregue assim. Ele foi rodado num navegador de verdade e conferido:\n- ${problems.join("\n- ")}${current}${testNote}\n\nEncontre a causa no código (leia o fluxo inteiro do evento até o efeito na tela) e entregue a resposta inteira corrigida: uma frase dizendo o que a pessoa vai ver de diferente no artefato (nunca fale do teste, do conserto, do cabeçalho ou do formato do bloco), o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e o bloco \`\`\`teste-artefato.`,
     },
   ];
 }

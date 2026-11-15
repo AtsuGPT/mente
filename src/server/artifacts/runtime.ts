@@ -74,8 +74,15 @@ function afirmar(c,m){if(c)ok++;else falhas.push(String(m||"afirmação falhou")
 function fim(extra){var pre=document.createElement("pre");pre.id="__mm_resultado";pre.textContent=JSON.stringify(Object.assign({erros:window.__mm.erros.slice(0,5),falhas:falhas.slice(0,10),ok:ok,nulos:window.__mm.nulos},extra||{}));document.documentElement.appendChild(pre)}
 var codigo=${JSON.stringify(test).replace(/</g, "\\u003c")};
 addEventListener("load",function(){setTimeout(async function(){
-// O teste é compilado à parte: erro de sintaxe nele vira falha do teste, não da página.
 __mm.testando=true;
+// Checagens automáticas (valem mesmo sem teste da Kally):
+// 1) largura de celular: o Chrome invisível não abre menor que ~500 px, então a página é posta em 380 px por um
+//    instante e se mede o que transborda (larguras fixas, tabelas, canvas sem escala).
+try{var de=document.documentElement,w0=de.style.width;de.style.width="380px";var sw=document.body?document.body.scrollWidth:0;de.style.width=w0;if(sw>392&&Math.abs(sw-window.innerWidth)>2)falhas.push("transborda na largura do celular: o conteúdo ocupa "+sw+" px numa tela de 380 px (troque larguras fixas por width:100%/max-width e escale canvas e gráficos)")}catch(_){}
+// 2) questões montadas: cada window.QUESTOES[i].conta tem que dar o valor da alternativa marcada como correta.
+try{if(Array.isArray(window.QUESTOES)){var num=function(t){var m=String(t).replace(/(\\d)\\s*[×x·]\\s*10\\s*\\^?\\s*(-?\\d+)/g,"$1e$2").match(/-?\\d[\\d.]*(?:,\\d+)?(?:e-?\\d+)?/i);if(!m)return NaN;var r=m[0];if(/,\\d+$/.test(r))r=r.replace(/\\./g,"").replace(",",".");else if(/^\\d{1,3}(\\.\\d{3})+$/.test(r))r=r.replace(/\\./g,"");return Number(r)};
+window.QUESTOES.forEach(function(q,i){if(!q||!q.conta||!Array.isArray(q.opcoes))return;var v;try{v=Function("with(Math){return ("+String(q.conta).replace(/\\^/g,"**")+")}")()}catch(e){falhas.push("questão "+(i+1)+": a conta não roda ("+e.message+")");return}var c=num(q.opcoes[q.correta]);if(!(Math.abs(c-v)<=Math.max(1e-9,Math.abs(v)*0.011)))falhas.push("questão "+(i+1)+": a conta dá "+(+v.toPrecision(6))+", mas a alternativa marcada como correta é \\""+q.opcoes[q.correta]+"\\"");q.opcoes.forEach(function(o,j){if(j!==q.correta&&Math.abs(num(o)-v)<=Math.max(1e-9,Math.abs(v)*0.011))falhas.push("questão "+(i+1)+": a alternativa errada \\""+o+"\\" também tem o valor certo")})})}}catch(_){}
+// O teste é compilado à parte: erro de sintaxe nele vira falha do teste, não da página.
 try{var Async=Object.getPrototypeOf(async function(){}).constructor;await new Async("clicar","digitar","mudar","visivel","texto","existe","esperar","afirmar",codigo)(clicar,digitar,mudar,visivel,texto,existe,esperar,afirmar)}catch(e){falhas.push("o teste parou: "+(e&&e.message||e))}
 fim()},400)});
 })();`;
