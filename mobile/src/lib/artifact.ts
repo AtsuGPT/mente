@@ -146,9 +146,14 @@ body{margin:0}`;
  * Altura que só cresce (um gráfico que ocupa a altura do quadro, o quadro cresce com ele, e assim por diante) é travada
  * depois de 5 aumentos seguidos; um toque ou digitação no artefato volta a medir.
  */
-function bootstrap(id: string, maxHeight: number) {
+function bootstrap(id: string, maxHeight: number, fit: ArtifactFit) {
   return `(function(){
-var id=${JSON.stringify(id)};
+var id=${JSON.stringify(id)};var FIT=${JSON.stringify(fit)};
+// Encaixe: conteúdo mais largo que a tela (canvas de 800 px, tabela larga) é reduzido para caber na largura; na tela
+// cheia, também na altura, se der para ler (redução até 60%). Sem isso, gráficos feitos para o computador ficavam
+// enormes no celular (pedido de 15/11).
+function encaixar(){var d=document.documentElement;if(!d||!document.body)return;d.style.zoom="";var z=1,w=d.scrollWidth,vw=window.innerWidth;if(w>vw+2)z=vw/w;if(FIT==="tela"){var h=d.scrollHeight*z,vh=window.innerHeight;if(h>vh+2){var zh=vh/d.scrollHeight;if(zh>=0.6)z=Math.min(z,zh)}}if(z<0.995)d.style.zoom=String(Math.max(0.35,z))}
+window.addEventListener("load",function(){encaixar();setTimeout(encaixar,300);setTimeout(encaixar,1200)});var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(encaixar,150)});
 function post(m){m.id=id;m.mm="artefato";var t=JSON.stringify(m);try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(t);else window.parent.postMessage(t,"*");}catch(e){}}
 function mem(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}
 ["localStorage","sessionStorage"].forEach(function(n){try{window[n].getItem("_")}catch(e){try{Object.defineProperty(window,n,{value:mem(),configurable:true})}catch(_){}}});
@@ -170,8 +175,10 @@ setInterval(size,1500);
 }
 
 /** A página completa da caixa: CSP e script da caixa primeiro, depois o código do artefato como ele é. */
-export function artifactHtml({ source, id, maxHeight = 4000 }: { source: string; id: string; maxHeight?: number }) {
-  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"><style>${THEME}</style><script>${bootstrap(id, maxHeight).replace(/<\/script/gi, "<\\/script")}</script>`;
+export type ArtifactFit = "largura" | "tela";
+
+export function artifactHtml({ source, id, maxHeight = 4000, fit = "largura" }: { source: string; id: string; maxHeight?: number; fit?: ArtifactFit }) {
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"><style>${THEME}</style><script>${bootstrap(id, maxHeight, fit).replace(/<\/script/gi, "<\\/script")}</script>`;
   const code = source.replace(/^\s*<!doctype[^>]*>/i, "");
   const headTag = code.match(/<head(\s[^>]*)?>/i);
   if (headTag?.index !== undefined) {

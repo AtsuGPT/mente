@@ -11,7 +11,7 @@ import { feedback } from "@/lib/feedback";
 import { formatDateShort } from "@/lib/format";
 import { chooseFileFormat, saveArtifactFile } from "@/lib/artifact-file";
 import type { ArtifactFull, ArtifactVersionMeta } from "@/lib/types";
-import { ArtifactFullscreen, ArtifactPreview } from "@/components/artifact/artifact-view";
+import { ArtifactFullscreen, ArtifactPreview, RunConsent } from "@/components/artifact/artifact-view";
 import { AppText, Button, Chip, StateView, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { colors, radius, space, tint } from "@/theme/tokens";
@@ -73,6 +73,8 @@ function ArtifactPage({ id }: { id: string }) {
   const [viewing, setViewing] = useState<{ number: number; source: string } | null>(null);
   const [details, setDetails] = useState({ title: "", description: "", category: "", private: false });
   const [runErrors, setRunErrors] = useState<string[]>([]);
+  // Código à mão de outra pessoa (ou o próprio código sendo editado): roda só depois do toque em Rodar.
+  const [allowed, setAllowed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -257,11 +259,15 @@ function ArtifactPage({ id }: { id: string }) {
       ) : null}
 
       <View style={styles.frame}>
-        <ArtifactPreview key={`${viewing?.number ?? "atual"}-${panel === "code" ? "codigo" : "v"}`} source={shownSource} format={artifact.format} maxHeight={Math.round(height * 0.7)} minHeight={220} onErrors={setRunErrors} />
+        {artifact.handWrittenBy && artifact.format === "html" && !allowed ? (
+          <RunConsent author={artifact.handWrittenBy} onRun={() => setAllowed(true)} />
+        ) : (
+          <ArtifactPreview key={`${viewing?.number ?? "atual"}-${panel === "code" ? "codigo" : "v"}`} source={shownSource} format={artifact.format} maxHeight={Math.round(height * 0.7)} minHeight={220} onErrors={setRunErrors} />
+        )}
       </View>
 
       <View style={styles.actions}>
-        <ActionButton icon="expand" label="Tela cheia" onPress={() => setFull(true)} />
+        <ActionButton icon="expand" label="Tela cheia" onPress={() => { if (artifact.handWrittenBy && !allowed) setAllowed(true); setFull(true); }} />
         <ActionButton icon="kally" label={runErrors.length ? "Pedir correção à Kally" : "Editar com a Kally"} onPress={askKally} />
         <ActionButton icon="code" label="Código" active={panel === "code"} onPress={() => setPanel(panel === "code" ? "none" : "code")} />
         <ActionButton icon="clock" label={`Versões (${versions.length})`} active={panel === "versions"} onPress={() => setPanel(panel === "versions" ? "none" : "versions")} />

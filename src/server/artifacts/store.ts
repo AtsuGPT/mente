@@ -107,9 +107,13 @@ export async function getArtifact(access: Access, id: string) {
   const row = await findVisible(access, id);
   const versions = await db.artifactVersion.findMany({
     where: { artifactId: id },
-    select: { number: true, note: true, origin: true, createdAt: true, author: { select: { displayName: true } } },
+    select: { number: true, note: true, origin: true, createdAt: true, authorId: true, author: { select: { displayName: true } } },
     orderBy: { number: "desc" },
   });
+  // Código escrito à mão por OUTRA pessoa (em qualquer versão até a atual, ou copiado de outro artefato): o app pede um
+  // toque em "Rodar" antes de executar. A caixa de areia já isola; isto protege de interface enganosa e de travamento.
+  const handBy = versions.find((v) => v.number <= row.version && (v.origin === "manual" || v.origin === "duplicacao") && v.authorId !== access.userId);
+  const handWrittenBy = handBy ? handBy.author?.displayName ?? "outra pessoa" : null;
   const current = await db.artifactVersion.findUnique({ where: { artifactId_number: { artifactId: id, number: row.version } }, select: { source: true, config: true } });
   const favorites = await favoriteSet(access, [id]);
   return {
@@ -120,6 +124,7 @@ export async function getArtifact(access: Access, id: string) {
       sourceArtifactId: row.sourceArtifactId,
       canDuplicate: access.permissions.publish,
       canFavorite: !!access.userId,
+      handWrittenBy,
     },
     versions: versions.map((v) => ({ number: v.number, note: v.note, origin: v.origin, createdAt: v.createdAt.toISOString(), author: v.author?.displayName ?? null })),
   };

@@ -11,7 +11,7 @@ import { feedback } from "@/lib/feedback";
 import type { ArtifactFull } from "@/lib/types";
 import { layoutTransition } from "@/theme/motion";
 import { colors, radius, space, tint } from "@/theme/tokens";
-import { ArtifactFullscreen, ArtifactPreview } from "./artifact-view";
+import { ArtifactFullscreen, ArtifactPreview, RunConsent } from "./artifact-view";
 
 const mono = Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" });
 
@@ -192,6 +192,7 @@ export function EmbeddedArtifact({ id, title }: { id: string; title: string }) {
   const [artifact, setArtifact] = useState<ArtifactFull | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [full, setFull] = useState(false);
+  const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     if (!current) return setError("Abra este pensamento dentro do ambiente para ver o artefato.");
     let alive = true;
@@ -221,11 +222,11 @@ export function EmbeddedArtifact({ id, title }: { id: string; title: string }) {
         <Touchable accessibilityLabel="Abrir o artefato" onPress={() => router.push({ pathname: "/artefato/[id]", params: { id: artifact.id } })} hitSlop={8} style={styles.chip}>
           <AppText variant="small" color={colors.muted}>Abrir</AppText>
         </Touchable>
-        <Touchable accessibilityLabel="Abrir em tela cheia" onPress={() => setFull(true)} hitSlop={8} pressScale={0.9} style={styles.icon}>
+        <Touchable accessibilityLabel="Abrir em tela cheia" onPress={() => { setAllowed(true); setFull(true); }} hitSlop={8} pressScale={0.9} style={styles.icon}>
           <Icon name="expand" size={15} color={colors.muted} />
         </Touchable>
       </View>
-      <ArtifactPreview source={artifact.source} format={artifact.format} maxHeight={520} />
+      {artifact.handWrittenBy && artifact.format === "html" && !allowed ? <RunConsent author={artifact.handWrittenBy} onRun={() => setAllowed(true)} /> : <ArtifactPreview source={artifact.source} format={artifact.format} maxHeight={520} />}
       <ArtifactFullscreen visible={full} onClose={() => setFull(false)} title={artifact.title} kind={artifact.kind} source={artifact.source} format={artifact.format} />
     </View>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { ActivityIndicator, Modal, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
@@ -30,6 +30,9 @@ export function ArtifactPreview({
   onErrors?: (errors: string[]) => void;
 }) {
   const id = `a${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  // No celular, a prévia nunca passa de ~60% da altura da tela (o resto rola por dentro ou vai para a tela cheia).
+  const screen = useWindowDimensions();
+  const limit = Math.max(minHeight, Math.min(maxHeight, Math.round(screen.height * 0.6)));
   const [height, setHeight] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -64,11 +67,11 @@ export function ArtifactPreview({
     else if (m.type === "erro") setErrors((list) => (list.includes(m.message) ? list : [...list, m.message].slice(-3)));
     else if (m.type === "aviso") setNotice(m.message);
   };
-  const shown = fill ? "fill" : Math.max(minHeight, Math.min(height ?? 260, maxHeight));
+  const shown = fill ? "fill" : Math.max(minHeight, Math.min(height ?? 260, limit));
   return (
     <View style={fill ? styles.fill : undefined}>
       <View style={fill ? styles.fill : { height: shown as number }}>
-        <ArtifactSurface source={source} id={id} height={shown} scroll={fill || (height ?? 0) > maxHeight} onMessage={onMessage} />
+        <ArtifactSurface source={source} id={id} height={shown} scroll={fill || (height ?? 0) > limit} onMessage={onMessage} fit={fill ? "tela" : "largura"} />
         {!ready ? (
           <View style={[StyleSheet.absoluteFill, styles.loading]} pointerEvents="none">
             <ActivityIndicator color={colors.violet300} />
@@ -124,4 +127,29 @@ const styles = StyleSheet.create({
   full: { flex: 1, backgroundColor: colors.bg },
   fullHead: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   icon: { width: 32, height: 32, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+});
+
+/**
+ * Antes de rodar código escrito à mão por outra pessoa. A caixa de areia já impede acesso à conta, ao app e à internet;
+ * este passo protege do que sobra: uma interface enganosa (um "formulário" falso) e um código que trava a tela.
+ */
+export function RunConsent({ author, onRun }: { author: string; onRun: () => void }) {
+  return (
+    <View style={consentStyles.consent}>
+      <Icon name="lock" size={18} color={colors.violet300} />
+      <AppText variant="uiMedium" style={{ textAlign: "center" }}>Código escrito à mão por {author}</AppText>
+      <AppText variant="small" color={colors.muted} style={{ textAlign: "center", maxWidth: 420 }}>
+        Ele roda isolado, sem acesso à sua conta, ao app ou à internet. Mesmo assim, só rode se confiar em quem escreveu, e nunca digite senhas dentro de um artefato.
+      </AppText>
+      <Touchable accessibilityRole="button" onPress={onRun} haptic style={consentStyles.consentButton}>
+        <Icon name="play" size={15} color="#FFFFFF" />
+        <AppText variant="uiMedium" color="#FFFFFF">Rodar</AppText>
+      </Touchable>
+    </View>
+  );
+}
+
+const consentStyles = StyleSheet.create({
+  consent: { alignItems: "center", gap: space.sm, padding: space.xl, minHeight: 200, justifyContent: "center" },
+  consentButton: { flexDirection: "row", alignItems: "center", gap: space.xs, marginTop: space.xs, paddingHorizontal: space.lg, minHeight: 40, borderRadius: radius.pill, backgroundColor: colors.violet600 },
 });

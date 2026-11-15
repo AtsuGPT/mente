@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { artifactHtml, readSurfaceMessage, type SurfaceMessage } from "@/lib/artifact";
+import { artifactHtml, readSurfaceMessage, type ArtifactFit, type SurfaceMessage } from "@/lib/artifact";
 
 /**
  * Web: o artefato roda num iframe com sandbox só de scripts, SEM "allow-same-origin". A página do artefato fica com
@@ -7,9 +7,9 @@ import { artifactHtml, readSurfaceMessage, type SurfaceMessage } from "@/lib/art
  * não envia formulários. A CSP colocada no começo da página (artifactHtml) bloqueia a rede. O app só aceita mensagens
  * que vêm desse iframe (event.source) e trazem o id dele.
  */
-export function ArtifactSurface({ source, id, height, scroll, onMessage }: { source: string; id: string; height: number | "fill"; scroll: boolean; onMessage: (message: SurfaceMessage) => void }) {
+export function ArtifactSurface({ source, id, height, scroll, onMessage, fit = "largura" }: { source: string; id: string; height: number | "fill"; scroll: boolean; onMessage: (message: SurfaceMessage) => void; fit?: ArtifactFit }) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const html = useMemo(() => artifactHtml({ source, id }), [source, id]);
+  const html = useMemo(() => artifactHtml({ source, id, fit }), [source, id, fit]);
   const latest = useRef(onMessage);
   latest.current = onMessage;
   useEffect(() => {

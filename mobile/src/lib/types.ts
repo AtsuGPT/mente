@@ -210,7 +210,7 @@ export type ArtifactCard = {
   canEdit: boolean;
 };
 
-export type ArtifactFull = ArtifactCard & { source: string; config: string; sourceArtifactId: string | null; canDuplicate: boolean; canFavorite: boolean };
+export type ArtifactFull = ArtifactCard & { source: string; config: string; sourceArtifactId: string | null; canDuplicate: boolean; canFavorite: boolean; /** Nome de quem escreveu código à mão (outra pessoa): o app pede "Rodar" antes. */ handWrittenBy: string | null };
 
 export type ArtifactVersionMeta = { number: number; note: string; origin: string; createdAt: string; author: string | null };
 
