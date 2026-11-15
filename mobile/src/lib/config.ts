@@ -7,7 +7,8 @@ import { Platform } from "react-native";
  *  2. aberto por túnel do Expo (expo start --tunnel): o servidor de produção, já que o
  *     túnel só leva o app, não o backend;
  *  3. o IP do computador que serve o app no Expo Go (mesma rede Wi-Fi) + EXPO_PUBLIC_API_PORT;
- *  4. localhost, apenas para o navegador do próprio computador (expo start --web).
+ *  4. app publicado no celular (fora do modo de desenvolvimento): o servidor de produção;
+ *  5. localhost, apenas para o navegador do próprio computador (expo start --web).
  * No iPhone, "localhost" seria o próprio celular — por isso ele nunca é o padrão no dispositivo.
  */
 
@@ -35,6 +36,10 @@ function resolveApiUrl() {
   }
   const explicit = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
   if (explicit) return { url: explicit, source: "EXPO_PUBLIC_API_URL" as const };
+  // App publicado no celular (link fixo do Expo Go pelo EAS Update, ou um app instalado): não há servidor de
+  // desenvolvimento por perto, então o backend é o de produção. Sem isto, uma publicação sem a variável acima caía em
+  // localhost (o próprio celular) e o app abria em "Sem conexão" (15/11/2026).
+  if (Platform.OS !== "web" && !__DEV__) return { url: PRODUCTION_API, source: "produção" as const };
   const host = devServerHost();
   if (host && isExpoTunnel(host)) return { url: PRODUCTION_API, source: "túnel do Expo" as const };
   if (host) return { url: `http://${host}:${port}`, source: "rede local" as const };
