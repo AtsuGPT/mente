@@ -17,7 +17,7 @@ import { cleanAnswer, createAnswerCleaner } from "@/server/kally/clean";
 import { asksEnvironment, GENERAL_MIN, needsFreshFacts } from "@/server/kally/need";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
-import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
+import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, EXAM_QUESTION, EXAM_REQUEST, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -227,7 +227,12 @@ export async function POST(request: Request, context: EnvContext) {
   const sampler = memorySampler();
   let interpretation: Interpretation | null = null;
   let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
-  if (pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
+  // Questão de prova (alternativas, "acertei?", "resposta final") ou pedido de montar prova: modo estudo, sem
+  // interpretador. Antes, o interpretador marcava a questão longa como análise, o modo virava "revisar" e a regra de
+  // prova era pulada (bateria v3, 15/11: quase todas as conversas de prova caíram na análise crítica).
+  const examTurn = (requested === "auto" || requested === "chat" || requested === "aprender") && !postCommand && !hasReviewPayload && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message));
+  if (examTurn) mode = "aprender";
+  if (!examTurn && pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
     const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
     const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
     interpretation = r.result && r.result.competencia === "post" && asksOpinionOnly(message) ? { ...r.result, competencia: "conversa" } : r.result;
