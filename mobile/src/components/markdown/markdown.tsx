@@ -15,6 +15,7 @@ import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
 import { ConvergenceAside, ConvergenceExplorer, parseConvergence } from "./convergence-block";
 import { QuizBlock } from "./quiz";
+import { FigureBlock, SideFigure, parseFigure, splitFigure } from "./figure";
 import { DrawingFigure, SideBySide, SideDrawing, sideOptions, splitDrawing, splitImage, useSideSize } from "./drawing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fenceClosed, isMermaid, plainCell } from "@/lib/structured";
@@ -116,6 +117,12 @@ function SideImage({ href, alt, size }: { href: string; alt: string; size: "pequ
       </Modal>
     </>
   );
+}
+
+function SideFigureBlock({ source, size }: { source: string; size: "pequena" | "grande" }) {
+  const box = useSideSize(size === "pequena" ? "grande" : size);
+  const figure = useMemo(() => parseFigure(source), [source]);
+  return figure ? <SideFigure figure={figure} width={box} /> : null;
 }
 
 function SideDrawingBlock({ source, size }: { source: string; size: "pequena" | "grande" }) {
@@ -278,6 +285,21 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
             </SideBySide>
           );
         }
+      }
+      // Figuras por modelo pronto (figure.tsx): a Kally manda os dados, o app desenha. Ainda chegando, só um aviso.
+      if (lang.toLowerCase() === "figura") {
+        if (!fenceClosed(code.raw)) return <AppText variant="small" color={colors.faint} style={{ marginBottom: space.lg }}>Montando a figura…</AppText>;
+        const options = sideOptions(code.lang ?? "");
+        const { figure, rest } = splitFigure(code.text);
+        const parsed = parseFigure(figure);
+        if (parsed && options.side && rest) {
+          return (
+            <SideBySide side={options.side} visual={<SideFigureBlock source={figure} size={options.size} />}>
+              <Blocks tokens={lexer(rest)} depth={depth + 1} />
+            </SideBySide>
+          );
+        }
+        if (parsed) return <><FigureBlock source={figure} />{rest ? <Blocks tokens={lexer(rest)} depth={depth + 1} /> : null}</>;
       }
       // Perguntas interativas da Kally (quiz.tsx); ainda chegando, só um aviso.
       if (lang.toLowerCase() === "quiz") {

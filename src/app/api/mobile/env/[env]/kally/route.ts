@@ -1030,7 +1030,8 @@ export async function POST(request: Request, context: EnvContext) {
             postReview,
             executor: modelName
               ? {
-                  model: modelName,
+                  // O modelo que gerou de fato (a Kally 1.5 pela API aparecia com o nome do Qwen de reserva).
+                  model: stats?.model || modelName,
                   queueMs: lease?.queueMs ?? null,
                   unloaded: lease?.unloaded ?? [],
                   unloadMs: lease?.unloadMs ?? null,

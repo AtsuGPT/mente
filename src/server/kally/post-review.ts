@@ -54,7 +54,7 @@ export function splitUnits(text: string): { lines: string[]; units: Unit[] } {
     const t = raw.trim();
     if (t.startsWith("```")) {
       fenced = !fenced;
-      figure = fenced && /^```\s*(desenho|imagem)\b/i.test(t);
+      figure = fenced && /^```\s*(desenho|imagem|figura)\b/i.test(t);
       sideText = false;
       return;
     }

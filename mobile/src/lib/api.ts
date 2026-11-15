@@ -20,6 +20,7 @@ import type {
   KallyImage,
   KallyMemoryItem,
   KallyMessage,
+  KallyPerf,
   PostFull,
   User,
 } from "./types";
@@ -119,6 +120,8 @@ export const api = {
     request<TokenResponse>("/api/mobile/auth/register", { method: "POST", json: input }),
   me: () => request<{ user: User }>("/api/mobile/me"),
 
+  /** Desempenho da Kally (só o administrador da plataforma; para os outros, 404). */
+  kallyPerformance: () => request<KallyPerf>("/api/mobile/kally/desempenho"),
   /** Bases de documentos da Kally (da pessoa, não de um ambiente). */
   kallyDocuments: () => request<{ documents: KallyDocument[]; canManageInstitutional: boolean; enabled: boolean }>("/api/mobile/kally/documentos"),
   addKallyDocument: (form: FormData) =>

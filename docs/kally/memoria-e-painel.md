@@ -123,6 +123,21 @@ O jeito de ajudar (código que funciona, tutor no estudo, sem roteiro fixo de se
 (`mobile/src/components/markdown/quiz.tsx`). No fim do quiz, o botão manda o resultado para a Kally, que comenta os
 erros.
 
+## Figuras por modelo pronto (15/11/2026)
+
+A Kally escreve só os dados num bloco ```figura e o app desenha (`mobile/src/components/markdown/figure.tsx`, leitura
+em `mobile/src/lib/figure.ts`), com posições calculadas e as cores da Mente. Modelos: `blocos`, `ciclo`, `objetos`
+(objetos lado a lado com setas, tamanho p/m/g), `partes`, `comparacao` (colunas abertas com `lado:`), `barras` e
+`tempo`. Com `lado=direita` e uma linha `---`, a figura fica ao lado do parágrafo, como a imagem e o desenho. O SVG
+livre (```desenho) ficou só para o que nenhum modelo cobre. As regras para a Kally estão em `src/server/kally/drawing.ts`.
+
+## Desempenho (só o administrador da plataforma)
+
+`GET /api/mobile/kally/desempenho` resume `logs/kally-perf.jsonl` (`src/server/ai/perf-report.ts`): pedidos,
+primeira palavra e resposta (média, mediana, 9 em 10), erros, quedas para o modelo local, uso da internet, tempos por
+modelo, o gasto da API no dia e os 40 últimos pedidos. Para qualquer outra conta a rota responde 404. No app, a aba
+Desempenho do painel da Kally só aparece para o administrador.
+
 ## Resposta que continua sem a pessoa
 
 Numa conversa **salva**, a resposta continua sendo escrita no servidor mesmo que a pessoa saia do app ou do site

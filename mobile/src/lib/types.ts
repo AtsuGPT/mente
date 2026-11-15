@@ -9,6 +9,38 @@ export type AccessRole = MemberRole | "GUEST" | "DEV";
 
 export type User = { id: string; username: string; displayName: string; legacyKind?: string | null };
 
+/** Desempenho da Kally (só o administrador da plataforma vê): /api/mobile/kally/desempenho. */
+export type KallyTiming = { media: number | null; mediana: number | null; p90: number | null } | null;
+export type KallyPerfWindow = {
+  pedidos: number;
+  erros: number;
+  quedasParaLocal: number;
+  comInternet: number;
+  primeiraPalavra: KallyTiming;
+  total: KallyTiming;
+  busca: KallyTiming;
+  porModelo: { modelo: string; pedidos: number; primeiraPalavraMediana: number | null; tokensPorSegundo: number | null }[];
+};
+export type KallyPerf = {
+  geradoEm: string;
+  janelas: Record<string, KallyPerfWindow>;
+  gastoHoje: { day: string; limitUsd: number; models: Record<string, { usd: number; requests: number }> };
+  recentes: {
+    at: string;
+    modelo: string | null;
+    destino: string | null;
+    modo: string | null;
+    esforco: string | null;
+    pensamentos: number;
+    internet: number;
+    primeiraPalavra: number | null;
+    total: number | null;
+    tokensPorSegundo: number | null;
+    queda: string | null;
+    erro: string | null;
+  }[];
+};
+
 export type Permissions = {
   view: boolean;
   seePrivate: boolean;
