@@ -664,14 +664,15 @@ function Kally() {
     // Artefato em jogo: o aberto pela pessoa, ou o último que a Kally entregou nesta conversa. Salvo, vai só o id (o
     // servidor lê o código pela biblioteca); não salvo, vai o código (para ela mudar sem recriar).
     const lastAnswer = [...known.slice(0, upTo < 0 ? known.length : upTo)].reverse().find((m) => m.role === "assistant" && !m.local)?.content ?? "";
-    const lastBlock = attachedArtifact ? null : lastArtifactIn(lastAnswer);
+    // O código vai SEMPRE que houver uma versão na conversa: é a base da próxima mudança (as mudanças se acumulam sem
+    // precisar salvar cada uma). O id diz qual artefato salvo é (o servidor confere se a pessoa pode vê-lo).
+    const lastBlock = lastArtifactIn(lastAnswer);
     const lastSaved = lastBlock ? savedArtifacts[artifactKey(lastBlock.source)]?.id ?? lastBlock.ref : null;
+    const latest = lastBlock ? { source: lastBlock.source, title: lastBlock.title, kind: lastBlock.kind, format: lastBlock.format } : null;
     const artifactContext = attachedArtifact
-      ? { id: attachedArtifact.id, attached: true }
-      : lastBlock
-        ? lastSaved
-          ? { id: lastSaved }
-          : { source: lastBlock.source, title: lastBlock.title, kind: lastBlock.kind, format: lastBlock.format }
+      ? { id: attachedArtifact.id, attached: true, ...(latest && lastSaved === attachedArtifact.id ? latest : {}) }
+      : latest
+        ? { ...(lastSaved ? { id: lastSaved } : {}), ...latest }
         : undefined;
     if (options.userId) {
       // Da fila ou refazer: a bolha da pessoa já existe; a resposta entra logo depois dela.

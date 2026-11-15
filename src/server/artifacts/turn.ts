@@ -13,6 +13,7 @@ import { kindFrom, KIND_LABEL, LIMITS } from "./kinds";
 import { artifactPrompt, fullRewritePrompt, repairPrompt, type BaseArtifact } from "./prompt";
 import { artifactForKally, findArtifactByMention, listArtifacts } from "./store";
 import { validateArtifact } from "./validate";
+import { browserPath, runArtifact, takeTest, type RuntimeReport } from "./runtime";
 
 /**
  * A conversa com a Kally quando o pedido é um artefato (decidido por intent.ts). Separado da rota principal da Kally
@@ -45,12 +46,15 @@ async function resolveBase(access: Access, body: Record<string, unknown>): Promi
   const a = body.artifact && typeof body.artifact === "object" ? (body.artifact as Record<string, unknown>) : null;
   if (!a) return { base: null, attached: false };
   const attached = a.attached === true;
-  if (typeof a.id === "string" && a.id) {
-    // Salvo: o código vem do banco, pelo mesmo porteiro (o app não consegue mandar o código de um artefato que a pessoa não vê).
-    const saved = await artifactForKally(access, a.id);
-    if (saved) return { base: { id: saved.id, title: saved.title, kind: saved.kind, format: saved.format, source: saved.source, version: saved.version }, attached };
-  }
   const source = typeof a.source === "string" ? a.source.slice(0, LIMITS.source) : "";
+  if (typeof a.id === "string" && a.id) {
+    // Salvo: o artefato precisa ser visível para a pessoa (mesmo porteiro dos pensamentos). A base é o código mais
+    // recente DA CONVERSA, quando o app manda: as mudanças pedidas em sequência se acumulam mesmo sem salvar cada uma.
+    // Antes, cada pedido partia da versão salva e o anterior se perdia (laboratório cósmico, 15/11: "esconder o botão e
+    // trazer de volta" nunca ficava, porque a mudança seguinte refazia tudo a partir da versão 1).
+    const saved = await artifactForKally(access, a.id);
+    if (saved) return { base: { id: saved.id, title: saved.title, kind: saved.kind, format: saved.format, source: source.trim() ? source : saved.source, version: saved.version }, attached };
+  }
   if (!source.trim()) return { base: null, attached: false };
   return { base: { id: null, title: typeof a.title === "string" ? a.title.slice(0, LIMITS.title) : "Artefato", kind: kindFrom(typeof a.kind === "string" ? a.kind : "") ?? "ferramenta", format: a.format === "markdown" ? "markdown" : "html", source }, attached };
 }
@@ -230,27 +234,43 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
         }
 
         if (task !== "explicar") {
-          let blocks = parseArtifactBlocks(final);
-          let problems: string[] = [];
-          const checkFirst = () => {
-            const b = blocks[0];
-            if (!b) return ["Não encontrei o bloco ```artefato na resposta."];
-            if (!b.closed) return ["O bloco do artefato não foi fechado (o código parece cortado)."];
-            const v = validateArtifact({ title: b.title, kind: b.kind, description: b.description, category: b.category, format: b.format, source: b.source });
-            return v.ok ? [] : v.errors;
-          };
-          problems = checkFirst();
-          if (problems.length) {
-            report.repaired = problems;
-            send({ status: `Conferi o código e vou corrigir antes de entregar: ${problems[0]}`, step: "artefato-conserto" });
-            const fixed = await complete(repairPrompt(prompt, final, problems));
-            if (parseArtifactBlocks(fixed).length) {
-              final = fixed;
-              blocks = parseArtifactBlocks(final);
-              problems = checkFirst();
+          // Conferência em três camadas, até 2 consertos: (1) o bloco existe e fechou; (2) validação estática (formato,
+          // bibliotecas, sintaxe dos scripts); (3) o artefato roda num navegador de verdade e o teste da Kally
+          // (```teste-artefato) confere o que a pessoa pediu (runtime.ts). Qualquer problema volta para a Kally com o
+          // código atual inteiro; ela entrega o artefato corrigido e o teste de novo.
+          let test = takeTest(answer).test;
+          let run: RuntimeReport | null = null;
+          const repairs: string[][] = [];
+          for (let attempt = 0; ; attempt++) {
+            const split = takeTest(final);
+            final = split.rest;
+            if (split.test) test = split.test;
+            const b = parseArtifactBlocks(final)[0];
+            let problems: string[] = [];
+            if (!b) problems = ["Não encontrei o bloco ```artefato na resposta."];
+            else if (!b.closed) problems = ["O bloco do artefato não foi fechado (o código parece cortado)."];
+            else {
+              const v = validateArtifact({ title: b.title, kind: b.kind, description: b.description, category: b.category, format: b.format, source: b.source });
+              if (!v.ok) problems = v.errors;
+              else if (v.artifact.format === "html" && browserPath()) {
+                send({ status: test ? "Testando o artefato num navegador: clicando e conferindo o que você pediu." : "Rodando o artefato num navegador para ver se carrega sem erro.", step: "artefato-teste" });
+                run = await runArtifact(v.artifact.source, test);
+                if (run.ran && !run.ok) problems = [...run.errors.map((e) => `Erro de JavaScript ao rodar: ${e}`), ...run.failures.map((f) => `No teste, falhou: ${f}`)];
+              }
             }
+            if (!problems.length || attempt >= 2 || cancel.signal.aborted) {
+              report.problems = problems;
+              break;
+            }
+            repairs.push(problems);
+            send({ status: `Encontrei ${problems.length === 1 ? "um problema" : `${problems.length} problemas`} e vou corrigir antes de entregar: ${problems[0]}`, step: `artefato-conserto-${attempt}` });
+            const fixed = await complete(repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test));
+            if (parseArtifactBlocks(fixed).length) final = fixed;
+            else break;
           }
-          const b = blocks[0];
+          report.repaired = repairs;
+          if (run?.ran) report.runtime = { ok: run.ok, passed: run.passed, failures: run.failures.length, errors: run.errors.length, ms: run.ms };
+          const b = parseArtifactBlocks(final)[0];
           if (b) {
             const v = validateArtifact({ title: b.title, kind: b.kind, description: b.description, category: b.category, format: b.format, source: b.source });
             // Refinamento de um artefato salvo: o bloco aponta para ele (o app oferece "Salvar como versão N+1").
@@ -273,7 +293,16 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             });
             report.valid = v.ok;
             report.chars = b.source.length;
+            // O que foi conferido, em uma linha visível (sem o código do teste).
+            if (run?.ran) {
+              final = `${final.trimEnd()}\n\n${
+                run.ok
+                  ? `_Testei num navegador: ${run.passed ? `${run.passed} ${run.passed === 1 ? "verificação passou" : "verificações passaram"}` : "carregou sem erros"}._`
+                  : `_Atenção: no teste do navegador ainda ${run.failures.length + run.errors.length === 1 ? "há um problema" : "há problemas"}: ${[...run.errors, ...run.failures].slice(0, 2).join("; ")}. Me diga o que aparece aí que eu corrijo._`
+              }`;
+            }
           }
+          send({ artifactTest: run?.ran ? { ok: run.ok, passed: run.passed, failures: run.failures, errors: run.errors } : null });
         }
         if (final !== answer) {
           answer = final;

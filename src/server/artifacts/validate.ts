@@ -53,6 +53,7 @@ export function validateArtifact(draft: ArtifactDraft): Validation {
   if (!source) errors.push("O artefato está vazio.");
   if (source.length > LIMITS.source) errors.push(`O código passou do limite de ${LIMITS.source.toLocaleString("pt-BR")} caracteres.`);
 
+  if (/^\s*(<{7}|={7}|>{7})(\s|$)/m.test(source)) errors.push("Sobrou uma marca do formato de troca (<<<<<<<, ======= ou >>>>>>>) dentro do código.");
   if (format === "html" && source) {
     if (!/<[a-z][\s\S]*>/i.test(source)) errors.push("Não encontrei HTML no artefato.");
     if (/<base[\s>]/i.test(source)) errors.push("O artefato não pode usar <base>.");

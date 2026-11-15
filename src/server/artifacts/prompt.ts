@@ -72,6 +72,17 @@ function rules(task: ArtifactTask) {
     "- Interativo de verdade: o resultado muda na hora quando a pessoa mexe nos controles (sem botão \"calcular\" quando não precisar). Inclua um botão de reiniciar quando houver animação.",
     "- Código limpo e comentado nos pontos principais (a pessoa pode querer aprender com ele). Nunca use três crases dentro do código.",
     "",
+    "QUALIDADE DE PROGRAMAÇÃO (o artefato só vale se fizer exatamente o que a pessoa pediu, sem quebrar o que já existia)",
+    "- Antes de escrever, liste para você o comportamento pedido, passo a passo, e confira no fim se cada passo funciona: clicar uma vez, clicar de novo, desfazer, repetir.",
+    "- Esconder e mostrar: crie uma classe CSS (.oculto { display: none !important; }) e use element.classList.add/remove/toggle. Nunca devolva com style.display = 'block' (isso quebra layouts em flex ou grid). O controle que traz de volta algo escondido fica sempre visível e clicável (position: fixed, z-index acima do canvas e dos painéis) e funciona quantas vezes a pessoa quiser.",
+    "- Eventos: addEventListener em elementos que já existem (script no fim do <body>); ids únicos; nada de onclick no HTML apontando para funções que ficam dentro de um escopo fechado.",
+    "- Canvas: ajuste ao tamanho do contêiner e ao devicePixelRatio, e redesenhe ao redimensionar. Animação com requestAnimationFrame, com pausa e reinício funcionando.",
+    "- Mudança num artefato existente: mantenha todas as funções que já existiam funcionando, os mesmos ids e o mesmo visual, a menos que a pessoa peça para mudar.",
+    "",
+    "TESTE (obrigatório quando houver interação): depois do bloco do artefato, escreva um bloco ```teste-artefato com o corpo de uma função assíncrona que confere o comportamento pedido. O servidor roda o artefato num navegador de verdade, executa o teste e só entrega se passar; a pessoa não vê o código do teste. Funções disponíveis: clicar(seletor), digitar(seletor, texto), mudar(seletor, valor) (para range, select e checkbox), visivel(seletor) → true/false, texto(seletor), existe(seletor), esperar(ms), afirmar(condição, 'o que deveria acontecer'). Exemplo:",
+    "```teste-artefato\nafirmar(visivel('#painel'), 'o painel começa visível');\nclicar('#esconder'); await esperar(150);\nafirmar(!visivel('#painel'), 'o painel some ao clicar em Esconder');\nafirmar(visivel('#mostrar'), 'o botão de trazer de volta aparece');\nclicar('#mostrar'); await esperar(150);\nafirmar(visivel('#painel'), 'o painel volta');\n```",
+    "Teste o que a pessoa pediu nesta mensagem (e o principal do artefato), com 3 a 10 afirmações; só seletores que existem no código.",
+    "",
     "EXEMPLO DE FORMATO (só a forma; o conteúdo é sempre o pedido):",
     EXAMPLE,
     "",
@@ -100,6 +111,7 @@ export function trimHistory(history: { role: "user" | "assistant"; content: stri
     let text = m.content;
     for (const b of parseArtifactBlocks(text)) text = text.replace(b.raw, `[artefato «${b.title}» entregue aqui]`);
     for (const e of parseEditBlocks(text)) text = text.replace(e.raw, "[mudanças no artefato aplicadas aqui]");
+    text = text.replace(/(`{3,})[ \t]*teste-artefato[^\n]*\n[\s\S]*?\n\1/g, "");
     return { role: "assistant", content: text.slice(0, 3000) };
   });
 }
@@ -134,22 +146,24 @@ export function artifactPrompt(input: {
   messages.push({ role: "user", content: input.message.replace(/^\/artefato\s*/i, "").trim() || "Crie um artefato útil para o que estamos conversando." });
   const reminder =
     input.task === "criar"
-      ? "Lembrete: uma frase, uma linha em branco, o bloco ```artefato completo (cabeçalho, ---, a página inteira até </html>) e 1 a 3 linhas de uso. Documento (resumo, relatório, roteiro): tipo documento, \"formato: markdown\" e o texto em Markdown, sem HTML. Só os endereços de biblioteca permitidos; nada de rede; visual com as variáveis --mm-*."
+      ? "Lembrete: uma frase, uma linha em branco, o bloco ```artefato completo (cabeçalho, ---, a página inteira até </html>), 1 a 3 linhas de uso e, se houver interação, o bloco ```teste-artefato. Documento (resumo, relatório, roteiro): tipo documento, \"formato: markdown\" e o texto em Markdown, sem HTML. Só os endereços de biblioteca permitidos; nada de rede; visual com as variáveis --mm-*."
       : input.task === "editar"
-        ? "Lembrete: mudança localizada → bloco ```artefato-edicao com BUSCAR copiado exatamente do código atual; mudança grande → bloco ```artefato inteiro. Uma frase antes dizendo o que mudou."
+        ? "Lembrete: mudança localizada → bloco ```artefato-edicao com BUSCAR copiado exatamente do código atual (cada trecho único, com 2 a 3 linhas de contexto; nunca escreva <<<<<<<, ======= ou >>>>>>> dentro do código); mudança grande → bloco ```artefato inteiro. Uma frase antes dizendo o que mudou. Depois, o bloco ```teste-artefato que confere a mudança pedida."
         : "Lembrete: explique o artefato atual em texto, sem devolver código novo, a menos que a pessoa peça uma mudança.";
   messages.push({ role: "system", content: reminder });
   return messages;
 }
 
 /** Pedido de conserto: o artefato saiu com erros de validação (ou cortado). */
-export function repairPrompt(original: AiMessage[], answer: string, problems: string[]): AiMessage[] {
+export function repairPrompt(original: AiMessage[], answer: string, problems: string[], currentSource: string | null = null, test = ""): AiMessage[] {
+  const current = currentSource ? `\n\nCódigo atual completo do artefato (depois das suas mudanças):\n\`\`\`\`html\n${currentSource}\n\`\`\`\`` : "";
+  const testNote = test ? `\n\nO teste que rodou foi:\n\`\`\`\`js\n${test}\n\`\`\`\`\nSe o teste estiver errado (seletor que não existe, expectativa que não é o que a pessoa pediu), corrija o teste; se o artefato estiver errado, corrija o artefato.` : "";
   return [
     ...original,
-    { role: "assistant", content: answer },
+    { role: "assistant", content: answer.slice(0, 6_000) },
     {
       role: "system",
-      content: `O artefato acima não pode ser entregue assim:\n- ${problems.join("\n- ")}\nReescreva a resposta inteira corrigindo isso: uma frase, o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e uma linha de uso.`,
+      content: `O artefato não pode ser entregue assim. Ele foi rodado num navegador de verdade e conferido:\n- ${problems.join("\n- ")}${current}${testNote}\n\nEncontre a causa no código (leia o fluxo inteiro do evento até o efeito na tela) e entregue a resposta inteira corrigida: uma frase dizendo o que você fez (sem mencionar o teste), o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e o bloco \`\`\`teste-artefato.`,
     },
   ];
 }

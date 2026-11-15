@@ -262,6 +262,8 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
       // artefato salvo incorporado num pensamento.
       const fence = (code.lang ?? "").split(/\s/)[0].toLowerCase();
       if (fence === "artefato") return <ChatArtifact body={code.text} complete={fenceClosed(code.raw)} />;
+      // O teste que a Kally escreve para o servidor rodar não aparece (some da resposta final).
+      if (fence === "teste-artefato") return null;
       if (fence === "artefato-edicao" || fence === "artefato-edição") return <ArtifactEditPending complete={fenceClosed(code.raw)} />;
       if (fence === "artefato-ref") {
         const embed = parseEmbed(code.text);

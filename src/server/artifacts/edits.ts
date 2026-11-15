@@ -8,7 +8,10 @@
  * inteira (nada é aplicado pela metade) e o servidor pede o artefato completo.
  */
 
-export type EditResult = { ok: true; source: string; applied: number } | { ok: false; reason: string };
+/** Linha que é uma marca do formato de troca (<<<<<<< BUSCAR, =======, >>>>>>> FIM). */
+export const MARKER = /^\s*(<{5,}|={5,}|>{5,})(\s|$)/m;
+
+export type EditResult ={ ok: true; source: string; applied: number } | { ok: false; reason: string };
 
 function exactOnce(haystack: string, needle: string) {
   const first = haystack.indexOf(needle);
@@ -51,6 +54,9 @@ export function applyEdits(source: string, edits: { search: string; replace: str
   let current = source;
   for (const [i, edit] of edits.entries()) {
     if (!edit.search.trim()) return { ok: false, reason: `troca ${i + 1} sem trecho a buscar` };
+    // Marca do formato dentro do trecho: o modelo errou a estrutura (laboratório cósmico, 15/11: sobrou "=======" no
+    // CSS). Melhor reescrever o artefato inteiro do que aplicar uma troca torta.
+    if (MARKER.test(edit.search) || MARKER.test(edit.replace)) return { ok: false, reason: `a troca ${i + 1} está mal formada (marca de troca dentro do código)` };
     const exact = exactOnce(current, edit.search);
     if (exact.count === 1) {
       current = current.slice(0, exact.at) + edit.replace + current.slice(exact.at + edit.search.length);

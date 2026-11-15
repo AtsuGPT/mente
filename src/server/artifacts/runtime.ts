@@ -1,0 +1,155 @@
+import "server-only";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+/**
+ * Teste de verdade antes de entregar: o artefato roda num Chrome (ou Edge) invisível do próprio PC, com a mesma
+ * política de conteúdo da caixa do app, e o teste que a Kally escreveu para o pedido (```teste-artefato) clica, digita
+ * e confere o resultado. Erros de JavaScript ao carregar e afirmações que falham voltam para a Kally corrigir.
+ *
+ * Por que assim: a validação estática (validate.ts) não vê erro de lógica. No laboratório cósmico (15/11), o código
+ * era válido, mas "esconder o painel e trazer de volta" não funcionava, e a Kally dizia que tinha resolvido.
+ *
+ * Segurança: o código roda no navegador, nunca no Node; o navegador usa um perfil temporário próprio (apagado no fim),
+ * sem extensões, com a caixa de areia do Chrome ligada, e a CSP bloqueia rede (fetch, imagens), formulários e
+ * molduras; o arquivo é lido como file:// e o Chrome não deixa uma página file:// ler outros arquivos. Sem navegador
+ * no servidor (ex.: o contêiner de teste), o teste é pulado e o resto segue como antes.
+ *
+ * Como o resultado sai: --dump-dom imprime o HTML depois de os scripts rodarem (com tempo virtual, as esperas e as
+ * animações correm sem esperar o relógio); o resultado do teste fica num <pre id="__mm_resultado">.
+ */
+
+const CANDIDATES = [
+  process.env.KALLY_ARTIFACT_BROWSER,
+  "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+  "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/google-chrome",
+  "/opt/pw-browsers/chromium",
+].filter((p): p is string => !!p);
+
+let found: string | null | undefined;
+export function browserPath() {
+  if (process.env.KALLY_ARTIFACT_TEST === "0") return null;
+  if (found === undefined) found = CANDIDATES.find((p) => existsSync(p)) ?? null;
+  return found;
+}
+
+const CSP =
+  "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src data: https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src data: blob:; media-src data: blob:; connect-src 'none'; worker-src blob:; frame-src 'none'; form-action 'none'; base-uri 'none'";
+
+const THEME =
+  ":root{--mm-bg:#000;--mm-surface:#0B0A0E;--mm-surface-2:#131217;--mm-line:#2A2732;--mm-text:#F2EFFA;--mm-muted:#AAA4BF;--mm-faint:#867FA1;--mm-roxo:#8461F0;--mm-roxo-claro:#A58BF7;--mm-roxo-escuro:#4A2B9B;--mm-verde:#8FDDB0;--mm-amarelo:#E8C07D;--mm-vermelho:#F2777A;--mm-fonte:system-ui,sans-serif}";
+
+/** Script que vem ANTES do artefato: guarda os erros e troca o que a caixa do app também troca. */
+const BEFORE = `window.__mm={erros:[]};
+addEventListener("error",function(e){if(e&&e.message)__mm.erros.push(e.message+(e.lineno?" (linha "+e.lineno+")":""));else if(e&&e.target&&(e.target.src||e.target.href))__mm.erros.push("Não carregou: "+(e.target.src||e.target.href))},true);
+addEventListener("unhandledrejection",function(e){__mm.erros.push(String(e&&e.reason&&e.reason.message||e&&e.reason||"erro"))});
+window.alert=function(){};window.confirm=function(){return true};window.prompt=function(_,d){return d==null?"":String(d)};
+(function(){function mem(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}["localStorage","sessionStorage"].forEach(function(n){try{Object.defineProperty(window,n,{value:mem(),configurable:true})}catch(_){}})})();`;
+
+/** Script que vem DEPOIS: espera carregar, roda o teste e escreve o resultado. */
+function after(test: string) {
+  return `(function(){
+var falhas=[],ok=0;
+function q(s){var el=document.querySelector(s);if(!el)throw new Error("não existe: "+s);return el}
+function existe(s){return !!document.querySelector(s)}
+function visivel(s){var el=document.querySelector(s);if(!el)return false;var r=el.getBoundingClientRect();var cs=getComputedStyle(el);if(cs.display==="none"||cs.visibility==="hidden"||Number(cs.opacity)===0)return false;var p=el;while(p&&p!==document.documentElement){var c=getComputedStyle(p);if(c.display==="none"||c.visibility==="hidden")return false;p=p.parentElement}return r.width>0&&r.height>0}
+function clicar(s){var el=q(s);el.dispatchEvent(new MouseEvent("pointerdown",{bubbles:true}));el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}));el.dispatchEvent(new MouseEvent("pointerup",{bubbles:true}));el.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));el.click()}
+function digitar(s,t){var el=q(s);el.focus();el.value=t;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
+function mudar(s,v){var el=q(s);if(el.type==="checkbox"||el.type==="radio"){if(el.checked!==!!v)el.click()}else{el.value=v;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}}
+function texto(s){var el=document.querySelector(s);return el?(el.innerText||el.textContent||"").trim():""}
+function esperar(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function afirmar(c,m){if(c)ok++;else falhas.push(String(m||"afirmação falhou"))}
+function fim(extra){var pre=document.createElement("pre");pre.id="__mm_resultado";pre.textContent=JSON.stringify(Object.assign({erros:window.__mm.erros.slice(0,5),falhas:falhas.slice(0,10),ok:ok},extra||{}));document.documentElement.appendChild(pre)}
+var codigo=${JSON.stringify(test).replace(/</g, "\\u003c")};
+addEventListener("load",function(){setTimeout(async function(){
+// O teste é compilado à parte: erro de sintaxe nele vira falha do teste, não da página.
+try{var Async=Object.getPrototypeOf(async function(){}).constructor;await new Async("clicar","digitar","mudar","visivel","texto","existe","esperar","afirmar",codigo)(clicar,digitar,mudar,visivel,texto,existe,esperar,afirmar)}catch(e){falhas.push("o teste parou: "+(e&&e.message||e))}
+fim()},400)});
+})();`;
+}
+
+export type RuntimeReport = { ran: boolean; ok: boolean; errors: string[]; failures: string[]; passed: number; ms: number; reason?: string };
+
+function page(source: string, test: string) {
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${THEME}html{background:var(--mm-bg);color:var(--mm-text);font-family:var(--mm-fonte)}body{margin:0}</style><script>${BEFORE}</script>`;
+  const tail = `<script>${after(test || "")}</script>`;
+  let code = source.replace(/^\s*<!doctype[^>]*>/i, "");
+  const headTag = code.match(/<head(\s[^>]*)?>/i);
+  if (headTag?.index !== undefined) code = code.slice(0, headTag.index + headTag[0].length) + head + code.slice(headTag.index + headTag[0].length);
+  else code = `<head>${head}</head>${code}`;
+  // O script do teste vai no fim do documento (depois dos scripts do artefato).
+  const close = code.search(/<\/body>\s*(<\/html>)?\s*$/i);
+  code = close >= 0 ? code.slice(0, close) + tail + code.slice(close) : code + tail;
+  return `<!doctype html>${code}`;
+}
+
+/** Roda o artefato (e o teste, se houver) e diz o que aconteceu. Nunca lança: falha do próprio teste vira ran=false. */
+export async function runArtifact(source: string, test: string, timeoutMs = 25_000): Promise<RuntimeReport> {
+  const started = Date.now();
+  const exe = browserPath();
+  if (!exe) return { ran: false, ok: true, errors: [], failures: [], passed: 0, ms: 0, reason: "sem navegador no servidor" };
+  const dir = await mkdtemp(path.join(tmpdir(), "mm-artefato-"));
+  try {
+    const file = path.join(dir, "artefato.html");
+    await writeFile(file, page(source, test), "utf8");
+    const args = [
+      "--headless=new",
+      "--disable-gpu",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--mute-audio",
+      `--user-data-dir=${path.join(dir, "perfil")}`,
+      "--window-size=420,900",
+      "--virtual-time-budget=9000",
+      "--dump-dom",
+      `file:///${file.replace(/\\/g, "/")}`,
+    ];
+    const out = await new Promise<string>((resolve, reject) => {
+      const child = spawn(exe, args, { windowsHide: true });
+      let stdout = "";
+      child.stdout.on("data", (d) => (stdout += d));
+      child.stderr.on("data", () => undefined);
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error("o navegador demorou demais"));
+      }, timeoutMs);
+      child.on("error", (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+      child.on("close", () => {
+        clearTimeout(timer);
+        resolve(stdout);
+      });
+    });
+    const m = out.match(/<pre id="__mm_resultado">([\s\S]*?)<\/pre>/);
+    if (!m) return { ran: true, ok: false, errors: ["A página não terminou de carregar (o teste não chegou a rodar)."], failures: [], passed: 0, ms: Date.now() - started };
+    const decoded = m[1].replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+    const r = JSON.parse(decoded) as { erros: string[]; falhas: string[]; ok: number };
+    const errors = r.erros.filter((e) => !/^ResizeObserver loop/.test(e));
+    return { ran: true, ok: !errors.length && !r.falhas.length, errors, failures: r.falhas, passed: r.ok, ms: Date.now() - started };
+  } catch (cause) {
+    return { ran: false, ok: true, errors: [], failures: [], passed: 0, ms: Date.now() - started, reason: cause instanceof Error ? cause.message : String(cause) };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+/** Bloco ```teste-artefato da resposta (o corpo da função de teste) e a resposta sem ele. */
+export function takeTest(text: string): { test: string; rest: string } {
+  const re = /\n?(`{3,})[ \t]*teste-artefato[^\n]*\n([\s\S]*?)\n\1[ \t]*(?=\n|$)/i;
+  const m = text.match(re);
+  if (!m) return { test: "", rest: text };
+  return { test: m[2], rest: text.replace(m[0], "").replace(/\n{3,}/g, "\n\n").trimEnd() };
+}
