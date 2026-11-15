@@ -72,6 +72,11 @@ export function validateArtifact(draft: ArtifactDraft): Validation {
     if (/\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\s*\(/.test(source) || /new\s+(XMLHttpRequest|WebSocket|EventSource)\b/.test(source)) warnings.push("O artefato tenta acessar a rede; na caixa de areia isso é bloqueado.");
     if (/document\.cookie|indexedDB/.test(source)) warnings.push("O artefato usa cookies ou indexedDB, que não existem na caixa de areia.");
     if (/\b(window\.)?(top|parent)\.(location|document)/.test(source)) errors.push("O artefato não pode mexer na página do app (top/parent).");
+    // Canais para fora que a CSP não fecha (bateria de ataques de 15/11): navegar a própria caixa e WebRTC. A caixa e o
+    // app já barram os dois; aqui eles nem chegam a ser salvos (e a Kally conserta se escrever algo assim).
+    if (/\b(window|document|self|globalThis)\.location\s*(\.href\s*)?=(?!=)|(?<![\w.$])(?<!(?:let|const|var)\s+)location(\.href)?\s*=(?!=)|(?<![\w$])location\.(assign|replace)\s*\(/.test(source)) errors.push("O artefato não pode navegar para outro endereço (location); tudo acontece dentro da própria página.");
+    if (/\b(webkit)?RTC(PeerConnection|DataChannel)\b/.test(source)) errors.push("O artefato não pode usar WebRTC (RTCPeerConnection).");
+    if (/type\s*=\s*["']?password\b|\.type\s*=\s*["']password["']/i.test(source)) errors.push("O artefato não pode ter campo de senha; artefatos não pedem senhas.");
     if (/<script[^>]*>[\s\S]*$/i.test(source) && (source.match(/<script\b/gi)?.length ?? 0) > (source.match(/<\/script>/gi)?.length ?? 0)) errors.push("Há um <script> sem fechamento (o código parece cortado).");
     if (/<html[\s>]/i.test(source) && !/<\/html>/i.test(source)) warnings.push("A página não fecha </html> (pode ter sido cortada).");
     // Sintaxe dos scripts: cada <script> é compilado (sem rodar) pelo próprio Node. Um erro aqui quebraria o artefato

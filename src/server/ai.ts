@@ -1,6 +1,6 @@
 import "server-only";
 import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
-import { acquireRemoteSlot, invalidateRemoteHealth, lightConfig, lightCoolingDown, noteLightFailure, remoteConfig, remoteHeaders } from "@/server/ai/remote";
+import { acquireRemoteSlot, codingConfig, codingServes, invalidateRemoteHealth, lightConfig, lightCoolingDown, noteCodingFailure, noteLightFailure, remoteConfig, remoteHeaders } from "@/server/ai/remote";
 import { overBudget, recordSpend } from "@/server/ai/spend";
 
 /**
@@ -36,7 +36,7 @@ export type AiOptions = {
   /** Recebe a espera na fila e as trocas de modelo feitas pelo gerenciador central. */
   onLease?: (info: LeaseInfo) => void;
   /** "remote": o vLLM da GPU alugada (server/ai/remote.ts); padrão: o provedor local. */
-  target?: "local" | "remote";
+  target?: "local" | "remote" | "coding";
   /** Cancela a resposta (a pessoa saiu ou o roteador desistiu do remoto). */
   signal?: AbortSignal;
   /** Remoto: liga (true) ou desliga (false) o raciocínio do modelo neste pedido; padrão: KALLY_REMOTE_NO_THINK. */
@@ -50,6 +50,11 @@ export type AiOptions = {
    * Qwen); "never" = só o Qwen do PC. Sem isso, a API quando der e o Qwen como último recurso.
    */
   light?: "only" | "never";
+  /**
+   * target "coding" (Kally Coding, artefatos e programação): "only" = sem cair para o modelo principal se ele falhar.
+   * Sem isso, uma falha do Coding passa o pedido ao modelo principal (e o Coding fica de fora por 2 minutos).
+   */
+  coding?: "only";
 };
 
 export type FinishReason = "stop" | "length" | "other";
@@ -138,6 +143,7 @@ function config() {
 type ApiProfile = Pick<ReturnType<typeof remoteConfig>, "baseUrl" | "apiKey" | "model" | "timeoutMs" | "noThink" | "reasoning" | "effortLow" | "effortHigh">;
 
 function remoteReasoning(cfg: ApiProfile, think: boolean | undefined) {
+  if (cfg.reasoning === "toggle") return think ?? !cfg.noThink ? { reasoning: { effort: cfg.effortHigh } } : { reasoning: { enabled: false } };
   if (cfg.reasoning === "effort") {
     const on = think ?? !cfg.noThink;
     return { reasoning: { effort: on ? cfg.effortHigh : cfg.effortLow } };
@@ -146,16 +152,24 @@ function remoteReasoning(cfg: ApiProfile, think: boolean | undefined) {
   return cfg.noThink ? { chat_template_kwargs: { enable_thinking: false } } : {};
 }
 
-/** light: a Kally 1.5 pela API (lightConfig), sem vaga limitada e sem mexer na saúde da Kally 32. */
-async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean, light = false) {
+/**
+ * profile "light": a Kally 1.5 pela API (lightConfig); "coding": o Kally Coding (codingConfig, artefatos e programação).
+ * Os dois sem vaga limitada, com teto de gasto próprio e sem mexer na saúde da Kally 32 ("main").
+ */
+type RemoteProfile = "main" | "light" | "coding";
+const PROFILE_LABEL: Record<RemoteProfile, string> = { main: "Kally remoto:", light: "Kally 1.5 (API):", coding: "Kally Coding:" };
+
+async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: boolean, profile: RemoteProfile = "main") {
   const main = remoteConfig();
-  const cfg: ApiProfile = light ? lightConfig() : main;
-  if (!light && !main.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
-  if (!light && main.hosted && overBudget(main.model)) throw new AiError("O modelo remoto atingiu o teto de gasto do dia.", 503);
-  const slot = light ? { release: () => undefined } : acquireRemoteSlot();
+  const cfg: ApiProfile = profile === "light" ? lightConfig() : profile === "coding" ? codingConfig() : main;
+  if (profile === "main" && !main.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
+  if (profile === "main" && main.hosted && overBudget(main.model)) throw new AiError("O modelo remoto atingiu o teto de gasto do dia.", 503);
+  if (profile === "coding" && !codingConfig().enabled) throw new AiError("O Kally Coding não está configurado (KALLY_CODING_*).", 503);
+  if (profile === "coding" && overBudget(cfg.model)) throw new AiError("O Kally Coding atingiu o teto de gasto do dia.", 503);
+  const slot = profile === "main" ? acquireRemoteSlot() : { release: () => undefined };
   if (!slot) throw new AiError("O modelo remoto está ocupado.", 503);
   const dropHealth = () => {
-    if (!light) invalidateRemoteHealth();
+    if (profile === "main") invalidateRemoteHealth();
   };
   const body = {
     model: cfg.model,
@@ -193,7 +207,7 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
     watchdog?.stop();
     slot.release();
     dropHealth();
-    console.error(light ? "Kally 1.5 (API):" : "Kally remoto:", response.status, (await response.text().catch(() => "")).slice(0, 300));
+    console.error(PROFILE_LABEL[profile], response.status, (await response.text().catch(() => "")).slice(0, 300));
     throw new AiError("O modelo remoto não conseguiu responder.", 502);
   }
   return { response, provider: "openai" as const, lease: { info: null, release: slot.release } as unknown as Lease, model: cfg.model, watchdog };
@@ -223,10 +237,23 @@ export function lightServes(model?: string) {
 }
 
 async function request(messages: AiMessage[], options: AiOptions, stream: boolean) {
+  if (options.target === "coding") {
+    if (options.coding === "only" || codingServes()) {
+      try {
+        return await remoteRequest(messages, options, stream, "coding");
+      } catch (cause) {
+        if (options.signal?.aborted || options.coding === "only") throw cause;
+        noteCodingFailure();
+        console.warn("Kally Coding → modelo principal:", cause instanceof Error ? cause.message : cause);
+      }
+    }
+    // Sem o Coding: o modelo principal (Kally 32) responde; sem ele, o caminho local de sempre.
+    if (remoteConfig().enabled) return remoteRequest(messages, options, stream);
+  }
   if (options.target === "remote") return remoteRequest(messages, options, stream);
   if (useLight(options, messages)) {
     try {
-      return await remoteRequest(messages, options, stream, true);
+      return await remoteRequest(messages, options, stream, "light");
     } catch (cause) {
       if (options.signal?.aborted || options.light === "only") throw cause;
       // Último recurso: o Qwen do PC responde (e a API fica de fora por 2 minutos).

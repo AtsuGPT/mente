@@ -34,7 +34,9 @@ export function remoteConfig() {
   const raw = (process.env.KALLY_VLLM_BASE_URL || "").trim().replace(/\/+$/, "").replace(/\/v1$/, "");
   const number = (v: string | undefined, fallback: number) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : fallback);
   return {
-    enabled: process.env.KALLY_REMOTE_ENABLED === "1" && !!raw && !!process.env.KALLY_REMOTE_MODEL,
+    enabled: process.env.KALLY_REMOTE_ENABLED === "1" 
+    && !!raw 
+    && !!process.env.KALLY_REMOTE_MODEL,
     baseUrl: raw,
     apiKey: process.env.KALLY_VLLM_API_KEY || "",
     model: process.env.KALLY_REMOTE_MODEL || "",
@@ -53,7 +55,7 @@ export function remoteConfig() {
      * "effort": reasoning.effort, para modelos que sempre raciocinam (GPT-OSS e outros nas APIs); o pedido sem raciocínio
      * usa o nível baixo (KALLY_REMOTE_EFFORT_LOW) e o com raciocínio, o alto (KALLY_REMOTE_EFFORT_HIGH).
      */
-    reasoning: process.env.KALLY_REMOTE_REASONING === "effort" ? ("effort" as const) : ("qwen" as const),
+    reasoning: (process.env.KALLY_REMOTE_REASONING === "effort" ? "effort" : "qwen") as "qwen" | "effort" | "toggle",
     effortLow: process.env.KALLY_REMOTE_EFFORT_LOW || "low",
     effortHigh: process.env.KALLY_REMOTE_EFFORT_HIGH || "high",
   };
@@ -87,6 +89,55 @@ export function lightConfig() {
   };
 }
 
+/**
+ * Kally Coding: um modelo só para criar artefatos e responder pedidos de programação (DeepSeek pelo OpenRouter).
+ * O resto da conversa continua no modelo principal (KALLY_REMOTE_MODEL).
+ *
+ *   KALLY_CODING_ENABLED       "1" liga.
+ *   KALLY_CODING_MODEL         id no provedor, ex.: deepseek/deepseek-v4.1-flash-1017.
+ *   KALLY_CODING_BASE_URL      endereço da API (padrão: o do modelo principal).
+ *   KALLY_CODING_API_KEY       chave (padrão: a do modelo principal).
+ *   KALLY_CODING_EFFORT_LOW / _HIGH   raciocínio pedido (reasoning.effort) sem e com "pensar"; padrão low / high.
+ *
+ * Se ele falhar ou passar do teto do dia, o pedido volta ao modelo principal (e o Coding fica de fora por 2 minutos).
+ */
+export function codingConfig() {
+  const main = remoteConfig();
+  const raw = (process.env.KALLY_CODING_BASE_URL || "").trim().replace(/\/+$/, "").replace(/\/v1$/, "") || main.baseUrl;
+  const apiKey = process.env.KALLY_CODING_API_KEY || main.apiKey;
+  const model = (process.env.KALLY_CODING_MODEL || "").trim();
+  return {
+    enabled: process.env.KALLY_CODING_ENABLED === "1" && !!raw && !!apiKey && !!model,
+    baseUrl: raw,
+    apiKey,
+    model,
+    timeoutMs: main.timeoutMs,
+    noThink: true,
+    /**
+     * "toggle": sem "pensar", o raciocínio fica desligado (reasoning.enabled: false); com ele, reasoning.effort alto.
+     * Com effort "low", o DeepSeek raciocinou 4 × 16 mil tokens num artefato difícil e não escreveu nada (15/11).
+     */
+    reasoning: "toggle" as const,
+    effortLow: process.env.KALLY_CODING_EFFORT_LOW || "low",
+    effortHigh: process.env.KALLY_CODING_EFFORT_HIGH || "high",
+  };
+}
+
+/** Falha recente do Kally Coding: por 2 minutos os pedidos vão ao modelo principal. */
+export function noteCodingFailure() {
+  registry.__kallyCodingFailedAt = Date.now();
+}
+
+export function codingCoolingDown() {
+  return Date.now() - (registry.__kallyCodingFailedAt ?? 0) < 120_000;
+}
+
+/** O Kally Coding responde agora? (ligado, sem falha nos últimos 2 minutos e dentro do teto do dia) */
+export function codingServes() {
+  const cfg = codingConfig();
+  return cfg.enabled && !codingCoolingDown() && !overBudget(cfg.model);
+}
+
 /** Falha recente da Kally 1.5 pela API: por 2 minutos a resposta vai direto ao Ollama, sem esperar outra falha. */
 export function noteLightFailure() {
   registry.__kallyLightFailedAt = Date.now();
@@ -102,6 +153,7 @@ type Registry = {
   /** estado imposto pelo controlador da GPU (ligando a instância), com validade */
   __kallyRemoteBooting?: { until: number; detail: string };
   __kallyLightFailedAt?: number;
+  __kallyCodingFailedAt?: number;
 };
 const registry = globalThis as typeof globalThis & Registry;
 

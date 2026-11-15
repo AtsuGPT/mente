@@ -65,7 +65,7 @@ var falhas=[],ok=0;
 function q(s){var el=document.querySelector(s);if(!el)throw new Error("não existe: "+s);return el}
 function existe(s){return !!document.querySelector(s)}
 function visivel(s){var el=document.querySelector(s);if(!el)return false;var r=el.getBoundingClientRect();var cs=getComputedStyle(el);if(cs.display==="none"||cs.visibility==="hidden"||Number(cs.opacity)===0)return false;var p=el;while(p&&p!==document.documentElement){var c=getComputedStyle(p);if(c.display==="none"||c.visibility==="hidden")return false;p=p.parentElement}return r.width>0&&r.height>0}
-function clicar(s){var el=q(s);el.dispatchEvent(new MouseEvent("pointerdown",{bubbles:true}));el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}));el.dispatchEvent(new MouseEvent("pointerup",{bubbles:true}));el.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));el.click()}
+function clicar(s){var el=q(s);el.dispatchEvent(new MouseEvent("pointerdown",{bubbles:true}));el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}));el.dispatchEvent(new MouseEvent("pointerup",{bubbles:true}));el.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));if(typeof el.click==="function")el.click();else el.dispatchEvent(new MouseEvent("click",{bubbles:true}))}
 function digitar(s,t){var el=q(s);el.focus();el.value=t;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
 function mudar(s,v){var el=q(s);if(el.type==="checkbox"||el.type==="radio"){if(el.checked!==!!v)el.click()}else{el.value=v;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}}
 function texto(s){var el=document.querySelector(s);return el?(el.innerText||el.textContent||"").trim():""}

@@ -1,9 +1,9 @@
 import { AiError, completeChat, defaultChatModel, lightServes, ollamaMemory, openChatStream, streamChat, type AiMessage, type FinishReason, type GenerationStats, type LeaseInfo } from "@/server/ai";
 import { ensureGpuWatcher, gpuConfig, noteRemoteUse, startGpu } from "@/server/ai/gpu";
 import { logPerf, memorySampler } from "@/server/ai/perf";
-import { estimateTokens, lightConfig, remoteConfig, remoteHealth } from "@/server/ai/remote";
+import { codingConfig, codingServes, estimateTokens, lightConfig, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { modelChoiceFrom, routeModel, type RouteDecision } from "@/server/kally/router";
-import { remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
+import { asksForCode, remoteMaxTokens, remoteStyle, remoteThinks } from "@/server/kally/remote-style";
 import { createPacer, typeOut } from "@/server/kally/pacer";
 import { autoWebEnabled, citedSources, filterRelevant, findAnswerSources, findPostSources, intimateStory, localSources, postSearchTerms, postSourcesEnabled } from "@/server/kally/post-sources";
 import { postReviewEnabled, reviewPostFidelity } from "@/server/kally/post-review";
@@ -651,7 +651,9 @@ export async function POST(request: Request, context: EnvContext) {
           const showStats = !!dev || (!!pipeline && platformAdmin) || !!evalConfig || evalEnvironment;
           // Nome do modelo que vai responder: a Kally 1.5 pela API aparece como ela (e não como o Qwen do PC, que é só reserva).
           const localName = devLight === "never" ? modelName : devLight === "only" || lightServes(model) ? lightConfig().model : modelName;
-          if (showStats) send({ model: route.target === "remote" ? remoteConfig().model : localName, backend: route.target });
+          // Pedido de programação: o remoto é o Kally Coding (DeepSeek), se estiver disponível; o resto fica no principal.
+          const codingTurn = route.target === "remote" && asksForCode(message) && codingServes();
+          if (showStats) send({ model: route.target === "remote" ? (codingTurn ? codingConfig().model : remoteConfig().model) : localName, backend: codingTurn ? "coding" : route.target });
           generationStarted = Date.now();
           // Com 800, o código pedido pelo Rafael e a conta da Sônia saíram cortados no meio (simulação, rodada 1). O modelo
           // para sozinho quando termina; só respostas longas usam o teto.
@@ -734,8 +736,8 @@ export async function POST(request: Request, context: EnvContext) {
                 let reason = "other" as FinishReason;
                 // Continuação: cabe no contexto do vLLM junto com o fim do que já foi escrito (~2.000 tokens).
                 const roundMax = round === 0 ? remoteMax : health.maxModelLen ? Math.max(512, Math.min(remoteMax, health.maxModelLen - promptTokens - 2_100)) : remoteMax;
-                const chunks = await openChatStream(messages, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: roundMax, target: "remote", think: round === 0 ? thinks : false, signal: round === 0 ? AbortSignal.any([cancel.signal, firstToken.signal]) : cancel.signal, onStats: (s) => (stats = s), onFinish: (r) => (reason = r) });
-                modelName = cfg.model;
+                const chunks = await openChatStream(messages, { temperature: isPost ? 0.2 : Math.max(temperature, 0.4), maxTokens: roundMax, target: codingTurn ? "coding" : "remote", think: round === 0 ? thinks : false, signal: round === 0 ? AbortSignal.any([cancel.signal, firstToken.signal]) : cancel.signal, onStats: (s) => (stats = s), onFinish: (r) => (reason = r) });
+                modelName = codingTurn ? codingConfig().model : cfg.model;
                 for await (const chunk of chunks) {
                   if (!gotText) {
                     gotText = true;

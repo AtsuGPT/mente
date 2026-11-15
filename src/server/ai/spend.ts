@@ -19,6 +19,7 @@ const FILE = () => path.join(process.cwd(), "logs", "kally-gasto.json");
 const PRICES: Record<string, [number, number]> = {
   "openai/gpt-oss-120b": [0.05, 0.25],
   "openai/gpt-oss-20b": [0.03, 0.14],
+  "deepseek/deepseek-v4.1-flash-1017": [0.02, 0.11],
 };
 
 export const dailyLimitUsd = () => {

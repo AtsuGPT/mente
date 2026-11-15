@@ -144,3 +144,16 @@ export function remoteMaxTokens(competence: CompetenceId | null, brief: boolean,
   if (post) return 3_600;
   return competence === "estudo" || competence === "analise" ? 4_096 : 2_800;
 }
+
+/**
+ * Pedido de programação (vai para o Kally Coding, codingConfig em ai/remote.ts): código colado, linguagem ou
+ * ferramenta citada, ou pedido de escrever/consertar código. "Código civil", "programa de TV" e "programação da
+ * semana" ficam de fora.
+ */
+const CODE_SIGNAL =
+  /```|\b(def|import|function|const|let|var|class|return|print|console\.log|#include|public static)\b[^\n]{0,40}[({=:]|\btraceback\b|\bstack ?trace\b|\b(python|javascript|typescript|java|kotlin|swift|c\+\+|c#|golang|rust|php|ruby|sql|html|css|react|vue|angular|node(\.?js)?|django|flask|fastapi|bash|powershell|regex|json|api rest|git|docker|prisma|next\.?js|expo|arduino|matlab)\b|\b(c[oó]digo|programa(r|ndo|dor|dora)|programa[cç][aã]o (em|de computadores|orientada|funcional|web)|script|algoritmo|fun[cç][aã]o (em|que|para|recursiva)|debugar|depurar|compila(r|dor|ção)|bug|refatora\w*|endpoint|array|lista encadeada|recurs[aã]o)\b/i;
+const NOT_CODE = /\bc[oó]digo (civil|penal|de defesa|tribut\w+|eleitoral|de [eé]tica|postal|de barras|de conduta|florestal|de tr[aâ]nsito)\b|\bprograma[cç][aã]o (da|do|de) (semana|dia|tv|festa|evento|viagem)\b/i;
+
+export function asksForCode(message: string): boolean {
+  return CODE_SIGNAL.test(message) && !NOT_CODE.test(message);
+}

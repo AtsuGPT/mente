@@ -149,6 +149,12 @@ body{margin:0}`;
 function bootstrap(id: string, maxHeight: number, fit: ArtifactFit) {
   return `(function(){
 var id=${JSON.stringify(id)};var FIT=${JSON.stringify(fit)};
+// Segurança (roda antes do código do artefato): sem WebRTC, o único canal para fora que a CSP não fecha (mandaria dados
+// por STUN e revelaria o IP de quem abriu; medido em 15/11). Removido sem volta: a propriedade fica fixa e indefinida.
+["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCSessionDescription","RTCIceCandidate","RTCRtpSender","RTCRtpReceiver","RTCRtpTransceiver"].forEach(function(n){try{Object.defineProperty(window,n,{value:undefined,writable:false,configurable:false})}catch(e){}});
+// Artefato não pede senha: campo de senha fica desligado (um que peça é golpe).
+function semSenha(){try{var l=document.querySelectorAll("input[type=password]");for(var i=0;i<l.length;i++){l[i].disabled=true;l[i].value="";l[i].placeholder="Artefatos não pedem senhas"}}catch(e){}}
+try{new MutationObserver(semSenha).observe(document,{subtree:true,childList:true,attributes:true,attributeFilter:["type"]})}catch(e){}
 // Encaixe: conteúdo mais largo que a tela (canvas de 800 px, tabela larga) é reduzido para caber na largura; na tela
 // cheia, também na altura, se der para ler (redução até 60%). Sem isso, gráficos feitos para o computador ficavam
 // enormes no celular (pedido de 15/11).
@@ -178,7 +184,7 @@ setInterval(size,1500);
 export type ArtifactFit = "largura" | "tela";
 
 export function artifactHtml({ source, id, maxHeight = 4000, fit = "largura" }: { source: string; id: string; maxHeight?: number; fit?: ArtifactFit }) {
-  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"><style>${THEME}</style><script>${bootstrap(id, maxHeight, fit).replace(/<\/script/gi, "<\\/script")}</script>`;
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta http-equiv="x-dns-prefetch-control" content="off"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"><style>${THEME}</style><script>${bootstrap(id, maxHeight, fit).replace(/<\/script/gi, "<\\/script")}</script>`;
   const code = source.replace(/^\s*<!doctype[^>]*>/i, "");
   const headTag = code.match(/<head(\s[^>]*)?>/i);
   if (headTag?.index !== undefined) {

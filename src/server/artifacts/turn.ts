@@ -1,7 +1,7 @@
 import "server-only";
 import { completeChat, openChatStream, type AiMessage, type FinishReason } from "@/server/ai";
 import { logPerf } from "@/server/ai/perf";
-import { remoteConfig, remoteHealth } from "@/server/ai/remote";
+import { codingConfig, codingServes, remoteConfig, remoteHealth } from "@/server/ai/remote";
 import { addMessage, createConversation, dropLastAnswer, findRelevantPosts, toSources } from "@/server/kally";
 import { asksEnvironment } from "@/server/kally/need";
 import { markDone, markRunning } from "@/server/kally/running";
@@ -143,7 +143,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
         }
       }, 15_000);
       let answer = "";
-      let target: "remote" | "local" = "local";
+      let target: "coding" | "remote" | "local" = "local";
       let failed: string | null = null;
       let firstText = 0;
       const report: Record<string, unknown> = { task, base: base ? { saved: !!base.id, chars: base.source.length } : null };
@@ -190,8 +190,9 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
         });
 
         const prompt = artifactPrompt({ task, message, history, base, environmentName: access.environment.name, userName: input.userName, material });
+        // Kally Coding (DeepSeek) cria e conserta artefatos; sem ele, o modelo principal; sem os dois, o local.
         const cfg = remoteConfig();
-        target = cfg.enabled && (await remoteHealth()).state === "disponivel" ? "remote" : "local";
+        target = codingServes() ? "coding" : cfg.enabled && (await remoteHealth()).state === "disponivel" ? "remote" : "local";
         report.target = target;
         const generation = Date.now();
 
@@ -202,18 +203,20 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
           const chunks = await openChatStream(messages, {
             target,
             temperature: 0.3,
-            maxTokens: target === "remote" ? 9_000 : 5_000,
+            maxTokens: target === "coding" ? 16_000 : target === "remote" ? 9_000 : 5_000,
             think: false,
             timeoutMs: 120_000,
             signal: cancel.signal,
             onFinish: (r) => (reason = r),
           });
+          const before = answer.length;
           for await (const chunk of chunks) {
             if (!firstText) firstText = Date.now();
             answer += chunk;
             send({ text: chunk });
           }
-          if (reason !== "length" || cancel.signal.aborted) break;
+          // Rodada sem texto (o teto foi todo para o raciocínio): continuar só repetiria o gasto.
+          if (reason !== "length" || cancel.signal.aborted || answer.length === before) break;
           report.continuations = round + 1;
           messages = continueFrom(prompt, answer);
         }
@@ -222,7 +225,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
         // Validação e montagem final.
         let final = answer;
         // Consertos com raciocínio ligado (depurar pede pensar no fluxo inteiro); o teto de tokens cobre o pensar + a página.
-        const complete = (msgs: AiMessage[], think = false) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "remote" ? (think ? 14_000 : 9_000) : 5_000, timeoutMs: think ? 240_000 : 180_000, think, signal: cancel.signal });
+        const complete = (msgs: AiMessage[], think = false) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "coding" ? (think ? 20_000 : 16_000) : target === "remote" ? (think ? 14_000 : 9_000) : 5_000, timeoutMs: think ? 240_000 : 180_000, think, signal: cancel.signal });
         let note = "";
         if (task === "editar" && base) {
           const edits = parseEditBlocks(final);
@@ -351,7 +354,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
           ...report,
           messageChars: message.length,
           historyMessages: history.length,
-          executor: { model: target === "remote" ? remoteConfig().model : "local" },
+          executor: { model: target === "coding" ? codingConfig().model : target === "remote" ? remoteConfig().model : "local" },
           backend: { target },
           firstTextMs: firstText ? firstText - input.startedAt : null,
           totalMs: Date.now() - input.startedAt,

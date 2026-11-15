@@ -5,6 +5,10 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
+  // Caixas dos artefatos (iframe srcdoc): esta regra da página do app vale também quando o artefato tenta navegar a
+  // própria caixa para outro site (location.href = ...), o único jeito de mandar dados para fora que a CSP da caixa
+  // não fecha (bateria de ataques de 15/11). O app só usa iframes srcdoc; nenhum precisa de outro endereço.
+  { key: "Content-Security-Policy", value: "frame-src 'self' data: blob:" },
 ];
 
 /**
