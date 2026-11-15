@@ -204,6 +204,11 @@ export async function POST(request: Request, context: EnvContext) {
     if (postFlow) mode = "ideia";
   }
   if (mode === "ideia" && !access.permissions.publish) mode = "chat";
+  // Questão de prova (alternativas, "acertei?", "resposta final") ou pedido de montar prova: modo estudo, sem
+  // interpretador, e o gabarito é montado. Antes, o interpretador marcava a questão longa como análise, o modo virava
+  // "revisar" e a regra de prova era pulada (bateria v3, 15/11: quase todas as conversas de prova caíram na análise).
+  const examTurn = (requested === "auto" || requested === "chat" || requested === "aprender") && !postCommand && !hasReviewPayload && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message));
+  if (examTurn) mode = "aprender";
   const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
   // Questão de prova em jogo: o gabarito é resolvido já, em paralelo, sem ver a resposta da pessoa (exam-solve.ts).
   const examQuestion = mode === "chat" || mode === "aprender" ? findExamQuestion(message, history) : null;
@@ -227,11 +232,6 @@ export async function POST(request: Request, context: EnvContext) {
   const sampler = memorySampler();
   let interpretation: Interpretation | null = null;
   let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
-  // Questão de prova (alternativas, "acertei?", "resposta final") ou pedido de montar prova: modo estudo, sem
-  // interpretador. Antes, o interpretador marcava a questão longa como análise, o modo virava "revisar" e a regra de
-  // prova era pulada (bateria v3, 15/11: quase todas as conversas de prova caíram na análise crítica).
-  const examTurn = (requested === "auto" || requested === "chat" || requested === "aprender") && !postCommand && !hasReviewPayload && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message));
-  if (examTurn) mode = "aprender";
   if (!examTurn && pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
     const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
     const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
