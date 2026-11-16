@@ -86,6 +86,7 @@ function rules(task: ArtifactTask) {
     "PROFUNDIDADE (pedido de sistema, arquitetura, anatomia, máquina, processo, \"por dentro\", \"cada componente\")",
     "- Nada de versão de brinquedo: entregue o que um bom material didático interativo teria. Todas as partes que um livro da área citaria (num computador, por exemplo: CPU com ULA, unidade de controle, registradores e caches; memória RAM; barramentos; armazenamento; placa de vídeo; entrada e saída), cada uma com nome, função, um dado real (números típicos, unidades) e como ela se liga às outras.",
     "- Interação em camadas: visão geral → tocar numa parte abre o interior dela (o que tem dentro, desenhado, não só um texto) → um botão volta. Um painel de detalhes mostra a explicação da parte escolhida. Quando houver fluxo (dados, sangue, energia, sinal), mostre-o em movimento com um passo a passo que a pessoa avança ou anima (Anterior / Próximo / Animar).",
+    "- Desenho reconhecível: em anatomia e objetos reais, desenhe a silhueta de verdade com <path> e curvas (um encéfalo é um contorno único dividido em lobos encostados, um coração tem a forma do órgão), não peças soltas como bolhas ou retângulos. Destaque a parte escolhida com cor e contorno; rótulo de texto sem contorno grosso (stroke) por cima, que borra.",
     "- Conteúdo completo no código: nada de \"...\", \"etc.\", TODO, dados de exemplo genéricos ou partes prometidas e não feitas. Se ficar grande, tudo bem: até ~1.200 linhas.",
     "",
     "PROPORÇÃO EM QUALQUER TELA",
