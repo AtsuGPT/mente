@@ -47,6 +47,7 @@ import { searchWeb, type WebResult } from "@/server/web-search";
 import { maybeArtifactTurn } from "@/server/artifacts/turn";
 import { asksVerdict, examGuide, examKey, findExamQuestion } from "@/server/kally/exam-solve";
 import { checkQuizzes } from "@/server/kally/quiz-check";
+import { normalizeBlocks, recentInteractive } from "@/server/kally/blocks";
 import { learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage } from "@/server/kally/learning";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
@@ -643,7 +644,9 @@ export async function POST(request: Request, context: EnvContext) {
           if (conversationId && quizResult) await recordQuiz(who, quizResult, conversationId).catch((e) => console.warn("Kally aprendizagem:", e));
           const learning = await learningContext(who, { message, theme, studying, lastAssistant: history.filter((m) => m.role === "assistant").at(-1)?.content ?? null }).catch(() => ({ guide: null, block: null }));
           progressCard = learning.block;
-          const guide = [interpretation ? interpretationGuide(interpretation) : null, referentGuide(understanding) || null, learning.guide, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
+          // Contra excesso: escolhas ou quiz nas duas últimas respostas → não repetir agora, a menos que ela peça.
+          const interactiveNote = recentInteractive(history) && understanding.kind !== "prova" ? "Recursos interativos: houve escolhas ou quiz há pouco nesta conversa; nesta resposta, não use bloco ```escolhas nem ```quiz, a menos que a pessoa peça." : null;
+          const guide = [interpretation ? interpretationGuide(interpretation) : null, referentGuide(understanding) || null, learning.guide, interactiveNote, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName, general }
@@ -998,6 +1001,14 @@ export async function POST(request: Request, context: EnvContext) {
               answer = cleanAnswer(fixed);
               check = checkQuizzes(answer);
               quizReport = { checked: check.checked, problems: check.problems.length, rounds: round + 1 };
+              send({ replace: answer });
+            }
+          }
+          // Blocos interativos (escolhas, progresso) fora do contrato viram texto comum antes de a resposta ficar pronta.
+          if (/```(escolhas|progresso)/.test(answer) && !cancel.signal.aborted) {
+            const blocks = normalizeBlocks(answer);
+            if (blocks.fixed) {
+              answer = blocks.text;
               send({ replace: answer });
             }
           }

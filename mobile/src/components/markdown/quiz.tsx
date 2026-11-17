@@ -70,8 +70,17 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-/** No chat: manda um texto como se a pessoa tivesse escrito (perguntar.tsx). */
-export const QuizContext = createContext<((text: string) => void) | null>(null);
+/**
+ * No chat: manda um texto como se a pessoa tivesse escrito (perguntar.tsx). extra vai junto no pedido (o resultado
+ * estruturado do quiz, que o servidor guarda no progresso de estudo).
+ */
+export const QuizContext = createContext<((text: string, extra?: Record<string, unknown>) => void) | null>(null);
+
+/** Assunto do quiz (linha "tema: …" antes da primeira pergunta), para o progresso de estudo. */
+export function quizTopic(source: string): string | null {
+  const m = source.match(/^\s*tema\s*:\s*(.+)$/im);
+  return m ? m[1].trim().slice(0, 60) : null;
+}
 
 export function QuizBlock({ source }: { source: string }) {
   const questions = useMemo(() => parseQuiz(source), [source]);
@@ -98,10 +107,14 @@ export function QuizBlock({ source }: { source: string }) {
       .filter(({ q, p }) => p !== null && !q.options[p].right)
       .map(({ q, p }) => `"${q.prompt}" (marquei "${q.options[p as number].text}", a certa era "${q.options.find((o) => o.right)?.text}")`);
     setSent(true);
+    const topic = quizTopic(source);
     send(
       wrong.length
         ? `Fiz o quiz e acertei ${right} de ${questions.length}. Errei: ${wrong.join("; ")}. Me explica o que eu errei?`
         : `Fiz o quiz e acertei todas as ${questions.length}. Quero um desafio um pouco mais difícil.`,
+      topic
+        ? { quizResult: { tema: topic, total: questions.length, correct: right, wrong: questions.filter((q, i) => picked[i] !== null && !q.options[picked[i] as number].right).map((q) => q.prompt) } }
+        : undefined,
     );
   };
 

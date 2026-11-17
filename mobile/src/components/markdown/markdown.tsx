@@ -15,6 +15,8 @@ import { latexToText } from "@/lib/math-text";
 import { Diagram } from "./diagram";
 import { ConvergenceAside, ConvergenceExplorer, parseConvergence } from "./convergence-block";
 import { QuizBlock } from "./quiz";
+import { ChoicesBlock } from "./choices";
+import { ProgressBlock } from "./progress";
 import { FigureBlock, SideFigure, parseFigure, splitFigure } from "./figure";
 import { DrawingFigure, SideBySide, SideDrawing, sideOptions, splitDrawing, splitImage, useSideSize } from "./drawing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -318,6 +320,15 @@ function Block({ token, depth, index }: { token: Token; depth: number; index: nu
       if (lang.toLowerCase() === "quiz") {
         if (!fenceClosed(code.raw)) return <AppText variant="small" color={colors.faint} style={{ marginBottom: space.lg }}>Preparando as perguntas…</AppText>;
         return <QuizBlock source={code.text} />;
+      }
+      // Escolhas de orientação e indicador de progresso (choices.tsx, progress.tsx): só depois de fechados.
+      if (lang.toLowerCase() === "escolhas") {
+        if (!fenceClosed(code.raw)) return null;
+        return <ChoicesBlock source={code.text} />;
+      }
+      if (lang.toLowerCase() === "progresso") {
+        if (!fenceClosed(code.raw)) return null;
+        return <ProgressBlock source={code.text} />;
       }
       // Símbolo da Mente ao vivo: ao lado do texto do bloco, ou interativo (convergence-block.tsx).
       if (lang.toLowerCase() === "convergencia" && fenceClosed(code.raw)) {

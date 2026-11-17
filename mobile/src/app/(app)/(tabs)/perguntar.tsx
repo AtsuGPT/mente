@@ -220,7 +220,7 @@ function Kally() {
   const abortRef = useRef<AbortController | null>(null);
   const stopRequested = useRef(false);
   const activeConversation = useRef<string | null>(null);
-  const queueRef = useRef<{ text: string; userId: string }[]>([]);
+  const queueRef = useRef<{ text: string; userId: string; extra?: Record<string, unknown> }[]>([]);
   /**
    * Abre outra folha a partir do menu de modo só depois que ele fecha: cada folha é um Modal, e o sistema (no iPhone,
    * sobretudo) não apresenta um Modal enquanto outro ainda está saindo; o toque parecia não fazer nada.
@@ -627,14 +627,14 @@ function Kally() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queued, attachment?.status]);
 
-  async function send(raw: string, options: { userId?: string; retry?: boolean } = {}) {
+  async function send(raw: string, options: { userId?: string; retry?: boolean; extra?: Record<string, unknown> } = {}) {
     const content = raw.trim();
     if (readingOwner) return;
     // A Kally ainda está respondendo: a mensagem entra na fila e sai quando chegar a vez (com as anteriores no histórico).
     if (loading && !options.userId) {
       if (!content || /^\/dev(?:\s|$)/i.test(content)) return;
       const id = newId();
-      queueRef.current.push({ text: raw, userId: id });
+      queueRef.current.push({ text: raw, userId: id, extra: options.extra });
       setMessages((current) => [...current, { id, role: "user", content, queued: true }]);
       setDraft("");
       goToEnd(true);
@@ -709,6 +709,8 @@ function Kally() {
       model: answerCfg.model !== "auto" ? answerCfg.model : undefined,
       effort: answerCfg.effort !== "normal" ? answerCfg.effort : undefined,
       artifact: artifactContext,
+      // Dados estruturados de um componente (o resultado do quiz, para o progresso de estudo).
+      ...(options.extra ?? {}),
     };
     setAttachment(null);
     setReviewTarget(null);
@@ -841,7 +843,7 @@ function Kally() {
       // Próxima da fila, depois que a tela registrar o fim desta resposta (ela entra no histórico da próxima).
       if (queueRef.current.length) setTimeout(() => {
         const next = queueRef.current.shift();
-        if (next) void send(next.text, { userId: next.userId });
+        if (next) void send(next.text, { userId: next.userId, extra: next.extra });
       }, 60);
       if (save || deepSave || conversationId) void loadHistory();
     }
@@ -906,7 +908,7 @@ function Kally() {
   const sendDisabled = loading ? false : queued !== null || (!draft.trim() && !(mode === "revisar" && reviewTarget));
   // Quiz da Kally (quiz.tsx): o resultado vai como uma mensagem da pessoa, pelo sendRef (o valor do contexto fica
   // estável e as bolhas, que são memo, não redesenham).
-  const quizSend = useCallback((text: string) => void sendRef.current?.(text), []);
+  const quizSend = useCallback((text: string, extra?: Record<string, unknown>) => void sendRef.current?.(text, extra ? { extra } : {}), []);
   // Artefatos da Kally (components/artifact/chat-artifact.tsx): salvar na biblioteca, salvar como versão nova e pedir
   // correção quando o código deu erro ao rodar.
   const artifactChat = useMemo<ArtifactChat>(
