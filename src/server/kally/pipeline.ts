@@ -4,6 +4,7 @@ import { ollamaJson } from "@/server/ai/ollama";
 import { remoteConfig, remoteHealth } from "@/server/ai/remote";
 import type { LeaseInfo } from "@/server/ai/model-manager";
 import type { CompetenceId } from "./competences/types";
+import { competenceOfKind, INTENT_KINDS, type IntentKind } from "./intent-kinds";
 import { cleanTerms, TERMS_RULE } from "./post-sources";
 
 /**
@@ -38,7 +39,16 @@ export type Interpretation = {
   termos?: string[];
   /** os mesmos termos em inglês (notícias globais e redes) */
   termosEn?: string[];
+  /** tipo do pedido (understand.ts); ausente nas interpretações antigas */
+  tipo?: IntentKind;
+  /** a que parte da conversa a mensagem se refere (trecho curto), quando ela retoma algo */
+  referencia?: string;
+  /** assunto de estudo em poucas palavras ("lei de Ohm"), para o progresso de aprendizagem */
+  tema?: string;
+  /** esforço que o pedido pede */
+  esforco?: "rapido" | "normal" | "profundo";
 };
+const EFFORTS = ["rapido", "normal", "profundo"] as const;
 
 const COMPETENCES: Competence[] = ["estudo", "post", "analise", "orientacao", "conversa"];
 const DEPTHS: Interpretation["profundidade"][] = ["breve", "media", "aprofundada"];
@@ -106,8 +116,12 @@ const SCHEMA = {
     estrutura: { type: "array", items: { type: "string" } },
     lacunas: { type: "array", items: { type: "string" } },
     profundidade: { type: "string", enum: DEPTHS },
+    tipo: { type: "string", enum: INTENT_KINDS },
+    referencia: { type: "string" },
+    tema: { type: "string" },
+    esforco: { type: "string", enum: EFFORTS },
   },
-  required: ["competencia", "intencao", "pontos", "estrutura", "lacunas", "profundidade"],
+  required: ["competencia", "intencao", "pontos", "estrutura", "lacunas", "profundidade", "tipo", "referencia", "tema", "esforco"],
 };
 
 const SYSTEM = [
@@ -119,6 +133,8 @@ const SYSTEM = [
   "- analise: a pessoa quer análise crítica, revisão, avaliação ou opinião fundamentada sobre um texto, ideia, argumento ou documento.",
   "- orientacao: a pessoa quer orientação ou um plano de estudo, inclusive a partir de um documento anexado.",
   "- conversa: qualquer outra coisa (desabafo, pergunta simples, papo).",
+  "Tipo do pedido (tipo): casual (cumprimento, papo), relato (a pessoa conta algo dela sem pedir nada: \"aprendi a programar hoje!\" é relato, não pedido de estudo), pergunta (dúvida comum), ensino (quer aprender ou entender um assunto: \"quero entender como esse sistema funciona\" é ensino, não análise crítica), esclarecimento (não entendeu algo que a Kally disse), continuacao (segue o assunto anterior), depuracao (algo de código não funciona: \"meu código continua retornando null\"), programacao, conta (cálculo ou exatas), prova (questão de prova, montar prova ou quiz), publicacao (transformar ideia dela em post), revisao (revisar um texto), analise (avaliar criticamente um argumento ou documento), orientacao (plano de estudo, por onde começar).",
+  "Mensagens curtas que retomam a conversa (\"isso\", \"aquela ideia\", \"essa parte\", \"deu errado\") se referem ao histórico: em referencia, escreva em até 30 palavras a que parte exata da conversa ela se refere (vazio se não se refere a nada anterior). tema = o assunto de estudo em até 5 palavras (vazio fora de estudo). esforco = rapido (papo, relato, pergunta trivial), normal (dúvida comum) ou profundo (raciocínio técnico, código, matemática, análise, conteúdo elaborado). Não confunda esforço com tamanho: uma pergunta curta pode pedir esforço profundo.",
   "Campos: intencao = uma frase com o que a pessoa quer. pontos = as ideias que a PRÓPRIA pessoa apresentou, resumidas com fidelidade (lista vazia se ela não apresentou ideias). estrutura = seções sugeridas para a resposta, em ordem (lista vazia para conversa). lacunas = até 3 informações que faltam para uma boa resposta. profundidade = breve, media ou aprofundada, conforme o pedido.",
   "Escreva os campos em português. Responda só com o JSON.",
 ].join("\n");
@@ -127,7 +143,7 @@ const SYSTEM = [
 async function interpretRemote(messages: { role: "system" | "user"; content: string }[]): Promise<Record<string, unknown> | null> {
   if (!remoteConfig().enabled || (await remoteHealth()).state !== "disponivel") return null;
   try {
-    const text = await completeChat(messages, { target: "remote", json: true, temperature: 0.1, maxTokens: 600, timeoutMs: 25_000 });
+    const text = await completeChat(messages, { target: "remote", json: true, temperature: 0.1, maxTokens: 900, timeoutMs: 25_000 });
     const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Record<string, unknown>;
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch (cause) {
@@ -142,12 +158,23 @@ const list = (value: unknown, items: number) => (Array.isArray(value) ? value.ma
 /** Chama o interpretador. Devolve null se ele falhar ou fugir do formato (o pedido segue sem ele). */
 export async function interpret(
   model: string,
-  input: { message: string; lastAssistant?: string; attachment?: { name: string; text: string } | null },
+  input: { message: string; lastAssistant?: string; history?: { role: string; content: string }[]; attachment?: { name: string; text: string } | null },
 ): Promise<{ result: Interpretation | null; ms: number; lease: LeaseInfo | null }> {
   const started = Date.now();
   let lease: LeaseInfo | null = null;
+  // Histórico recente (as mensagens curtas que retomam a conversa só se entendem com ele): as 3 últimas trocas, cada
+  // mensagem cortada; a da Kally guarda o começo e o fim, onde costumam estar a explicação e a pergunta final.
+  const recent = (input.history ?? []).slice(-6).map((t) => {
+    const c = t.content.replace(/`{3,}[\s\S]*?`{3,}/g, (b) => (b.length > 700 ? `${b.slice(0, 400)}\n…\n${b.slice(-200)}` : b));
+    const text = c.length > 900 ? `${c.slice(0, 600)}\n…\n${c.slice(-250)}` : c;
+    return `${t.role === "user" ? "Pessoa" : "Kally"}: ${text}`;
+  });
   const content = [
-    input.lastAssistant ? `Última resposta da Kally (só contexto):\n"""${input.lastAssistant.slice(0, 600)}"""` : "",
+    recent.length
+      ? `Conversa recente (só contexto, da mais antiga para a mais nova):\n"""${recent.join("\n\n")}"""`
+      : input.lastAssistant
+        ? `Última resposta da Kally (só contexto):\n"""${input.lastAssistant.slice(0, 600)}"""`
+        : "",
     `Pedido da pessoa:\n"""${input.message}"""`,
     input.attachment ? `Anexo "${input.attachment.name}" (início):\n"""${input.attachment.text.slice(0, 1_200)}"""` : "",
   ].filter(Boolean).join("\n\n");
@@ -155,11 +182,11 @@ export async function interpret(
     // Com o modelo remoto no ar, ele interpreta (mais rápido e mais preciso que o local); senão, o local.
     // No remoto: itens curtos (o JSON longo levava ~9 s) e, para post, os termos de pesquisa das fontes na mesma chamada.
     const raw =
-      (await interpretRemote([{ role: "system", content: `${SYSTEM}\nSeja conciso: cada item de pontos, estrutura e lacunas com no máximo 15 palavras. JSON compacto, numa linha só.\n${TERMS_RULE}\nChaves do JSON: competencia, intencao, pontos, estrutura, lacunas, profundidade, termos, termos_en.` }, { role: "user", content }])) ??
+      (await interpretRemote([{ role: "system", content: `${SYSTEM}\nSeja conciso: cada item de pontos, estrutura e lacunas com no máximo 15 palavras. JSON compacto, numa linha só.\n${TERMS_RULE}\nChaves do JSON: competencia, intencao, pontos, estrutura, lacunas, profundidade, tipo, referencia, tema, esforco, termos, termos_en.` }, { role: "user", content }])) ??
       (await ollamaJson<Record<string, unknown>>(
         [{ role: "system", content: SYSTEM }, { role: "user", content }],
         SCHEMA,
-        { model, temperature: 0.1, numPredict: 500, timeoutMs: 90_000, onLease: (info) => (lease = info) },
+        { model, temperature: 0.1, numPredict: 800, timeoutMs: 90_000, onLease: (info) => (lease = info) },
       ));
     const competencia = COMPETENCES.includes(raw?.competencia as Competence) ? (raw!.competencia as Competence) : null;
     const result: Interpretation | null = raw && competencia
@@ -170,6 +197,10 @@ export async function interpret(
           estrutura: list(raw.estrutura, 7),
           lacunas: list(raw.lacunas, 3),
           profundidade: DEPTHS.includes(raw.profundidade as Interpretation["profundidade"]) ? (raw.profundidade as Interpretation["profundidade"]) : "media",
+          ...(INTENT_KINDS.includes(raw.tipo as IntentKind) ? { tipo: raw.tipo as IntentKind } : {}),
+          ...(clip(raw.referencia, 400) ? { referencia: clip(raw.referencia, 400) } : {}),
+          ...(clip(raw.tema, 60) ? { tema: clip(raw.tema, 60) } : {}),
+          ...(EFFORTS.includes(raw.esforco as (typeof EFFORTS)[number]) ? { esforco: raw.esforco as (typeof EFFORTS)[number] } : {}),
           ...(Array.isArray(raw.termos) ? { termos: cleanTerms(raw.termos), termosEn: Array.isArray(raw.termos_en) ? cleanTerms(raw.termos_en) : [] } : {}),
         }
       : null;
@@ -214,7 +245,10 @@ export function competenceFor(input: { mode: string; interpretation: Interpretat
   const i = input.interpretation;
   // Questão de prova vale antes do interpretador (bateria de 15/11: ele mandava "acertei?" para a análise crítica).
   if (input.mode !== "ideia" && input.mode !== "revisar" && (EXAM_QUESTION.test(input.message) || EXAM_REQUEST.test(input.message))) return "estudo";
-  if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" ? null : "analise";
+  // Com o tipo do pedido (interpretador novo), ele decide. Sem ele: "orientacao" virava análise crítica (a regra antiga
+  // mandava tudo que não fosse estudo, post ou conversa para a análise), e plano de estudo saía como crítica de argumento.
+  if (i?.tipo) return competenceOfKind(i.tipo);
+  if (i) return i.competencia === "estudo" ? "estudo" : i.competencia === "post" ? "post" : i.competencia === "conversa" || i.competencia === "orientacao" ? null : "analise";
   const m = input.message.toLowerCase();
   if (input.mode === "ideia") return STUDY_POST_RULE.test(m) ? "estudo" : "post";
   // Revisão textual (sugestões trecho a trecho) segue o fluxo próprio; sem texto, a Kally só pede o texto.

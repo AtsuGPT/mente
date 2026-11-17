@@ -28,9 +28,9 @@ export const analise: CompetenceSpec = {
   ],
   formato: () => ["Markdown com subtítulos curtos (##). Comprimento proporcional ao que foi analisado. Sem anunciar o que vai fazer e sem despedida."],
   tamanho: {
-    breve: "cerca de 200 a 300 palavras",
-    media: "cerca de 350 a 550 palavras, como os exemplos",
-    aprofundada: "cerca de 600 a 850 palavras",
+    breve: "curta: a avaliação central e o ponto que mais pesa",
+    media: "o necessário para avaliar cada ponto relevante, como nos exemplos",
+    aprofundada: "completa: cada premissa e cada falha nomeadas e mostradas, o que procede, sem repetir nem resumir no fim",
   },
   lembrete: "Antes de responder: reconstrua a posição antes de avaliá-la; nomeie cada falha e mostre onde está; reconheça o que procede; nada de dados, estudos, livros ou links que não estejam no material; responda só ao que foi pedido, sem plano ou exercício no fim se não pediram; termine o texto.",
   temperatura: 0.3,

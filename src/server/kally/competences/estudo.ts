@@ -36,9 +36,9 @@ export const estudo: CompetenceSpec = {
         ]
       : ["Responda direto em Markdown; subtítulos (##) só se a resposta for longa. Sem anunciar o que vai fazer e sem despedida."],
   tamanho: {
-    breve: "cerca de 200 a 300 palavras",
-    media: "cerca de 350 a 550 palavras, como os exemplos",
-    aprofundada: "cerca de 600 a 900 palavras",
+    breve: "curta: o essencial e um exemplo, sem esticar",
+    media: "o necessário para entender e aplicar, como nos exemplos; pare quando a dúvida estiver respondida",
+    aprofundada: "completa: fundamento, exemplo trabalhado e erros comuns, sem repetir nem resumir no fim",
   },
   lembrete: "Antes de responder: confira se cada afirmação técnica e cada exemplo estão corretos (evento real com data, lugar ou número só se estiver nas fontes); sem linha de \"Fonte\", links ou referências que não estejam no material fornecido; sem frase de efeito no fim; termine o texto.",
   temperatura: 0.25,

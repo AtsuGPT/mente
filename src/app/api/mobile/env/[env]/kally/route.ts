@@ -17,7 +17,9 @@ import { cleanAnswer, createAnswerCleaner } from "@/server/kally/clean";
 import { asksEnvironment, GENERAL_MIN, needsFreshFacts } from "@/server/kally/need";
 import { COMPETENCES, selectExamples, type ReferenceExample } from "@/server/kally/competences";
 import { searchDocuments } from "@/server/kally/documents";
-import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, EXAM_QUESTION, EXAM_REQUEST, evalPipeline, interpret, interpretationGuide, needsInterpretation, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
+import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipeline, interpret, interpretationGuide, pipelineFor, refersToOwnPosts, wantsDraft, type Interpretation } from "@/server/kally/pipeline";
+import { competenceOfKind, fastRoute, needsInterpreter, referentGuide, settle } from "@/server/kally/understand";
+import { planResponse } from "@/server/kally/plan";
 import { canEditPost } from "@/server/environments";
 import { listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
@@ -196,24 +198,6 @@ export async function POST(request: Request, context: EnvContext) {
     if (artifactResponse) return artifactResponse;
   }
 
-  // Conversa de post em andamento: a mensagem seguinte, sem pergunta nova, continua o post (antes cada mensagem era lida
-  // sozinha: "Atividades gerais" virava papo e "Poste isso" saía como texto solto, sem o cartão de publicar).
-  if (requested === "auto" && mode === "chat" && !hasReviewPayload && !message.includes("?")) {
-    const recent = history.slice(-4);
-    const postFlow = recent.some((m) => (m.role === "user" && detectIntent(m.content).mode === "ideia") || (m.role === "assistant" && m.content.includes("<rascunho>")));
-    if (postFlow) mode = "ideia";
-  }
-  if (mode === "ideia" && !access.permissions.publish) mode = "chat";
-  // Questão de prova (alternativas, "acertei?", "resposta final") ou pedido de montar prova: modo estudo, sem
-  // interpretador, e o gabarito é montado. Antes, o interpretador marcava a questão longa como análise, o modo virava
-  // "revisar" e a regra de prova era pulada (bateria v3, 15/11: quase todas as conversas de prova caíram na análise).
-  const examTurn = (requested === "auto" || requested === "chat" || requested === "aprender") && !postCommand && !hasReviewPayload && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message));
-  if (examTurn) mode = "aprender";
-  const ruleCasual = requested === "auto" && mode === "chat" && intent.casual && !body.attachment;
-  // Questão de prova em jogo: o gabarito é resolvido já, em paralelo, sem ver a resposta da pessoa (exam-solve.ts).
-  const examQuestion = mode === "chat" || mode === "aprender" ? findExamQuestion(message, history) : null;
-  const examPromise = examQuestion ? examKey(examQuestion) : null;
-
   const attachment: Attachment | null =
     body.attachment && typeof body.attachment === "object"
       ? (() => {
@@ -230,15 +214,36 @@ export async function POST(request: Request, context: EnvContext) {
   const evalConfig = process.env.KALLY_EVAL === "1" && platformAdmin && EVAL_CONFIGS.includes(body.evalConfig as never) ? (body.evalConfig as (typeof EVAL_CONFIGS)[number]) : null;
   const pipeline = evalConfig ? evalPipeline(evalConfig) : pipelineFor(platformAdmin);
   const sampler = memorySampler();
+  // Entendimento (understand.ts): o roteador rápido decide o que é inequívoco; o interpretador (com o histórico recente)
+  // só entra quando ele não tem certeza. Modos escolhidos pela pessoa, comandos e permissões vêm antes e não mudam.
+  const fast = fastRoute({ message, history, requested, postCommand, hasReviewPayload, hasAttachment: !!attachment, canPublish: access.permissions.publish });
   let interpretation: Interpretation | null = null;
   let interpreterReport: (Partial<LeaseInfo> & { model: string; ms: number; ok: boolean; competencia: string | null }) | null = null;
-  if (!examTurn && pipeline?.interpreter && needsInterpretation({ requested, postCommand, hasReviewPayload, intentMode: intent.mode, message, hasAttachment: !!attachment })) {
-    const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
-    const r = await interpret(pipeline.interpreter, { message, lastAssistant, attachment });
-    interpretation = r.result && r.result.competencia === "post" && asksOpinionOnly(message) ? { ...r.result, competencia: "conversa" } : r.result;
+  if (needsInterpreter(fast) && pipeline?.interpreter && (requested === "auto" || requested === "chat" || requested === "aprender") && !postCommand && !hasReviewPayload) {
+    const r = await interpret(pipeline.interpreter, { message, history, attachment });
+    interpretation = r.result && r.result.competencia === "post" && asksOpinionOnly(message) ? { ...r.result, competencia: "conversa", tipo: r.result.tipo === "publicacao" ? "pergunta" : r.result.tipo } : r.result;
     interpreterReport = { ...r.lease, model: pipeline.interpreter, ms: r.ms, ok: !!r.result, competencia: r.result?.competencia ?? null };
-    if (interpretation) mode = competenceMode(interpretation, { publish: access.permissions.publish, textToReview: message.length > 400 });
   }
+  const understanding = settle(fast, interpretation, { publish: access.permissions.publish });
+  // O modo: o escolhido pela pessoa vale (Conversar continua conversa, exceto questão de prova, como antes); no Automático,
+  // o do entendimento. Interpretação antiga, sem tipo: a regra de antes (competenceMode).
+  if (requested === "auto") mode = interpretation && !interpretation.tipo ? competenceMode(interpretation, { publish: access.permissions.publish, textToReview: message.length > 400 }) : understanding.mode;
+  else if ((requested === "chat" || requested === "aprender") && understanding.kind === "prova") mode = "aprender";
+  // Conversa de post em andamento: a mensagem seguinte, sem pergunta nova, continua o post (antes cada mensagem era lida
+  // sozinha: "Atividades gerais" virava papo e "Poste isso" saía como texto solto, sem o cartão de publicar). Um
+  // "valeu!" depois do rascunho continua sendo papo.
+  if (requested === "auto" && mode === "chat" && !hasReviewPayload && !message.includes("?") && !understanding.casual) {
+    const recent = history.slice(-4);
+    const postFlow = recent.some((m) => (m.role === "user" && detectIntent(m.content).mode === "ideia") || (m.role === "assistant" && m.content.includes("<rascunho>")));
+    if (postFlow) mode = "ideia";
+  }
+  if (mode === "ideia" && !access.permissions.publish) mode = "chat";
+  // Questão de prova (alternativas, "acertei?", "resposta final") ou pedido de montar prova: modo estudo e o gabarito é
+  // montado (bateria v3, 15/11: antes elas caíam na análise crítica).
+  const ruleCasual = requested === "auto" && mode === "chat" && understanding.casual && !body.attachment;
+  // Questão de prova em jogo: o gabarito é resolvido já, em paralelo, sem ver a resposta da pessoa (exam-solve.ts).
+  const examQuestion = mode === "chat" || mode === "aprender" ? findExamQuestion(message, history) : null;
+  const examPromise = examQuestion ? examKey(examQuestion) : null;
 
   // Texto para revisar: só o que esta pessoa pode ler (rascunho próprio/editável, publicado visível ou colado).
   let review: { kind: "textual" | "intelectual"; text: string; postId: string | null; slug: string | null } | null = null;
@@ -264,7 +269,12 @@ export async function POST(request: Request, context: EnvContext) {
 
   // Competência (só no pipeline): instruções, critérios e exemplos próprios de estudo, post e análise.
   // Pedido explícito ("me explica…", "analise…") não é papo casual, mesmo curto e sem "?".
-  const competence = pipeline ? competenceFor({ mode, interpretation, message, reviewKind: review?.kind ?? null }) : null;
+  // Sem interpretação, o tipo do roteador decide a competência; as regras antigas ficam para os tipos que não a definem.
+  const competence = pipeline
+    ? mode === "revisar" || mode === "ideia" || interpretation
+      ? competenceFor({ mode, interpretation, message, reviewKind: review?.kind ?? null })
+      : (competenceOfKind(understanding.kind) ?? (understanding.casual ? null : competenceFor({ mode, interpretation, message, reviewKind: review?.kind ?? null })))
+    : null;
   const casual = ruleCasual && !competence;
   // Texto de estudo e análise de algo externo: os posts do ambiente só entram se a pessoa se referir
   // a eles. Com a busca atual, posts pouco relacionados entravam e o modelo forçava a relação.
@@ -399,6 +409,9 @@ export async function POST(request: Request, context: EnvContext) {
   // Quem conversa escolhe o modelo (Automático, Kally local 8B, Kally remota 32B) e o esforço (pedido do dono do
   // projeto, 11/11/2026). Os limites da GPU (vagas, gasto por dia) continuam valendo.
   const effort = effortFrom(body.effort);
+  // Plano de resposta (plan.ts): o esforço sai do tipo de pedido, não do tamanho; o esforço escolhido pela pessoa
+  // (Aprofundado/Máximo) continua acionando a resposta em partes, por cima.
+  const plan = planResponse({ understanding, competence, interpretation, brief: BRIEF.test(message), materialChars, thinksByRule: remoteThinks({ competence, mode, message, brief: BRIEF.test(message) }), post: competence === "post" && canDraft });
   // Post elaborado (com seções, fontes e referências) só em pedido grande: esforço acima do normal, pedido explícito
   // de post completo/estruturado/com fontes, muita matéria ou interpretação "aprofundada". O resto é post casual.
   const bigPost =
@@ -618,7 +631,7 @@ export async function POST(request: Request, context: EnvContext) {
           }
           if (examPromise) send({ status: "Resolvendo a questão por conta própria, antes de conferir com você.", step: "gabarito" });
           const exam = examPromise ? await examPromise : null;
-          const guide = [interpretation ? interpretationGuide(interpretation) : null, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
+          const guide = [interpretation ? interpretationGuide(interpretation) : null, referentGuide(understanding) || null, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName, general }
@@ -702,7 +715,7 @@ export async function POST(request: Request, context: EnvContext) {
             // Prompt do remoto: o mesmo da Kally (material, regras, histórico) + o estilo de alta qualidade no fim.
             const brief = BRIEF.test(message);
             const isPost = competence === "post" && canDraft;
-            const style = remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial && !bigPost, structured: isPost && bigPost });
+            const style = remoteStyle({ competence, brief, post: isPost, shortPost: isPost && shortMaterial && !bigPost, structured: isPost && bigPost, plan: isPost ? undefined : plan });
             // Post: um exemplo só (ele ancora a fidelidade; sem nenhum, o 32B inventou falas e detalhes no post do avô).
             // O formato vem do esqueleto do estilo.
             const base = isPost && competenceArgs && examples.length > 1 ? withMemory(buildCompetencePrompt({ ...competenceArgs, web, examples: examples.slice(0, 1) })) : fullPrompt;
@@ -710,8 +723,8 @@ export async function POST(request: Request, context: EnvContext) {
             const remotePrompt = !style ? base : last?.role === "system" ? [...base.slice(0, -1), { ...last, content: `${last.content}\n\n${style}` }] : [...base, { role: "system" as const, content: style }];
             const promptTokens = estimateTokens(remotePrompt.map((m) => m.content).join("\n"));
             // Raciocínio escondido nas tarefas difíceis: mais tokens (o pensar conta no teto) e mais prazo para o 1º texto.
-            const thinks = remoteThinks({ competence, mode, message, brief });
-            const wanted = Math.max(maxTokens, remoteMaxTokens(competence, brief, isPost)) + (thinks ? 3_000 : 0);
+            const thinks = plan.think;
+            const wanted = (isPost ? Math.max(maxTokens, remoteMaxTokens(competence, brief, isPost)) : Math.max(maxTokens, plan.maxTokens)) + (thinks ? 3_000 : 0);
             const remoteMax = health.maxModelLen ? Math.min(wanted, health.maxModelLen - promptTokens - 64) : wanted;
             if (remoteMax < 512) {
               remoteFallback = `contexto do remoto (${health.maxModelLen}) pequeno para ~${promptTokens} tokens de prompt`;
@@ -1068,6 +1081,8 @@ export async function POST(request: Request, context: EnvContext) {
             interpreter: interpreterReport,
             // roteamento: onde respondeu, por quê e, se caiu para o local, o motivo (sem conteúdo do pedido)
             backend: { target: route.target, reason: route.reason, choice, fallback: remoteFallback },
+            understanding: { certainty: fast.certainty, kind: understanding.kind, interpreted: understanding.interpreted, reason: understanding.reason, referent: !!understanding.referent },
+            plan: { effort: plan.effort, think: plan.think, reason: plan.reason },
             // fontes do post (quantas páginas e sites, sem o texto) e revisão de fidelidade
             postSources: sourceHunt,
             effort,

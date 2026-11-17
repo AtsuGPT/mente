@@ -13,14 +13,15 @@ import { HELP_RULE, QUIZ_RULE } from "@/server/kally/help";
  * títulos, listas, tarefas (- [ ]), citação (>), tabela GFM, bloco ```mermaid e o bloco recolhível
  * :::details[título] … ::: (o Details do Tiptap).
  */
+// Usado só quando não há plano de resposta (plan.ts); com plano, a extensão vem do esforço, sem número de palavras.
 const SIZE: Record<string, string> = {
-  estudo: "de 900 a 1.500 palavras",
-  analise: "de 800 a 1.400 palavras",
-  orientacao: "de 700 a 1.200 palavras",
+  estudo: "completa para a pessoa entender e aplicar, sem esticar",
+  analise: "a necessária para avaliar cada ponto relevante, sem esticar",
+  orientacao: "a necessária para ela saber o que fazer, em que ordem",
   post: "de 200 a 450 palavras, proporcional ao que ela contou",
   postElaborado: "o que a matéria da pessoa sustentar (sem inventar para alongar), em geral de 500 a 1.000 palavras",
   // Ponto 4 da personalidade: pergunta simples, resposta direta; assunto complexo, resposta completa.
-  conversa: "proporcional ao pedido: pergunta simples ou papo, algumas frases diretas e naturais, sem títulos; assunto que pede explicação, de 250 a 700 palavras",
+  conversa: "proporcional ao pedido: pergunta simples ou papo, algumas frases diretas e naturais, sem títulos; assunto que pede explicação, o necessário para entender, sem esticar",
 };
 
 /**
@@ -78,14 +79,38 @@ const STRUCTURED_POST_RULES = [
 
 const SHORT_POST = "Matéria curta: o rascunho tem de 120 a 250 palavras, sem subtítulos. Escreva mesmo assim, a partir do tema e do que ela disse, completando com reflexões coerentes (sem fatos concretos inventados).";
 
+/**
+ * Vícios de assistente que deixam a resposta artificial (lista do dono do projeto, 17/11/2026). Medidos pelo
+ * style-lint.ts na bateria de respostas; aqui viram instrução direta.
+ */
+export const NATURAL_RULE =
+  "Evite: elogiar a pessoa ou a pergunta; repetir ou parafrasear a pergunta antes de responder; saudação no começo de toda resposta; conclusão genérica que só resume o que acabou de ser dito (\"Em resumo\", \"Espero ter ajudado\"); pergunta obrigatória no fim (só pergunte se a resposta dela mudar o próximo passo); títulos e listas numa resposta que cabe em poucos parágrafos; tom de relatório ou formalidade à toa; emojis. Responda no tom da conversa: leve no papo, claro e rigoroso no técnico.";
+
 /** structured: post elaborado (pedido grande); sem ele, o post é casual. */
-export function remoteStyle(input: { competence: CompetenceId | null; brief: boolean; post: boolean; shortPost?: boolean; structured?: boolean }): string {
+export function remoteStyle(input: {
+  competence: CompetenceId | null;
+  brief: boolean;
+  post: boolean;
+  shortPost?: boolean;
+  structured?: boolean;
+  /** plano de resposta (plan.ts): o esforço decide a extensão e o quanto desenvolver */
+  plan?: { effort: "rapido" | "normal" | "profundo"; sizeGuide: string };
+}): string {
   if (input.brief) {
     return [
       "Modo de alta qualidade, pedido de resposta curta: responda com precisão e naturalidade em poucas frases bem escolhidas, sem títulos, e ofereça aprofundar se ela quiser.",
     ].join("\n");
   }
-  const size = input.shortPost ? "de 120 a 250 palavras no rascunho" : SIZE[input.post ? (input.structured ? "postElaborado" : "post") : input.competence ?? "conversa"] ?? SIZE.conversa;
+  // Papo e relato (esforço rápido): só a personalidade e a naturalidade. As regras de organização visual, quiz e figura
+  // não servem a um "aprendi a programar hoje!" e custavam ~2.500 tokens de prompt.
+  if (input.plan?.effort === "rapido" && !input.post) {
+    return [`Extensão: ${input.plan.sizeGuide}.`, NATURAL_RULE, `${PERSONALITY}\nSem jargão de sistema e sem emojis.`].join("\n");
+  }
+  const size = input.shortPost
+    ? "de 120 a 250 palavras no rascunho"
+    : input.post
+      ? SIZE[input.structured ? "postElaborado" : "post"]
+      : (input.plan?.sizeGuide ?? SIZE[input.competence ?? "conversa"] ?? SIZE.conversa);
   // Post: só as regras de post casual. As de "alta qualidade" (profundidade, exemplos, nuances, títulos, tabelas,
   // diagramas, próximos passos) faziam o post sair com cara de artigo científico, com fontes e "Referências"
   // (conversa de 13/11 sobre as férias da faculdade: o dono do projeto não conseguiu postar).
@@ -103,7 +128,10 @@ export function remoteStyle(input: { competence: CompetenceId | null; brief: boo
   return [
     "MODO DE ALTA QUALIDADE (substitui os alvos de tamanho e formato anteriores; as regras sobre o material, a privacidade, a autoria e a fidelidade continuam valendo integralmente).",
     "Entenda primeiro o que a pessoa realmente precisa: a intenção por trás do pedido, o nível dela e o uso que vai fazer da resposta. Se o pedido tiver ambiguidade, assuma a leitura mais útil e diga em uma frase qual foi.",
-    "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",
+    input.plan?.effort === "normal"
+      ? "Abra respondendo diretamente, em uma ou duas frases claras. Desenvolva o que a dúvida pede: o porquê e um exemplo concreto quando ajudarem; nuances e exceções só se mudarem a resposta para ela."
+      : "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",
+    NATURAL_RULE,
     "Exemplos: prefira situações típicas e casos ilustrativos (\"imagine que…\", \"num computador comum…\"). Um caso real com data, lugar, número, nome ou trajetória só entra se estiver nas fontes [E…] ou se você tiver certeza absoluta; na dúvida, use um exemplo genérico. Exemplo ilustrativo (\"imagine que…\") não usa data, cidade nem evento real, e os números dele são redondos e ditos aproximados. Errar um fato concreto estraga a resposta inteira.",
     "A pessoa está no Brasil: no que muda com o lugar (hemisfério, estações, como a Lua aparece no céu, unidades, leis, moeda, datas comemorativas), use o padrão brasileiro (hemisfério sul, sistema métrico, real) e diga quando for diferente em outro lugar. Escreva tudo em português; termo estrangeiro só quando não houver tradução comum, com a tradução entre parênteses.",
     "Fontes: quando usar uma fonte [E…], cite no próprio parágrafo com link Markdown para o endereço exato, ex.: [título curto](URL). Nunca escreva a marca [E…], nunca liste fonte sem link, não use notas de rodapé ([^1]) e nunca cite estudo, autor ou número que não esteja nas fontes recebidas. Citação de fonte em outra língua vai traduzida.",
@@ -163,7 +191,7 @@ export function asksForCode(message: string): boolean {
  * matemática é crucial"). Integral, derivada, limite, matriz, probabilidade, juros, circuito, ou uma expressão com números.
  */
 const MATH_SIGNAL =
-  /\b(integr(al|ais|e|ar)|deriv(ada|adas|e|ar)|limite|equa[cç](ão|ões|ao|oes) (diferencial|do|de)|resolv(a|e|er) (a|o|as|os|esta|essa|este|esse)? ?(equa|sistema|conta|integral|problema|quest)|calcul(e|a|ar|o)|quanto (é|e|vale|d[aá])|matriz|determinante|autovalor|autovetor|vetor gradiente|probabilidade|combina[cç](ão|ões)|permuta[cç]|arranjo|juros|montante|parcela|tabela price|circuito el[eé]trico|resist[eê]ncia equivalente|imped[aâ]ncia|fator de pot[eê]ncia|bhaskara|logaritmo|trigonometr|seno|cosseno|s[eé]rie (geom|aritm|de taylor|de maclaurin|de fourier|de pot[eê]ncias)|progress[aã]o (aritm|geom)|desvio padr[aã]o|vari[aâ]ncia)\b|\d\s*[+\-*/^×÷]\s*\(?\d|∫|∑|√|∂/i;
+  /\b(integr(al|ais|e|ar)|deriv(ada|adas|e|ar)|limite|equa[cç](ão|ões|ao|oes) (diferencial|do|de)|resolv(a|e|er) (a|o|as|os|esta|essa|este|esse)? ?(equa|sistema|conta|integral|problema|quest)|calcul(e|a|ar|o)|quanto (é|e|vale|d[aá])|matriz|determinante|autovalor|autovetor|vetor gradiente|probabilidade|combina[cç](ão|ões)|permuta[cç]|arranjo|juros|montante|parcela|tabela price|circuito el[eé]trico|resist[eê]ncia equivalente|imped[aâ]ncia|fator de pot[eê]ncia|bhaskara|logaritmo|trigonometr|seno|cosseno|s[eé]rie (geom|aritm|de taylor|de maclaurin|de fourier|de pot[eê]ncias)|progress[aã]o (aritm|geom)|desvio padr[aã]o|vari[aâ]ncia)\b|\d\s*[+\-*/^×÷]\s*\(?\d|∫|∑|√|∂|\bquanto (é|e|vale|d[aá])(?=[\s?]|$)|\d+([.,]\d+)?\s*%|\d\s*[a-z]\s*[+\-*/]\s*\d+\s*=\s*-?\d/i;
 const MATH_SUBJECT = /\b(c[aá]lculo|[aá]lgebra|geometria|f[ií]sica|eletricidade|eletr[oô]nica|matem[aá]tica|estat[ií]stica|exatas|qu[ií]mica)\b/i;
 // Palavras do dia a dia (tensão, corrente, potência, média, circuito) só contam junto de números ou unidades.
 const MATH_WITH_NUMBERS =
