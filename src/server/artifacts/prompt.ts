@@ -18,6 +18,8 @@ export const LIBRARIES = [
   ["Mermaid (fluxogramas, mapas mentais)", "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"],
   ["KaTeX (fórmulas)", "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js e o CSS https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"],
   ["math.js (expressões e matrizes)", "https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"],
+  // r147: a última versão com o build global (THREE) e os controles em examples/js; as mais novas exigem módulos.
+  ["Three.js (3D com WebGL; THREE global) com OrbitControls", "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js e https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js (new THREE.OrbitControls(camera, renderer.domElement))"],
   ["React 18 sem compilação (React.createElement ou htm)", "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js, https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js, https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"],
 ] as const;
 
@@ -89,11 +91,18 @@ function rules(task: ArtifactTask) {
     "- Desenho reconhecível: em anatomia e objetos reais, desenhe a silhueta de verdade com <path> e curvas (um encéfalo é um contorno único dividido em lobos encostados, um coração tem a forma do órgão), não peças soltas como bolhas ou retângulos. Destaque a parte escolhida com cor e contorno; rótulo de texto sem contorno grosso (stroke) por cima, que borra.",
     "- Conteúdo completo no código: nada de \"...\", \"etc.\", TODO, dados de exemplo genéricos ou partes prometidas e não feitas. Se ficar grande, tudo bem: até ~1.200 linhas.",
     "",
+    "NÍVEL VISUAL (escolha pelo pedido; o mais simples que mostra o que importa):",
+    "- Básico: esquema ou diagrama simples (SVG ou Mermaid). Para uma relação ou um fluxo curto.",
+    "- Intermediário: SVG 2D detalhado, com composição cuidada (alinhamento, espaçamento regular, hierarquia de tamanhos e cores com função, legenda).",
+    "- Avançado: visualização interativa em camadas (visão geral → partes → interior), com informação ao tocar, passo a passo e estados.",
+    "- Especializado: 3D manipulável (Three.js + OrbitControls) só quando a terceira dimensão ensina algo (superfícies, moléculas, órbitas, peças com volume). Prefira um esquema 2D correto a um 3D impreciso. No 3D: renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); pare o laço de animação quando a página não estiver visível; e confira o WebGL antes (se canvas.getContext('webgl') vier nulo, mostre a versão 2D com um aviso curto).",
+    "FIDELIDADE: beleza nunca substitui correção. Anatomia: estruturas na posição e na proporção relativa certas, com os nomes corretos; o que não der para desenhar com fidelidade fica de fora (ou vira um esquema dito \"esquemático\"), nunca uma forma inventada apresentada como real. Circuitos: símbolos padrão, polaridade e sentido convencional da corrente certos, valores coerentes com a lei de Ohm; nenhum fio solto ou ligação que não existe. Estruturas de dados e algoritmos: o estado mostrado é o estado real do algoritmo passo a passo.",
+    "",
     "PROPORÇÃO EM QUALQUER TELA",
     "- Desenhos em SVG com viewBox e width: 100%; height: auto (o desenho escala inteiro, sem cortar). O viewBox tem proporção que caiba no celular em pé: largura de até 1,4 × a altura; para cenas largas, faça uma versão empilhada (outro viewBox ou outra disposição) abaixo de 600 px.",
     "- Texto dentro do SVG escala junto: escolha o tamanho para que, com o desenho a 340 px de largura, nenhum rótulo fique menor que 11 px (font-size em unidades do viewBox ≥ 11 × largura do viewBox ÷ 340). Rótulo que não cabe vira número com legenda ao lado ou aparece só ao tocar.",
     "- Áreas de toque de pelo menos 40 px no celular (aumente com um retângulo transparente por cima das peças pequenas). Painel de detalhes ao lado do desenho a partir de 900 px; abaixo dele no celular.",
-    "- Nada pode passar da largura da tela: o servidor testa a página com 380 px e reprova o que transborda.",
+    "- Nada pode passar da largura da tela: o servidor testa a página com 380 px e reprova o que transborda, rótulos que se sobrepõem e textos que ficam menores que 9 px na tela.",
     "",
     "TESTE (obrigatório quando houver interação): depois do bloco do artefato, escreva um bloco ```teste-artefato com o corpo de uma função assíncrona que confere o comportamento pedido. O servidor roda o artefato num navegador de verdade, executa o teste e só entrega se passar; a pessoa não vê o código do teste. Funções disponíveis: clicar(seletor), digitar(seletor, texto), mudar(seletor, valor) (para range, select e checkbox), visivel(seletor) → true/false, texto(seletor), existe(seletor), esperar(ms), afirmar(condição, 'o que deveria acontecer'). Exemplo:",
     "```teste-artefato\nafirmar(visivel('#painel'), 'o painel começa visível');\nclicar('#esconder'); await esperar(150);\nafirmar(!visivel('#painel'), 'o painel some ao clicar em Esconder');\nafirmar(visivel('#mostrar'), 'o botão de trazer de volta aparece');\nclicar('#mostrar'); await esperar(150);\nafirmar(visivel('#painel'), 'o painel volta');\n```",
