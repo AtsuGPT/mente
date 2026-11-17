@@ -176,3 +176,9 @@ Nenhum arquivo removido. Removida só a função `needsInterpretation` (sem refe
 ## 14. Git
 
 Commits da branch `kally-intelligence` (do mais antigo ao mais novo): `776af73` entendimento e plano; `ce838ac` verificador de estilo; `ca12760` memória de aprendizagem; `994f970` escolhas e progresso; `8e65e21` artefatos; `416e867` arquivos; `6dd6158` limpeza; `22d33d3` regra do "não entendi" e bancada; `9375122` e `90ebd8a` correções da bateria; `72ec2df` conserto de layout rápido; e este relatório. Revisado o diff completo: nenhum segredo, nenhuma alteração fora do escopo (`tsconfig.json` modificado pelo `next dev` e o arquivo pessoal `fdvfrf` ficaram de fora). Integração na `main` por avanço rápido, sem force push; a publicação aplica as tabelas novas com `prisma db push` (só aditivo, com backup antes).
+
+### Atualização do Next.js e publicação (17/11/2026, fim do dia)
+
+O build de produção foi bloqueado pelo próprio Next.js (`SecurityFatalError`): a versão 16.4.3 tem duas falhas moderadas de vazamento de cache ([GHSA-mfr8-8qww-v76h](https://github.com/advisories/GHSA-mfr8-8qww-v76h) e [GHSA-vc7v-qv4w-wrv8](https://github.com/advisories/GHSA-vc7v-qv4w-wrv8)), ligadas a `'use cache'` e `unstable_cache`. O projeto não usa nenhum dos dois (nenhuma ocorrência em `src/`), então o site não estava exposto, mas o build não passava. Com o OK do dono do projeto, o Next e o `eslint-config-next` foram para 16.4.6 (só os pacotes do Next mudaram no lockfile) no commit `a0a2317`.
+
+Publicado com `publicar.ps1`: build em `.next-a`, backup do banco, `prisma db push` criou as duas tabelas novas (só aditivo), site no ar respondendo, cabeçalho de segurança presente, rotas novas recusando quem não está logado e os componentes novos (escolhas, progresso, cartão de arquivo) no pacote do app web. O app do celular foi atualizado no link fixo. `main` e o GitHub estão em `a0a2317` mais este registro.
