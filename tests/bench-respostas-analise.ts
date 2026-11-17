@@ -1,5 +1,5 @@
 /**
- * Análise da bateria antes/depois (scratchpad/bench/resultado-respostas.json + os registros "Kally perf" de cada site):
+ * Análise da bateria antes/depois (BENCH_DIR/resultado-respostas.json + os registros "Kally perf" de cada site):
  * vícios de estilo (style-lint), tamanho, tempos, modelo, interpretador e tokens; e um arquivo com as respostas lado a
  * lado para a leitura manual.
  *   npx tsx --tsconfig tests/tsconfig.json tests/bench-respostas-analise.ts <resultado.json> <log-antes> <log-depois> <saida.md>

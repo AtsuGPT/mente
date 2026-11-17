@@ -42,7 +42,7 @@ function block(text) {
 }
 function check(source) {
   writeFileSync(`${V}/_alvo.html`, source);
-  const out = execFileSync("C:/Users/satan/Downloads/minha-mente/node_modules/.bin/tsx.cmd", ["rodar-arquivo.mts", "_alvo.html"], { cwd: V, encoding: "utf8", shell: true, timeout: 120_000 });
+  const out = execFileSync("npx", ["tsx", "rodar-arquivo.mts", "_alvo.html"], { cwd: V, encoding: "utf8", shell: true, timeout: 120_000 });
   return JSON.parse(out.trim().split("\n").pop());
 }
 async function shot(token, id, site, b) {

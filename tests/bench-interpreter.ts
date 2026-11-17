@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 
-for (const line of readFileSync("C:/Users/satan/Downloads/minha-mente/.env", "utf8").split(/\r?\n/)) {
+for (const line of readFileSync(process.env.ENV_FILE ?? ".env", "utf8").split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?(.*?)"?\s*$/);
   if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
 }
