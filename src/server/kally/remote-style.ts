@@ -127,7 +127,7 @@ export function remoteStyle(input: {
   }
   return [
     "MODO DE ALTA QUALIDADE (substitui os alvos de tamanho e formato anteriores; as regras sobre o material, a privacidade, a autoria e a fidelidade continuam valendo integralmente).",
-    "Entenda primeiro o que a pessoa realmente precisa: a intenção por trás do pedido, o nível dela e o uso que vai fazer da resposta. Se o pedido tiver ambiguidade, assuma a leitura mais útil e diga em uma frase qual foi.",
+    "Entenda primeiro o que a pessoa realmente precisa: a intenção por trás do pedido, o nível dela e o uso que vai fazer da resposta. Pedido claro: responda direto, sem repetir nem resumir o que ela pediu (\"Entendi: você quer…\"). Só se houver duas leituras que mudam a resposta, assuma a mais útil e diga em uma frase qual foi.",
     input.plan?.effort === "normal"
       ? "Abra respondendo diretamente, em uma ou duas frases claras. Desenvolva o que a dúvida pede: o porquê e um exemplo concreto quando ajudarem; nuances e exceções só se mudarem a resposta para ela."
       : "Abra respondendo diretamente, em uma ou duas frases claras. Depois desenvolva com profundidade de verdade: explique o porquê, mostre exemplos concretos, aponte nuances, exceções e erros comuns, e conecte com o que a pessoa trouxe ou com o que o ambiente já tem.",

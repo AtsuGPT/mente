@@ -1,6 +1,7 @@
 import { detectIntent, type KallyMode } from "@/server/kally";
 import { asksForCode, asksForMath } from "./remote-style";
 import { EXAM_QUESTION, EXAM_REQUEST, type Interpretation } from "./pipeline";
+import { asksProgress } from "./learning";
 import type { IntentKind } from "./intent-kinds";
 export { competenceOfKind, INTENT_KINDS, type IntentKind } from "./intent-kinds";
 
@@ -42,6 +43,8 @@ const NOT_UNDERSTOOD = /\bn[aã]o (entendi|compreendi|captei|peguei)\b|\bficou c
 /** Só cumprimento ou papo curto (nada pedido). */
 const GREETING_ONLY =
   /^(oi+|ol[aá]|e a[ií]|eai|opa|bom dia|boa tarde|boa noite|tudo (bem|bom|certo|tranquilo)|como (voc[eê]|vc) (est[aá]|vai)|valeu|obrigad[oa]|brigad[oa]|haha+|kkk+|rs+|beleza|blz|show|massa|top|legal|entendi|ok|certo|t[aá] bom|perfeito|kally)([\s,!.?]+(oi+|ol[aá]|tudo (bem|bom|certo|tranquilo)|e (voc[eê]|vc)|como (voc[eê]|vc) (est[aá]|vai)|kally|tudo|bem|sim|valeu|obrigad[oa]|haha+|kkk+))*[\s!.?]*$/i;
+/** Agradecimento ou confirmação curta ("valeu, ajudou demais", "obrigada, entendi agora"). */
+const THANKS = /^\W*(valeu|obrigad[oa]|brigad[oa]|vlw|show|perfeito|entendi|ah,? entendi|agora entendi|faz sentido|beleza|massa|top|[oó]timo)\b[^?\n]{0,60}$/i;
 /** Relato: a pessoa conta algo dela em primeira pessoa, sem pergunta nem pedido. */
 // Fim de palavra que funciona com acento ("tô", "é"): o \b do JavaScript não trata letra acentuada como letra.
 const END = "(?=[\\s,.!?;:]|$)";
@@ -91,13 +94,19 @@ export function fastRoute(input: {
   // Prova: alternativas, "acertei?", "monta uma prova" (regra medida nas baterias de 15/11). Um relato com "errei quase
   // tudo" (sem pergunta nem alternativas) é relato, não questão.
   const report = PERSONAL_REPORT.test(m) && !ASKS.test(m);
-  if (!report && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message))) return sure("prova", "aprender", "questão ou pedido de prova");
+  // Plano de estudo "pra prova" é orientação: "prova" ali é o evento, não um pedido de questões (bateria de 17/11: o
+  // plano de anatomia virou "prova", ligou o raciocínio e o 1º texto saiu em 34 s em vez de ~8).
+  const examEvent = GUIDE.test(m) && !HAS_OPTIONS.test(message) && !/\b(quest(ões|oes|ão|ao)|quiz|simulado|exerc[ií]cios|me testa)\b/i.test(m);
+  if (!report && !examEvent && (EXAM_QUESTION.test(message) || EXAM_REQUEST.test(message))) return sure("prova", "aprender", "questão ou pedido de prova");
   if (report && HAS_OPTIONS.test(message)) return sure("prova", "aprender", "questão de prova");
 
   if (input.requested === "aprender") return refersBack ? unsure("desconhecida", "ensino", "aprender", "modo Aprender com referência ao que veio antes") : sure("ensino", "aprender", "modo escolhido: Aprender");
 
-  // Cumprimento ou papo curto, sem pedido.
-  if (GREETING_ONLY.test(message)) return sure("casual", "chat", "cumprimento ou papo", true);
+  // Cumprimento, agradecimento ou papo curto, sem pedido (no meio da conversa também: "valeu, ajudou demais" ia ao
+  // interpretador e levava 7 s a mais).
+  if (GREETING_ONLY.test(message) || (THANKS.test(message) && !ASKS.test(m.replace(THANKS, "")))) return sure("casual", "chat", "cumprimento, agradecimento ou papo", true);
+  // Pergunta pelo próprio progresso de estudo: os dados vêm do banco (learning.ts), sem interpretador.
+  if (asksProgress(message)) return sure("orientacao", "aprender", "pergunta pelo progresso de estudo");
 
   // Texto longo ou anexo: as regras procuram palavras soltas e erram justamente aí (medido antes: relatos com
   // "aprender a cozinhar" caíam no modo Aprender).

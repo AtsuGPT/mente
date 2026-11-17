@@ -10,6 +10,7 @@ test("aponta os vícios da lista", () => {
   assert.ok(lintStyle("## Mitose\nGera duas células.", "o que é mitose?").issues.includes("titulos_em_resposta_curta"));
   assert.ok(lintStyle("A mitose gera duas células 🙂", "o que é mitose?").issues.includes("emoji"));
   assert.ok(lintStyle("Você quer saber o que é mitose. A mitose gera duas células.", "o que é mitose?").issues.includes("repete_pergunta"));
+  assert.ok(lintStyle("Entendi: você quer transformar a ideia em um post. Aqui está.", "transforma aquela ideia em post").issues.includes("repete_pergunta"));
 });
 
 test("não acusa resposta natural", () => {

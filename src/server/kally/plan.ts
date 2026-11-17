@@ -53,7 +53,11 @@ export function planResponse(input: {
   else if (input.interpretation?.profundidade === "aprofundada") [effort, reason] = ["profundo", "explicação aprofundada pedida"];
   else [effort, reason] = ["normal", `tipo de pedido: ${kind}`];
 
-  const think = input.thinksByRule || (effort === "profundo" && (kind === "programacao" || kind === "depuracao" || kind === "conta" || kind === "prova"));
+  // Raciocínio: nos tipos em que errar custa mais que esperar (código, contas, provas). A regra antiga (remoteThinks) liga
+  // com a palavra "prova" em qualquer frase; num plano de estudo, relato ou post, ela não vale (o plano de anatomia "pra
+  // prova" esperou 34 s pelo 1º texto na bateria de 17/11).
+  const quietKind = kind === "orientacao" || kind === "relato" || kind === "casual" || kind === "publicacao";
+  const think = (input.thinksByRule && !quietKind) || (effort === "profundo" && (kind === "programacao" || kind === "depuracao" || kind === "conta" || kind === "prova"));
   return { effort, think, sizeGuide: sizeGuide(effort, kind, input.post), maxTokens: effort === "rapido" ? 700 : effort === "normal" ? 3_000 : 6_000, reason };
 }
 

@@ -42,3 +42,16 @@ test("escolhas explícitas e permissões", () => {
   const u = settle(fastRoute({ ...base, requested: "auto", canPublish: false }), { competencia: "post", intencao: "post", pontos: [], estrutura: [], lacunas: [], profundidade: "media", tipo: "publicacao" }, { publish: false });
   assert.equal(u.mode, "chat");
 });
+
+test("correções da bateria de 17/11", () => {
+  const r = (msg: string, history: { role: string; content: string }[] = []) =>
+    fastRoute({ message: msg, history, requested: "auto", postCommand: false, hasReviewPayload: false, hasAttachment: false, canPublish: true });
+  const hist = [{ role: "user", content: "me explica recursão" }, { role: "assistant", content: "Recursão é quando uma função chama a si mesma." }];
+  assert.equal(r("valeu, ajudou demais", hist).certainty, "certa");
+  assert.equal(r("valeu, ajudou demais", hist).kind, "casual");
+  assert.notEqual(r("valeu, mas e no caso de lista vazia?", hist).kind, "casual", "agradecimento com pergunta não é papo");
+  assert.equal(r("o que eu já estudei até agora?").kind, "orientacao");
+  assert.equal(r("o que eu já estudei até agora?").certainty, "certa");
+  assert.equal(r("monta um plano de estudos de 2 semanas pra prova de anatomia do sistema nervoso").kind, "orientacao");
+  assert.equal(r("me faz uma prova de 5 questões de anatomia").kind, "prova");
+});

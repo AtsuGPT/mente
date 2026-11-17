@@ -16,7 +16,7 @@ const OPENING_PRAISE = /^\W*(que |essa é uma |esta é uma |)(ó|o)tima pergunta
 // (?=…) no lugar de \b: o \b do JavaScript não reconhece o fim de "Olá".
 const GREETING = /^\W*(ol[aá]|oi|bom dia|boa tarde|boa noite|e a[ií])(?=[\s,!.]|$)/i;
 const USER_GREETED = /^\W*(ol[aá]|oi+|bom dia|boa tarde|boa noite|e a[ií]|eai|opa|hey)(?=[\s,!.?]|$)/i;
-const RESTATE = /^\W*(voc[eê] (quer|gostaria|perguntou|est[aá] perguntando|deseja) (saber|entender)|entendi,? voc[eê] quer|sua pergunta [eé] sobre|vamos falar sobre|vou (te )?explicar (o que|como))/i;
+const RESTATE = /^\W*(voc[eê] (quer|gostaria|perguntou|est[aá] perguntando|deseja) (saber|entender)|entendi[,:]?\s+voc[eê] (quer|gostaria|deseja)|sua pergunta [eé] sobre|vamos falar sobre|vou (te )?explicar (o que|como))/i;
 const GENERIC_END = /\b(em resumo|em suma|resumindo|concluindo|espero ter ajudado|espero que (isso|essa explica[cç][aã]o|tenha) (te )?ajud|qualquer d[uú]vida,? ([eé] s[oó]|estou)|fico [àa] disposi[cç][aã]o)\b/i;
 const GENERIC_QUESTION = /(quer (saber|que eu (explique|aprofunde|detalhe)|mais|algo mais)|ficou claro|fez sentido|posso (te )?ajudar (em|com) (mais )?(alguma|algo)|tem (mais )?alguma (outra )?d[uú]vida|gostaria (de saber|que eu)|o que (voc[eê] )?acha)[^?\n]{0,60}\?\s*$/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
@@ -34,7 +34,7 @@ export function lintStyle(answer: string, message = ""): { issues: StyleIssue[];
   const asked = tokens(message);
   const said = tokens(first);
   const overlap = asked.size >= 3 ? [...said].filter((w) => asked.has(w)).length / asked.size : 0;
-  if (RESTATE.test(first) || (overlap >= 0.7 && said.size >= 4 && words(first) > 6 && /\?\s*$|^(sobre|quanto a|em rela[cç][aã]o a)/i.test(first))) issues.push("repete_pergunta");
+  if (RESTATE.test(opening) || (overlap >= 0.7 && said.size >= 4 && words(first) > 6 && /\?\s*$|^(sobre|quanto a|em rela[cç][aã]o a)/i.test(first))) issues.push("repete_pergunta");
   const ending = text.slice(-300);
   if (GENERIC_END.test(ending)) issues.push("conclusao_generica");
   if (GENERIC_QUESTION.test(text.slice(-200))) issues.push("pergunta_generica_final");
