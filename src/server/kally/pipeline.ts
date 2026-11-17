@@ -19,8 +19,9 @@ import { cleanTerms, TERMS_RULE } from "./post-sources";
  * de troca de modelo e o primeiro texto saía ~10 s mais tarde. Com o mesmo modelo, nada é
  * descarregado. O llama3.2 continua possível em KALLY_INTERPRETER_MODEL.
  *
- * Na maioria das mensagens a competência já é conhecida (modo escolhido, /comando, regras de
- * detectIntent, papo casual) e o pedido vai direto ao executor.
+ * Quando o interpretador entra decide o roteador rápido (understand.ts): só nas mensagens em que ele
+ * não tem certeza (ambíguas ou que dependem do contexto da conversa). Até 17/11/2026 o critério era
+ * o tamanho (280+ caracteres) e as mensagens curtas que retomam a conversa nunca eram interpretadas.
  *
  *   KALLY_PIPELINE           = "admin" (só o administrador da plataforma) | "on" (todos) | desligado
  *   KALLY_EXECUTOR_MODEL     = padrão qwen3:4b-instruct-2507-q4_K_M
@@ -87,25 +88,6 @@ export function evalPipeline(config: (typeof EVAL_CONFIGS)[number]): Pipeline | 
   }
 }
 
-/**
- * O interpretador só entra quando nada mais define a competência: modo Automático, sem
- * comando e sem texto para revisar. Mensagem curta fica com as regras (trocar de modelo custa
- * ~14 s). Texto longo passa sempre por ele: as regras procuram palavras soltas e erram justamente
- * aí (medido: um relato com "aprender a cozinhar" e uma análise com "quero entender" caíam no
- * modo Aprender). Anexo com mensagem curta passa só se as regras não reconheceram o pedido.
- */
-export function needsInterpretation(input: {
-  requested: string;
-  postCommand: boolean;
-  hasReviewPayload: boolean;
-  intentMode: string;
-  message: string;
-  hasAttachment: boolean;
-}) {
-  if (input.requested !== "auto" || input.postCommand || input.hasReviewPayload) return false;
-  if (input.message.length >= 280) return true;
-  return input.hasAttachment && input.intentMode === "chat";
-}
 
 const SCHEMA = {
   type: "object",
