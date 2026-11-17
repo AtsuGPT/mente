@@ -252,7 +252,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
         // Validação e montagem final.
         let final = answer;
         // Consertos com raciocínio ligado (depurar pede pensar no fluxo inteiro); o teto de tokens cobre o pensar + a página.
-        const complete = (msgs: AiMessage[], think = false) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "coding" ? (think ? 20_000 : 16_000) : target === "remote" ? (think ? 14_000 : 9_000) : 5_000, timeoutMs: think ? 240_000 : 180_000, think, signal: cancel.signal });
+        const complete = (msgs: AiMessage[], think = false, timeoutMs?: number) => completeChat(msgs, { target, temperature: 0.2, maxTokens: target === "coding" ? (think ? 20_000 : 16_000) : target === "remote" ? (think ? 14_000 : 9_000) : 5_000, timeoutMs: timeoutMs ?? (think ? 240_000 : 180_000), think, signal: cancel.signal });
         let note = "";
         if (task === "editar" && base) {
           const edits = parseEditBlocks(final);
@@ -318,7 +318,12 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             send({ status: `Encontrei ${problems.length === 1 ? "um problema" : `${problems.length} problemas`} e vou corrigir antes de entregar: ${problems[0]}`, step: `artefato-conserto-${attempt}` });
             const repair = repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test);
             // Com raciocínio alto, às vezes o modelo gasta todos os tokens pensando e a resposta vem vazia: refaz sem ele.
-            const fixed = await complete(repair, true).catch(() => complete(repair, false)).catch(() => "");
+            // Problema só de layout (rótulos sobrepostos, texto pequeno, transbordo): conserto sem raciocínio e com teto de 90 s.
+            // Com raciocínio, num artefato de 600 linhas, o conserto de rótulos de 8,1 px levou ~5 minutos (bateria de 17/11).
+            const layoutOnly = problems.every((p) => /se sobrepõem|menores que d+ px|transborda na largura/.test(p));
+            const fixed = layoutOnly
+              ? await complete(repair, false, 90_000).catch(() => "")
+              : await complete(repair, true).catch(() => complete(repair, false)).catch(() => "");
             if (parseArtifactBlocks(fixed).length) final = fixed;
             else break;
           }
