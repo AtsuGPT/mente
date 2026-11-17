@@ -159,7 +159,9 @@ export type Understanding = FastRoute & { interpreted: boolean; referent: string
 
 export function settle(route: FastRoute, interpretation: Interpretation | null, can: { publish: boolean }): Understanding {
   if (!interpretation?.tipo) return { ...route, interpreted: !!interpretation, referent: interpretation?.referencia || null, topic: interpretation?.tema || null };
-  const kind = interpretation.tipo;
+  // Evidência explícita de que a pessoa não entendeu ("como assim caso base?", "não entendi essa parte") vale mais que
+  // um "pergunta"/"continuacao" genérico do interpretador (que errou "como assim caso base?" no conjunto de ajuste).
+  const kind = route.kind === "esclarecimento" && (interpretation.tipo === "pergunta" || interpretation.tipo === "continuacao") ? "esclarecimento" : interpretation.tipo;
   const casual = kind === "casual" || kind === "relato";
   const mode: FastRoute["mode"] =
     kind === "publicacao" ? (can.publish ? "ideia" : "chat") : kind === "revisao" ? "revisar" : kind === "orientacao" || kind === "prova" ? "aprender" : kind === "ensino" && route.mode === "aprender" ? "aprender" : "chat";
