@@ -47,6 +47,7 @@ model User {
   kallyConversations KallyConversation[]
   kallyDocuments     KallyDocument[]
   kallyMemories      KallyMemory[]
+  kallyLearning      KallyLearningTopic[]
   artifacts          Artifact[]
   artifactVersions   ArtifactVersion[]
   artifactFavorites  ArtifactFavorite[]
@@ -79,6 +80,7 @@ model Environment {
   kallyConversations KallyConversation[]
   kallyChunks        KallyChunk[]
   kallyMemories      KallyMemory[]
+  kallyLearning      KallyLearningTopic[]
   artifacts          Artifact[]
 }
 
@@ -326,6 +328,64 @@ model KallyMemory {
 // ------------------------------ Artefatos -------------------------------
 // Ferramentas digitais do ambiente (simuladores, gráficos, diagramas, documentos, código, ferramentas), criadas
 // pela Kally ou à mão. O artefato guarda os metadados; cada versão guarda o código inteiro (nada é sobrescrito).
+
+/// Progresso de estudo da pessoa num assunto (Kally Intelligence, 17/11/2026). Fonte de verdade do acompanhamento:
+/// progresso (o que foi visto) e domínio (evidência de acerto em quiz) ficam separados. Só conversas salvas gravam.
+model KallyLearningTopic {
+  id            String    @id @default(cuid())
+  environmentId String
+  userId        String
+  /// assunto normalizado (minúsculo, sem acento), a chave de busca
+  key           String
+  /// o assunto como apareceu ("Lei de Ohm")
+  title         String
+  /// vezes que a Kally explicou o assunto (progresso, não domínio)
+  explanations  Int       @default(0)
+  /// vezes que a pessoa disse que não entendeu algo do assunto
+  doubts        Int       @default(0)
+  quizzes       Int       @default(0)
+  /// questões respondidas e acertadas em quizzes (evidência de domínio)
+  questions     Int       @default(0)
+  correct       Int       @default(0)
+  /// acerto do último quiz, de 0 a 1
+  lastScore     Float?
+  /// "estudando", "dificuldade" ou "dominado" (este, só com evidência de quiz)
+  mastery       String    @default("estudando")
+  /// até 5 enunciados errados recentes, um por linha
+  weakPoints    String    @default("")
+  lastStudiedAt DateTime  @default(now())
+  /// quando vale revisar (repetição espaçada simples)
+  nextReviewAt  DateTime?
+  /// última vez que a Kally sugeriu revisar; e quando a pessoa recusou (não insistir)
+  suggestedAt   DateTime?
+  declinedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  environment Environment          @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      KallyLearningEvent[]
+
+  @@unique([environmentId, userId, key])
+  @@index([environmentId, userId, lastStudiedAt])
+}
+
+/// Evidência de aprendizagem: cada explicação, dúvida ou quiz, com data.
+model KallyLearningEvent {
+  id             String   @id @default(cuid())
+  topicId        String
+  /// "explicacao", "duvida" ou "quiz"
+  kind           String
+  correct        Int?
+  total          Int?
+  detail         String   @default("")
+  conversationId String?
+  createdAt      DateTime @default(now())
+
+  topic KallyLearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId, createdAt])
+}
 
 model Artifact {
   id               String   @id @default(cuid())

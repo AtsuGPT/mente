@@ -47,6 +47,7 @@ import { searchWeb, type WebResult } from "@/server/web-search";
 import { maybeArtifactTurn } from "@/server/artifacts/turn";
 import { asksVerdict, examGuide, examKey, findExamQuestion } from "@/server/kally/exam-solve";
 import { checkQuizzes } from "@/server/kally/quiz-check";
+import { learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage } from "@/server/kally/learning";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
@@ -477,6 +478,12 @@ export async function POST(request: Request, context: EnvContext) {
     conversation = { ...created, owner: null, messages: [] };
   }
   const conversationId = conversation?.id ?? null;
+  // Aprendizagem: quem é, o assunto (do interpretador ou do próprio pedido) e se é um pedido de estudo.
+  const who = { environmentId: access.environment.id, userId };
+  const studying = understanding.kind === "ensino" || understanding.kind === "esclarecimento" || understanding.kind === "prova" || understanding.kind === "orientacao" || competence === "estudo";
+  const quizResult = quizResultFrom(body.quizResult);
+  const theme = quizResult?.tema ?? understanding.topic ?? (studying ? topicFromMessage(message) : null);
+  let progressCard: string | null = null;
   // Refazer (botão do app): a pergunta já está gravada; sai só a última resposta, que vai ser gerada de novo.
   if (conversationId && body.retry === true) await dropLastAnswer(conversationId);
   else if (conversationId) await addMessage(conversationId, "user", message);
@@ -631,7 +638,12 @@ export async function POST(request: Request, context: EnvContext) {
           }
           if (examPromise) send({ status: "Resolvendo a questão por conta própria, antes de conferir com você.", step: "gabarito" });
           const exam = examPromise ? await examPromise : null;
-          const guide = [interpretation ? interpretationGuide(interpretation) : null, referentGuide(understanding) || null, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
+          // Aprendizagem (learning.ts): o resultado de quiz que o app mandou vira evidência (só em conversa salva); e o
+          // histórico de estudo ligado a esta mensagem entra no guia, curto, só em pedidos de estudo ou de progresso.
+          if (conversationId && quizResult) await recordQuiz(who, quizResult, conversationId).catch((e) => console.warn("Kally aprendizagem:", e));
+          const learning = await learningContext(who, { message, theme, studying, lastAssistant: history.filter((m) => m.role === "assistant").at(-1)?.content ?? null }).catch(() => ({ guide: null, block: null }));
+          progressCard = learning.block;
+          const guide = [interpretation ? interpretationGuide(interpretation) : null, referentGuide(understanding) || null, learning.guide, resumedNote(savedHistory.at(-1)?.createdAt), exam ? examGuide(exam, asksVerdict(message)) : null].filter(Boolean).join("\n") || null;
           const spec = competence ? COMPETENCES[competence] : null;
           const competenceArgs = spec
             ? { competence: spec, examples, canDraft, depth: bigPost ? ("aprofundada" as const) : shortMaterial ? ("breve" as const) : interpretation?.profundidade ?? (BRIEF.test(message) ? ("breve" as const) : undefined), thinMaterial, environmentName: access.environment.name, categories, history, message, posts, web, attachment, reviewText: review?.text ?? null, guide, documents, userName: me?.displayName, general }
@@ -989,6 +1001,15 @@ export async function POST(request: Request, context: EnvContext) {
               send({ replace: answer });
             }
           }
+          // Pedido de progresso: o cartão vem dos dados do banco, montado pelo servidor (o modelo não inventa números).
+          if (progressCard && !cancel.signal.aborted) {
+            answer += `
+
+${progressCard}`;
+            send({ text: `
+
+${progressCard}` });
+          }
           generationEnded = Date.now();
           // Fontes do post: a lista final mostra só as que o texto citou.
           if (postWeb.length) {
@@ -1028,6 +1049,11 @@ export async function POST(request: Request, context: EnvContext) {
             if (dev) console.info("Kally dev:", JSON.stringify(report));
             send({ stats: report });
           }
+        }
+        // Conversa salva: a explicação ou a dúvida entram no progresso de estudo (sem modelo; o domínio só vem de quiz).
+        if (conversationId && answer && theme && !quizResult) {
+          const save = understanding.kind === "esclarecimento" ? recordDoubt(who, theme, message, conversationId) : studying && understanding.kind !== "prova" ? recordExplanation(who, theme, conversationId) : null;
+          await save?.catch((e) => console.warn("Kally aprendizagem:", e));
         }
         // Conversa salva: o que a mensagem traz de duradouro sobre a pessoa vai para a memória (aviso na tela).
         // A extração segue em segundo plano: se acabar em até 6 s, a tela avisa; senão guarda sem segurar o fim.
