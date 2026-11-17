@@ -8,7 +8,9 @@ import { markDone, markRunning } from "@/server/kally/running";
 import type { Access } from "@/server/environments";
 import { parseArtifactBlocks, parseEditBlocks, serializeArtifact } from "./block";
 import { applyEdits } from "./edits";
-import { artifactTask, requestedThing, type ArtifactTask } from "./intent";
+import { artifactTask, requestedThing, wantsFileOut, type ArtifactTask } from "./intent";
+import { exportArtifact } from "./export";
+import { pdfPages, storeFile } from "./files";
 import { kindFrom, KIND_LABEL, LIMITS } from "./kinds";
 import { artifactPrompt, fullRewritePrompt, repairPrompt, type BaseArtifact } from "./prompt";
 import { artifactForKally, findArtifactByMention, listArtifacts } from "./store";
@@ -96,7 +98,7 @@ export async function maybeArtifactTurn(input: ArtifactTurnInput): Promise<Respo
     }
   }
   if (!task) return null;
-  if ((task === "editar" || task === "explicar") && !base) task = "criar";
+  if ((task === "editar" || task === "explicar" || task === "exportar") && !base) task = "criar";
   return artifactStream({ ...input, task, base });
 }
 
@@ -147,9 +149,34 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
       let failed: string | null = null;
       let firstText = 0;
       const report: Record<string, unknown> = { task, base: base ? { saved: !!base.id, chars: base.source.length } : null };
+      // Arquivo pedido ("transforma isso em PDF"): o servidor gera ANTES de anunciar e manda a referência real (files.ts).
+      const fileFormat = wantsFileOut(message);
+      const deliverFile = async (a: { title: string; format: string; source: string }, to: "pdf" | "md" | "html") => {
+        send({ status: to === "pdf" ? "Gerando o PDF no servidor e conferindo as páginas." : "Gerando o arquivo no servidor.", step: "arquivo" });
+        try {
+          const out = await exportArtifact(a, to);
+          const id = await storeFile({ environmentId: access.environment.id, userId, name: out.name, type: out.type, body: out.body });
+          const pages = to === "pdf" ? pdfPages(out.body) : null;
+          const kb = Math.max(1, Math.round(out.body.length / 1024));
+          send({ file: { id, name: out.name, format: to, bytes: out.body.length, pages } });
+          report.file = { ok: true, format: to, bytes: out.body.length, pages };
+          return `_Arquivo pronto: **${out.name}** (${pages ? `${pages} ${pages === 1 ? "página" : "páginas"}, ` : ""}${kb} KB). O cartão abaixo baixa o arquivo; ele fica disponível por 24 horas._`;
+        } catch (cause) {
+          report.file = { ok: false, error: cause instanceof Error ? cause.message.slice(0, 200) : String(cause) };
+          return "_Não consegui gerar o arquivo agora. O conteúdo está acima, e o botão Baixar dele tenta de novo._";
+        }
+      };
       try {
         if (conversationId) markRunning(conversationId, cancel);
         send({ conversationId, temporary: !conversationId, mode: "artefato", searched: false });
+
+        // Exportar o artefato que já está na conversa: sem modelo, direto para o arquivo.
+        if (task === "exportar" && base) {
+          answer = await deliverFile(base, fileFormat ?? "pdf");
+          send({ text: answer });
+          send({ done: true });
+          return;
+        }
 
         if (task === "listar") {
           const { artifacts } = await listArtifacts(access);
@@ -189,7 +216,7 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
           step: "artefato",
         });
 
-        const prompt = artifactPrompt({ task, message, history, base, environmentName: access.environment.name, userName: input.userName, material });
+        const prompt = artifactPrompt({ task: task === "exportar" ? "criar" : task, message, history, base, environmentName: access.environment.name, userName: input.userName, material });
         // Kally Coding (DeepSeek) cria e conserta artefatos; sem ele, o modelo principal; sem os dois, o local.
         const cfg = remoteConfig();
         target = codingServes() ? "coding" : cfg.enabled && (await remoteHealth()).state === "disponivel" ? "remote" : "local";
@@ -330,6 +357,14 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             }
           }
           send({ artifactTest: run?.ran ? { ok: run.ok, passed: run.passed, failures: run.failures, errors: run.errors } : null });
+          // Documento ou artefato pedido como arquivo: só depois de validado.
+          const made = parseArtifactBlocks(final)[0];
+          if (fileFormat && made && task === "criar") {
+            const v = validateArtifact({ title: made.title, kind: made.kind, description: made.description, category: made.category, format: made.format, source: made.source });
+            if (v.ok) final = `${final.trimEnd()}
+
+${await deliverFile(v.artifact, fileFormat)}`;
+          }
         }
         if (final !== answer) {
           answer = final;

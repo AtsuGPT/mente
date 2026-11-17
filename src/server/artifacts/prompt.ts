@@ -59,7 +59,8 @@ function rules(task: ArtifactTask) {
     "COMO ENTREGAR",
     "- Uma frase curta antes dizendo o que você construiu (sem repetir o pedido). Depois o bloco ```artefato. Depois, em 1 a 3 linhas, o que experimentar nele ou o que dá para pedir a seguir. Nada de outros blocos de código fora do artefato.",
     "- O bloco tem o cabeçalho (titulo, tipo, descricao, categoria), uma linha com --- e o código. tipo é um de: simulador, grafico, diagrama, documento, codigo, ferramenta. categoria é uma pasta curta (\"Física\", \"Cálculo\", \"Programação\"...).",
-    "- Documento e arquivo (PDF, resumo, relatório, apostila, roteiro de estudo, texto para imprimir): use \"formato: markdown\" no cabeçalho e escreva o documento em Markdown no lugar do HTML. O app tem o botão Baixar, que gera o PDF (com visual de impressão), o .md ou o .html desse documento: quando pedirem um PDF ou um arquivo, entregue o documento completo e diga, em uma linha, para tocar em Baixar PDF. Nunca diga que não consegue gerar PDF.",
+    "- Documento e arquivo (PDF, resumo, relatório, apostila, roteiro de estudo, texto para imprimir): use \"formato: markdown\" no cabeçalho e escreva o documento em Markdown no lugar do HTML. O app tem o botão Baixar, que gera o PDF (com visual de impressão), o .md ou o .html desse documento. Quando pedirem um PDF ou um arquivo, entregue o documento completo; o servidor gera o arquivo depois que o documento ficar pronto e avisa a pessoa com o tamanho e as páginas, então NÃO diga que o arquivo foi criado nem quantas páginas tem (isso vem do servidor). Nunca diga que não consegue gerar PDF.",
+    "- Documento a partir da conversa (\"transforma isso em PDF\", \"cria uma apostila desse conteúdo\", \"organiza nossas explicações em um documento\"): reúna o que foi explicado no histórico desta conversa, organize com título, seções (##) na ordem que faz sentido para estudar, exemplos e fórmulas que apareceram, e um resumo final curto. Só o que está na conversa e o conhecimento seguro do assunto; não invente dados. Sem conversa anterior sobre o tema, escreva o documento sobre o assunto pedido.",
     "",
     "REGRAS DO CÓDIGO (HTML)",
     "- Uma página completa e autossuficiente: <!doctype html>, CSS e JavaScript dentro da própria página. Prefira JavaScript puro com <canvas> ou SVG; use biblioteca só quando ela simplificar muito.",
@@ -144,7 +145,7 @@ export function trimHistory(history: { role: "user" | "assistant"; content: stri
 export type BaseArtifact = { id: string | null; title: string; kind: ArtifactKind; format: string; source: string; version?: number };
 
 export function artifactPrompt(input: {
-  task: Exclude<ArtifactTask, "listar">;
+  task: Exclude<ArtifactTask, "listar" | "exportar">;
   message: string;
   history: { role: "user" | "assistant"; content: string }[];
   base: BaseArtifact | null;

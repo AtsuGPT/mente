@@ -12,7 +12,7 @@
  * interação, cálculo ou uma ferramenta.
  */
 
-export type ArtifactTask = "criar" | "editar" | "explicar" | "listar";
+export type ArtifactTask = "criar" | "editar" | "explicar" | "listar" | "exportar";
 
 const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -24,11 +24,28 @@ const QUESTION = /\b(como funciona|o que (faz|e|significa)|explica|explique|por 
 const UI_WORD = /\b(artefato|simulador|grafico|cor|cores|botao|botoes|controle|slider|curva|eixo|titulo|fundo|tamanho|velocidade|animacao|tela|fonte|layout|campo|parametro|legenda|escala|linha|tabela|codigo)\b/;
 const LIST =/\b(quais|liste|lista|listar|mostra|mostre|ver|veja)\b.{0,30}\bartefatos\b|\bmeus artefatos\b|\bartefatos (salvos|do ambiente|que (eu )?(tenho|salvei))\b/;
 
+/**
+ * Pedido de arquivo em linguagem natural ("transforma isso em PDF", "cria uma apostila desse conteúdo", "organiza nossas
+ * explicações em um documento", "faz um relatório para baixar"). Devolve o formato pedido, ou null.
+ */
+const FILE_REQUEST =
+  /\b(transforma|transforme|converte|converta|passa|passe|exporta|exporte|salva|salve|gera|gere|cria|crie|faz|faca|monta|monte|organiza|organize|junta|junte|coloca|coloque|baixar|quero|preciso de)\b[^.?!\n]{0,80}\b(pdf|apostila|documento|relatorio|arquivo|markdown|html)\b/;
+export function wantsFileOut(message: string): "pdf" | "md" | "html" | null {
+  const m = fold(message);
+  if (!FILE_REQUEST.test(m)) return null;
+  return /\b(markdown|\.md)\b/.test(m) ? "md" : /\bhtml\b/.test(m) && !/\bpdf\b/.test(m) ? "html" : "pdf";
+}
+
 export function artifactTask(message: string, context: { hasArtifact: boolean; attached: boolean }): ArtifactTask | null {
   const raw = message.trim();
   const m = fold(raw);
   if (/^\/artefato\b/i.test(raw)) return context.attached && MODIFY.test(m) ? "editar" : "criar";
   if (LIST.test(m)) return "listar";
+  // Arquivo do artefato que já está na conversa ("transforma isso em PDF"): exportar direto, sem reescrever nada.
+  const file = wantsFileOut(raw);
+  if (file && context.hasArtifact && (context.attached || /\b(isso|isto|esse|este|essa|esta|ele|ela|o artefato|a simulacao|o simulador|o grafico)\b/.test(m))) return "exportar";
+  // Arquivo sem artefato em jogo: um documento novo, feito a partir da conversa ou do assunto pedido.
+  if (file) return "criar";
   // "como faço um gráfico em python?" é dúvida de programação, não pedido de artefato.
   const howTo = /^(como|qual|quais|o que|por que|pq)\b/.test(m) && raw.endsWith("?");
   const wantsNew = (CREATE_VERB.test(m) && OBJECT.test(m) && !howTo) || /^simule\b/.test(m) || NEW_ONE.test(m);

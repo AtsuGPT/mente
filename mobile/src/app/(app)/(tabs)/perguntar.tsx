@@ -35,6 +35,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { enter, exit, layoutTransition, spring, timing } from "@/theme/motion";
 import { maxWidths, useContainer, useLayout } from "@/theme/layout";
 import { QuizContext } from "@/components/markdown/quiz";
+import { KallyFileCard, type KallyFile } from "@/components/kally-file-card";
 import { ArtifactChatContext, artifactKey, type ArtifactChat } from "@/components/artifact/chat-artifact";
 import { lastArtifactIn } from "@/lib/artifact";
 
@@ -74,6 +75,8 @@ type Message = {
   finishedAt?: number;
   /** o que a Kally guardou na memória a partir desta mensagem (conversa salva) */
   remembered?: string[];
+  /** arquivos que a Kally gerou nesta resposta (PDF etc.), já prontos no servidor */
+  files?: KallyFile[];
   /** pedido maior numa conversa temporária: a Kally oferece salvar (só salva com o sim da pessoa) */
   offerSave?: boolean;
   /** resposta à oferta: salva ou dispensada */
@@ -795,6 +798,7 @@ function Kally() {
           update((m) => ({ ...m, status: text || undefined, steps: addStep(m.steps, text, key, now) }));
         }
         if (event.remembered?.length) update((m) => ({ ...m, remembered: event.remembered }));
+        if (event.file) { const file = event.file; update((m) => ({ ...m, files: [...(m.files ?? []), file] })); }
         if (event.offerSave) update((m) => ({ ...m, offerSave: true }));
         const extra = event as { model?: string; stats?: DevStats };
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
@@ -1435,6 +1439,7 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer, on
           <AppText variant="small" color={colors.violet300}>Refazer</AppText>
         </Touchable>
       ) : null}
+      {item.files?.length ? item.files.map((file) => <KallyFileCard key={file.id} file={file} />) : null}
       {item.remembered?.length && !pending ? (
         <View style={styles.memoryNote}>
           <Icon name="brain" size={13} color={colors.violet300} />
