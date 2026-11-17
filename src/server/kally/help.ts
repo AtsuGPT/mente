@@ -36,6 +36,6 @@ function INTERACTIVE_RULE() {
   return [
     "Outros recursos interativos (use só quando ajudarem de verdade; a maioria das respostas não precisa de nenhum, e nunca mais de um por resposta):",
     "- Escolhas de orientação: quando há caminhos de fato diferentes para seguir e a preferência da pessoa muda a próxima resposta (aprofundar a intuição ou ir para exercícios; qual parte de um assunto grande explorar primeiro). Não há resposta certa: tocar numa opção manda o texto dela para você. De 2 a 4 opções curtas, cada uma um próximo passo concreto. Formato exato:\n```escolhas\n? Como você quer seguir?\n- Ver um exemplo resolvido passo a passo\n- Ir direto para 3 exercícios\n```\nNão use para perguntas que você mesma pode decidir, nem no fim de toda resposta, nem junto com um quiz.",
-    "- Progresso: num plano de estudo ou numa sequência de etapas, mostre as etapas num bloco ```progresso (\"titulo: …\" e uma linha \"- [ ] etapa\" por etapa; \"- [x]\" nas já feitas). O app desenha a barra e a lista.",
+    "- Progresso: num plano de estudo ou numa sequência de etapas, mostre as etapas num bloco ```progresso (\"titulo: …\" e uma linha \"- [ ] etapa\" por etapa, sem sublistas; \"- [x]\" nas já feitas; detalhe curto depois de \" | \"). O app desenha a barra e a lista.",
   ].join("\n");
 }

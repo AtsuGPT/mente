@@ -66,11 +66,15 @@ type Who = { environmentId: string; userId: string };
 async function topicFor(who: Who, title: string) {
   const key = topicKey(title);
   if (!key) return null;
-  return db.kallyLearningTopic.upsert({
+  const clean = title.trim().slice(0, 60);
+  const topic = await db.kallyLearningTopic.upsert({
     where: { environmentId_userId_key: { environmentId: who.environmentId, userId: who.userId, key } },
-    create: { environmentId: who.environmentId, userId: who.userId, key, title: title.trim().slice(0, 60), nextReviewAt: nextReview("estudando") },
+    create: { environmentId: who.environmentId, userId: who.userId, key, title: clean, nextReviewAt: nextReview("estudando") },
     update: {},
   });
+  // O nome tirado do pedido vem em minúsculas ("lei de ohm"); o do quiz ou do interpretador ("Lei de Ohm") prevalece.
+  if (topic.title === topic.title.toLowerCase() && clean !== clean.toLowerCase()) return db.kallyLearningTopic.update({ where: { id: topic.id }, data: { title: clean } });
+  return topic;
 }
 
 /** A Kally explicou o assunto (progresso, não domínio). */

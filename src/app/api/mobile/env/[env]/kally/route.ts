@@ -48,7 +48,7 @@ import { maybeArtifactTurn } from "@/server/artifacts/turn";
 import { asksVerdict, examGuide, examKey, findExamQuestion } from "@/server/kally/exam-solve";
 import { checkQuizzes } from "@/server/kally/quiz-check";
 import { normalizeBlocks, recentInteractive } from "@/server/kally/blocks";
-import { learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage } from "@/server/kally/learning";
+import { asksProgress, learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage } from "@/server/kally/learning";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
@@ -280,7 +280,8 @@ export async function POST(request: Request, context: EnvContext) {
   const casual = ruleCasual && !competence;
   // Texto de estudo e análise de algo externo: os posts do ambiente só entram se a pessoa se referir
   // a eles. Com a busca atual, posts pouco relacionados entravam e o modelo forçava a relação.
-  const skipMemory = (competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message);
+  // Pergunta pelo progresso: os dados vêm do registro de estudo (learning.ts), não dos posts (a busca custava ~6 s à toa).
+  const skipMemory = ((competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message)) || asksProgress(message);
   // Pergunta geral (need.ts): o ambiente só entra com um pensamento quase exatamente sobre o assunto, sem conversas
   // antigas nem documentos, e a resposta vem do conhecimento da Kally, como num assistente comum. Pergunta que fala do
   // ambiente ou da vida da pessoa (o que escreveu, alguém pelo nome, "lembra") consulta como antes.

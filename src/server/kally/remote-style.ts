@@ -38,6 +38,7 @@ const POST_RULES = [
   "Voz: o rascunho inteiro é dela, em primeira pessoa (\"meus projetos\", nunca \"seus projetos\").",
   "O exemplo de referência é de OUTRA pessoa: nenhum fato, cena ou frase dele entra neste rascunho.",
   "Fecho: uma frase que retome a ideia dela, sem lição de moral nem chamada ao leitor.",
+  "Antes do rascunho, no máximo uma frase curta; nunca repita nem resuma o pedido dela (\"Entendi: você quer…\").",
   "Não use palavras com gênero sobre ela (\"cansado\", \"envolvida\") se ela não revelou o gênero: reescreva sem o adjetivo (\"o cansaço\", \"me envolvo\"). Revise a gramática antes de entregar.",
   "Se ela aprovou um texto anterior desta conversa (\"poste isso\", \"deixa assim\", \"pode publicar\"), o rascunho é esse texto, só no formato <rascunho>, sem reescrever o que ela aprovou (tirando só o que for fato concreto inventado).",
   "Depois do rascunho, fora dele e em até 2 linhas: dois títulos alternativos e, se quiser, UMA sugestão do que ela poderia acrescentar. Sem perguntas obrigatórias: o rascunho já está pronto para ela editar e publicar.",
