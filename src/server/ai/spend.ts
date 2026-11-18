@@ -81,9 +81,18 @@ export function spentToday(model: string) {
   return ledger().models[model]?.usd ?? 0;
 }
 
-export function overBudget(model: string) {
-  return spentToday(model) >= dailyLimitUsd();
+export function overBudget(model: string, limitUsd = dailyLimitUsd()) {
+  return spentToday(model) >= limitUsd;
 }
+
+/**
+ * Teto próprio do Kally Coding (KALLY_CODING_MAX_USD_PER_DAY, padrão US$ 0,30, decisão do dono do projeto em 18/11/2026):
+ * ele gasta mais por pedido (artefatos longos); passado o teto, os pedidos voltam ao modelo principal.
+ */
+export const codingLimitUsd = () => {
+  const v = Number(process.env.KALLY_CODING_MAX_USD_PER_DAY);
+  return Number.isFinite(v) && v > 0 ? v : 0.3;
+};
 
 /** Resumo do dia (painel e registro). */
 export function spendSummary() {

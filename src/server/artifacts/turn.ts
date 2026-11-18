@@ -316,14 +316,32 @@ function artifactStream(input: ArtifactTurnInput & { task: ArtifactTask; base: B
             }
             repairs.push(problems);
             send({ status: `Encontrei ${problems.length === 1 ? "um problema" : `${problems.length} problemas`} e vou corrigir antes de entregar: ${problems[0]}`, step: `artefato-conserto-${attempt}` });
-            const repair = repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test);
             // Com raciocínio alto, às vezes o modelo gasta todos os tokens pensando e a resposta vem vazia: refaz sem ele.
             // Problema só de layout (rótulos sobrepostos, texto pequeno, transbordo): conserto sem raciocínio e com teto de 90 s.
             // Com raciocínio, num artefato de 600 linhas, o conserto de rótulos de 8,1 px levou ~5 minutos (bateria de 17/11).
-            const layoutOnly = problems.every((p) => /se sobrepõem|menores que d+ px|transborda na largura/.test(p));
-            const fixed = layoutOnly
-              ? await complete(repair, false, 90_000).catch(() => "")
-              : await complete(repair, true).catch(() => complete(repair, false)).catch(() => "");
+            const layoutOnly = problems.every((p) => /se sobrepõem|menores que \d+ px|transborda na largura/.test(p));
+            const ask = (msgs: AiMessage[]) => (layoutOnly ? complete(msgs, false, 90_000).catch(() => "") : complete(msgs, true).catch(() => complete(msgs, false)).catch(() => ""));
+            // Conserto por trocas (só os trechos a mudar, aplicados aqui): o artefato inteiro só volta se as trocas não encaixarem.
+            if (b?.closed) {
+              const fix = await ask(repairPrompt(prompt, final, problems, b.source, test, "trocas"));
+              const all = parseEditBlocks(fix).flatMap((e) => e.edits);
+              const applied = all.length && all.length <= 40 ? applyEdits(b.source, all) : null;
+              if (applied?.ok) {
+                final = final.replace(b.raw, serializeArtifact({ title: b.title, kind: b.kind ?? "ferramenta", description: b.description, category: b.category, ref: b.ref, format: b.format, source: applied.source }));
+                const newTest = takeTest(fix).test;
+                if (newTest) test = newTest;
+                report.repairMode = "trocas";
+                continue;
+              }
+              // Teste errado, artefato certo: só o teste novo veio.
+              if (!all.length && takeTest(fix).test && !parseArtifactBlocks(fix).length) {
+                test = takeTest(fix).test;
+                report.repairMode = "teste";
+                continue;
+              }
+              report.repairMode = applied ? `inteiro (trocas não encaixaram: ${applied.ok ? "" : applied.reason})` : "inteiro (sem trocas)";
+            }
+            const fixed = await ask(repairPrompt(prompt, final, problems, b?.closed ? b.source : null, test, "inteiro"));
             if (parseArtifactBlocks(fixed).length) final = fixed;
             else break;
           }

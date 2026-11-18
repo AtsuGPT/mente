@@ -1,5 +1,5 @@
 import "server-only";
-import { dailyLimitUsd, overBudget } from "./spend";
+import { codingLimitUsd, dailyLimitUsd, overBudget } from "./spend";
 
 /**
  * Modelo remoto da Kally: um servidor vLLM (API compatível com OpenAI) numa GPU alugada.
@@ -135,7 +135,7 @@ export function codingCoolingDown() {
 /** O Kally Coding responde agora? (ligado, sem falha nos últimos 2 minutos e dentro do teto do dia) */
 export function codingServes() {
   const cfg = codingConfig();
-  return cfg.enabled && !codingCoolingDown() && !overBudget(cfg.model);
+  return cfg.enabled && !codingCoolingDown() && !overBudget(cfg.model, codingLimitUsd());
 }
 
 /** Falha recente da Kally 1.5 pela API: por 2 minutos a resposta vai direto ao Ollama, sem esperar outra falha. */

@@ -1,7 +1,7 @@
 import "server-only";
 import { acquireModel, runtimeOptions, thinkOption, type Lease, type LeaseInfo } from "@/server/ai/model-manager";
 import { acquireRemoteSlot, codingConfig, codingServes, invalidateRemoteHealth, lightConfig, lightCoolingDown, noteCodingFailure, noteLightFailure, remoteConfig, remoteHeaders } from "@/server/ai/remote";
-import { overBudget, recordSpend } from "@/server/ai/spend";
+import { codingLimitUsd, overBudget, recordSpend } from "@/server/ai/spend";
 
 /**
  * Provedor de IA da Kally, configurado só no servidor (.env). O app nunca fala com o
@@ -165,7 +165,7 @@ async function remoteRequest(messages: AiMessage[], options: AiOptions, stream: 
   if (profile === "main" && !main.enabled) throw new AiError("O modelo remoto não está configurado.", 503);
   if (profile === "main" && main.hosted && overBudget(main.model)) throw new AiError("O modelo remoto atingiu o teto de gasto do dia.", 503);
   if (profile === "coding" && !codingConfig().enabled) throw new AiError("O Kally Coding não está configurado (KALLY_CODING_*).", 503);
-  if (profile === "coding" && overBudget(cfg.model)) throw new AiError("O Kally Coding atingiu o teto de gasto do dia.", 503);
+  if (profile === "coding" && overBudget(cfg.model, codingLimitUsd())) throw new AiError("O Kally Coding atingiu o teto de gasto do dia.", 503);
   const slot = profile === "main" ? acquireRemoteSlot() : { release: () => undefined };
   if (!slot) throw new AiError("O modelo remoto está ocupado.", 503);
   const dropHealth = () => {

@@ -180,16 +180,27 @@ export function artifactPrompt(input: {
   return messages;
 }
 
-/** Pedido de conserto: o artefato saiu com erros de validação (ou cortado). */
-export function repairPrompt(original: AiMessage[], answer: string, problems: string[], currentSource: string | null = null, test = ""): AiMessage[] {
+/**
+ * Pedido de conserto: o artefato saiu com erros de validação, de execução ou de layout.
+ *
+ * "trocas" (padrão quando o código atual está inteiro): o modelo devolve só os trechos a mudar, aplicados no servidor
+ * (edits.ts). Antes, todo conserto pedia o artefato inteiro de novo: num artefato de 500 linhas, cada conserto custava o
+ * mesmo que criar (18/11/2026: o DeepSeek gastou ~US$ 0,011 por pedido, quase tudo em artefatos e consertos).
+ * "inteiro": quando não há código fechado para trocar, ou quando as trocas não encaixaram.
+ */
+export function repairPrompt(original: AiMessage[], answer: string, problems: string[], currentSource: string | null = null, test = "", mode: "trocas" | "inteiro" = currentSource ? "trocas" : "inteiro"): AiMessage[] {
   const current = currentSource ? `\n\nCódigo atual completo do artefato (depois das suas mudanças):\n\`\`\`\`html\n${currentSource}\n\`\`\`\`` : "";
   const testNote = test ? `\n\nO teste que rodou foi:\n\`\`\`\`js\n${test}\n\`\`\`\`\nSe o teste estiver errado (seletor que não existe, expectativa que não é o que a pessoa pediu), corrija o teste; se o artefato estiver errado, corrija o artefato.` : "";
+  const deliver =
+    mode === "trocas"
+      ? `entregue SÓ as correções: uma frase dizendo o que a pessoa vai ver de diferente no artefato (nunca fale do teste, do conserto ou do formato do bloco), depois um bloco \`\`\`artefato-edicao com as trocas (cada trecho BUSCAR copiado EXATAMENTE do código atual acima, com algumas linhas de contexto, e aparecendo uma única vez), assim:\n\`\`\`artefato-edicao\nnota: (o que foi corrigido)\n<<<<<<< BUSCAR\n(trecho atual)\n=======\n(trecho corrigido)\n>>>>>>> FIM\n\`\`\`\ne, se o teste precisar mudar, o bloco \`\`\`teste-artefato completo. Não repita o artefato inteiro.`
+      : `entregue a resposta inteira corrigida: uma frase dizendo o que a pessoa vai ver de diferente no artefato (nunca fale do teste, do conserto, do cabeçalho ou do formato do bloco), o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e o bloco \`\`\`teste-artefato.`;
   return [
     ...original,
     { role: "assistant", content: answer.slice(0, 6_000) },
     {
       role: "system",
-      content: `O artefato não pode ser entregue assim. Ele foi rodado num navegador de verdade e conferido:\n- ${problems.join("\n- ")}${current}${testNote}\n\nEncontre a causa no código (leia o fluxo inteiro do evento até o efeito na tela) e entregue a resposta inteira corrigida: uma frase dizendo o que a pessoa vai ver de diferente no artefato (nunca fale do teste, do conserto, do cabeçalho ou do formato do bloco), o bloco \`\`\`artefato completo (cabeçalho, ---, a página inteira) e o bloco \`\`\`teste-artefato.`,
+      content: `O artefato não pode ser entregue assim. Ele foi rodado num navegador de verdade e conferido:\n- ${problems.join("\n- ")}${current}${testNote}\n\nEncontre a causa no código (leia o fluxo inteiro do evento até o efeito na tela) e ${deliver}`,
     },
   ];
 }
