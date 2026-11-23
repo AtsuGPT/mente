@@ -18,8 +18,6 @@ import { colors } from "@/theme/tokens";
  * peso com mola (interrompível); a posição é a mistura dos três. Com "reduzir movimento", as molas viram troca direta.
  */
 
-export const ORBIT_SIZE = 48;
-
 /** Troca da frase: a anterior sai rápido e a nova entra logo depois, no mesmo lugar (sem as duas se sobreporem). */
 export const phraseIn = FadeIn.duration(260).delay(130).reduceMotion(ReduceMotion.System);
 export const phraseOut = FadeOut.duration(130).reduceMotion(ReduceMotion.System);

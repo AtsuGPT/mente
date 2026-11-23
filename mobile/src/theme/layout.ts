@@ -53,19 +53,3 @@ export function useContainer(kind: WidthKind = "content"): ViewStyle {
   return useMemo(() => ({ width: "100%", maxWidth: maxWidths[kind] + gutter * 2, alignSelf: "center", paddingHorizontal: gutter }), [kind, gutter]);
 }
 
-/**
- * Ajustes das folhas inferiores (Modal transparente): em telas largas viram um diálogo
- * centralizado, com cantos arredondados e altura limitada à janela.
- */
-export function useSheetLayout(maxWidth = 520) {
-  const { dialog, height } = useLayout();
-  return useMemo(
-    () => ({
-      backdrop: (dialog ? { justifyContent: "center", alignItems: "center", padding: space.xl } : { justifyContent: "flex-end" }) as ViewStyle,
-      sheet: (dialog
-        ? { width: "100%", maxWidth, maxHeight: Math.round(height * 0.88), borderRadius: 20, borderWidth: 1 }
-        : { width: "100%", maxWidth: "100%", maxHeight: Math.round(height * 0.92) }) as ViewStyle,
-    }),
-    [dialog, height, maxWidth],
-  );
-}

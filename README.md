@@ -54,6 +54,29 @@ npm run build
 npm run start
 ```
 
+Para desenvolver sem tocar no banco de produção, copie o `mente.db` para outro arquivo (por exemplo `mente-dev.db`) e aponte o `DATABASE_URL` da sessão de desenvolvimento para a cópia.
+
+## Checagens
+
+```bash
+npm run typecheck              # tipos do servidor
+cd mobile && npm run typecheck # tipos do app
+npm test                       # testes unitários (tests/*.test.ts), sem banco e sem IA
+```
+
+`npm run lint` está quebrado: o typescript-eslint ainda não aceita o TypeScript 7. Use as checagens acima.
+
+## Onde está cada coisa
+
+| Pasta | O que tem |
+| --- | --- |
+| `docs/kally/` | arquitetura da Kally (`arquitetura-hibrida.md`), memória e painel, relatório do Kally Intelligence |
+| `docs/benchmarks/` | resultados guardados de baterias antigas de modelos |
+| `eval/kally/` | avaliação de modelos isolados × pipeline (3/11), com casos e notas |
+| `tests/` | testes unitários (`*.test.ts`) e bancadas de intenção e de respostas (`bench-*.ts`) |
+| `tests/e2e/` | baterias de ponta a ponta contra um site de teste; gastam créditos de API (veja `LEIA.md`) |
+| `scripts/` | importação antiga, migração de ambientes, unificação de contas e publicação |
+
 ## Variáveis de ambiente
 
 ```env
@@ -84,7 +107,8 @@ npx tsx scripts/import-mongodb.ts "C:\caminho\para\backup.json"
 
 O importador preserva IDs, numeração, status, datas, categorias, relações e foto de perfil. As bases de origem não são apagadas.
 
-## Leitura assistida com Ollama
+## Kally, leitura assistida e voz
+
 O detalhe dos pensamentos oferece ações de resumo, esclarecimento e aprofundamento. A resposta é gerada em streaming, aparece separada e nunca modifica o texto original.
 
 A aba **Kally** do app consulta os pensamentos, as memórias e as bases de documentos do ambiente. Ela responde por modelos via API (a Kally 32 e a Kally 1.5, com teto de gasto por dia) e usa o Ollama do PC como último recurso; a arquitetura está em `docs/kally/arquitetura-hibrida.md`.

@@ -246,7 +246,5 @@ export function acquireRemoteSlot(): { release: () => void } | null {
   };
 }
 
-export const remoteActive = () => registry.__kallyRemoteActive ?? 0;
-
 /** Estimativa conservadora de tokens (português no tokenizador do Qwen: ~3,2 caracteres por token). */
 export const estimateTokens = (text: string) => Math.ceil(text.length / 3.2);
