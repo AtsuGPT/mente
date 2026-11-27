@@ -34,7 +34,20 @@ export type Retrieved = {
   author?: string | null;
   /** títulos de outros resultados ligados a este (mesma pasta ou link) */
   related: string[];
+  /** pensamento da pasta da conversa (pasta como centro): vem antes dos outros e passa com nota menor na rota */
+  inFolder?: boolean;
 };
+
+/**
+ * Pasta como centro: os resultados da pasta da conversa vêm primeiro, os outros completam até o limite. Os dois passam
+ * pela mesma nota mínima (um post da pasta que não fala do assunto continua de fora).
+ */
+export function folderFirst<T extends { score: number; inFolder: boolean }>(items: T[], limit: number, min = 0.12): T[] {
+  return items
+    .filter((i) => i.score >= min)
+    .sort((a, b) => Number(b.inFolder) - Number(a.inFolder) || b.score - a.score)
+    .slice(0, limit);
+}
 
 const MAX_CANDIDATES = 400;
 // Trechos dos posts com 450 caracteres (eram 900): no trecho de 900, uma regra curta do guia ("Diário: até 1.500
@@ -160,13 +173,23 @@ async function syncIndex(environmentId: string, docs: Doc[], kind: "post" | "con
 export async function recall(
   scope: Scope,
   query: string,
-  options: { limit?: number; userId?: string | null; draftAuthorId?: string | null; excludeConversationId?: string | null; allDrafts?: boolean } = {},
+  options: {
+    limit?: number;
+    userId?: string | null;
+    draftAuthorId?: string | null;
+    excludeConversationId?: string | null;
+    allDrafts?: boolean;
+    /** pasta da conversa: os pensamentos dela vêm primeiro */
+    categoryId?: string | null;
+    /** só os pensamentos da pasta (pedido de estudo numa conversa da pasta) */
+    folderOnly?: boolean;
+  } = {},
 ): Promise<Retrieved[]> {
   const limit = options.limit ?? 5;
   const draftAuthor = options.draftAuthorId ?? options.userId;
   const drafts = options.allDrafts ? { status: "DRAFT" as const } : draftAuthor ? { status: "DRAFT" as const, authorId: draftAuthor } : null;
   const posts = await db.post.findMany({
-    where: { ...scopeFilter(scope), OR: [publiclyVisible(), ...(drafts ? [drafts] : [])] },
+    where: { ...scopeFilter(scope), OR: [publiclyVisible(), ...(drafts ? [drafts] : [])], ...(options.folderOnly && options.categoryId ? { categories: { some: { id: options.categoryId } } } : {}) },
     select: { id: true, title: true, slug: true, status: true, content: true, categories: { select: { id: true, name: true } }, authorId: true, author: { select: { displayName: true } } },
     orderBy: { publishedAt: "desc" },
     take: MAX_CANDIDATES,
@@ -230,7 +253,8 @@ export async function recall(
     const meaning = sem && sem.score >= profile.min ? Math.min((sem.score - profile.floor) / profile.span, 1) : 0;
     // Com um modelo fraco em português (nomic), as palavras no título/pasta pesam mais (weight menor).
     const score = meaning * profile.weight + Math.min(lexical / 8, 1) * (1 - profile.weight);
-    return { post, score, excerpt: sem?.text ?? stripMarkdown(post.content).slice(0, CHUNK) };
+    const inFolder = !!options.categoryId && post.categories.some((c) => c.id === options.categoryId);
+    return { post, score, inFolder, excerpt: sem?.text ?? stripMarkdown(post.content).slice(0, CHUNK) };
   });
 
   // Relações: quem divide pasta ou tem link com os melhores resultados ganha um empurrão.
@@ -243,11 +267,8 @@ export async function recall(
     item.score += (sharesFolder ? 0.08 : 0) + (linked ? 0.15 : 0);
   }
 
-  const results: Retrieved[] = scored
-    .filter((s) => s.score >= 0.12)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ post, score, excerpt }, _, all) => ({
+  const results: Retrieved[] = folderFirst(scored, limit)
+    .map(({ post, score, excerpt, inFolder }, _, all) => ({
       kind: post.status === "DRAFT" ? "rascunho" : post.categories.some((c) => /projeto/i.test(c.name)) ? "projeto" : "post",
       title: post.title,
       slug: post.slug,
@@ -259,6 +280,7 @@ export async function recall(
       related: all
         .filter((o) => o.post.id !== post.id && (o.post.categories.some((c) => post.categories.some((pc) => pc.id === c.id)) || o.post.content.includes(post.slug) || post.content.includes(o.post.slug)))
         .map((o) => o.post.title),
+      ...(inFolder ? { inFolder } : {}),
     }));
 
   // Conversas salvas da própria pessoa: a fonte de menor prioridade, só se parecida o bastante.

@@ -30,7 +30,7 @@ const MAX_ATTACHMENT = 6_000;
 const MAX_REVIEW = 7_000;
 
 /** Pensamentos (e conversas salvas da pessoa) relacionados ao texto, no escopo recebido. */
-export function findRelevantPosts(scope: Scope, query: string, limit = 5, options: { userId?: string | null; draftAuthorId?: string | null; excludeConversationId?: string | null; allDrafts?: boolean } = {}) {
+export function findRelevantPosts(scope: Scope, query: string, limit = 5, options: { userId?: string | null; draftAuthorId?: string | null; excludeConversationId?: string | null; allDrafts?: boolean; categoryId?: string | null; folderOnly?: boolean } = {}) {
   return recall(scope, query, { limit, ...options });
 }
 

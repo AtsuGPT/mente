@@ -287,7 +287,12 @@ export async function POST(request: Request, context: EnvContext) {
   // Texto de estudo e análise de algo externo: os posts do ambiente só entram se a pessoa se referir
   // a eles. Com a busca atual, posts pouco relacionados entravam e o modelo forçava a relação.
   // Pergunta pelo progresso: os dados vêm do registro de estudo (learning.ts), não dos posts (a busca custava ~6 s à toa).
-  const skipMemory = ((competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message)) || asksProgress(message);
+  // Pasta como centro: numa conversa da pasta, o pedido de estudo consulta os pensamentos da pasta (só eles), e nas
+  // outras buscas eles vêm primeiro e passam com a nota de quem pede os próprios posts (0,2).
+  const folderId = conversation?.categoryId ?? null;
+  const studySkip = (competence === "estudo" || (competence === "analise" && mode !== "revisar")) && !refersToOwnPosts(message);
+  const folderOnly = studySkip && !!folderId && !asksProgress(message);
+  const skipMemory = (studySkip && !folderId) || asksProgress(message);
   // Pergunta geral (need.ts): o ambiente só entra com um pensamento quase exatamente sobre o assunto, sem conversas
   // antigas nem documentos, e a resposta vem do conhecimento da Kally, como num assistente comum. Pergunta que fala do
   // ambiente ou da vida da pessoa (o que escreveu, alguém pelo nome, "lembra") consulta como antes.
@@ -332,16 +337,18 @@ export async function POST(request: Request, context: EnvContext) {
         draftAuthorId: userId,
         excludeConversationId: conversation?.id,
         allDrafts: access.permissions.manageContent,
+        categoryId: folderId,
+        folderOnly,
       });
   // Quem cita o autor de um pensamento encontrado ("o que o kayk pensa…", com o nome em minúscula) pergunta pelo ambiente.
   const general = generalGuess && !found.some((p) => p.kind !== "conversa" && namesAuthor(message, p.author));
   const posts = found
         .filter((p) => !review?.slug || p.slug !== review.slug)
         // Pergunta geral: só o pensamento quase exatamente sobre o assunto (need.ts).
-        .filter((p) => !general || (p.kind !== "conversa" && p.score >= GENERAL_MIN))
+        .filter((p) => !general || (p.kind !== "conversa" && p.score >= (p.inFolder ? 0.2 : GENERAL_MIN)))
         // Aprender também tem nota mínima (antes, os 5 mais próximos entravam sempre: "estudar recursão" puxava
         // "Sobrecarga" e "Realização" na bateria de 15/11).
-        .filter((p) => mode !== "aprender" || p.kind === "conversa" || p.score >= (intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
+        .filter((p) => mode !== "aprender" || p.kind === "conversa" || p.score >= (p.inFolder || intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
         // Em conversa, só material claramente relacionado, a menos que a pessoa peça os posts.
         // Conversas salvas já passaram pelo mínimo próprio (conversationMin) e entram com metade da nota para ficar
         // atrás dos posts; com o filtro de 0,4 elas nunca chegavam à conversa (simulação: a conversa do João sobre a
@@ -350,7 +357,7 @@ export async function POST(request: Request, context: EnvContext) {
         // os posts dessa pessoa usam o mesmo filtro de quando se pedem os posts (0,2). Medido com os posts reais da
         // simulação (eval/simulacao/analisar-busca.mjs): post certo passando de 21/24 para 24/24, mesmos 0,25 posts
         // errados por pergunta.
-        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
+        .filter((p) => mode !== "chat" || p.kind === "conversa" || p.score >= (p.inFolder || intent.wantsMemory || namesAuthor(message, p.author) ? 0.2 : 0.4))
         // Quem escreveu, do ponto de vista de quem pergunta: num ambiente com várias pessoas, a Kally tratava o
         // post de uma como se fosse de quem perguntava (simulação, rodada 1).
         .map((p) => (p.kind === "conversa" ? p : { ...p, author: p.authorId === userId ? "a própria pessoa que está conversando com você" : `${p.author ?? "outra pessoa"} (outra pessoa do ambiente)` }));
