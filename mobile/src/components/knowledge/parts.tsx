@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from "react";
-import { ChevronRight, FileText, Folder, Layers, MessageCircle, NotebookPen, Paperclip, Search, Sparkles, Waypoints, X, ExternalLink, Lock, PenLine } from "./icons";
+import { ChevronRight, Search, Sparkles, Waypoints, X, ExternalLink, Lock, PenLine } from "./icons";
+import { OwnIcon, type OwnIconKind } from "./own-icons";
 import {
   KIND_FILTERS,
   MASTERY_LABEL,
@@ -16,31 +17,33 @@ import {
   type StudyLink,
 } from "@/lib/knowledge";
 
-/** Glifo de cada tipo: tema = círculo roxo com halo; tópico = círculo menor com o domínio no anel; material = ícone. */
+/**
+ * Glifo de cada tipo com os ícones próprios (redesign de 27/11): tema = ladrilho de obsidiana com a pasta no tom dela;
+ * tópico = o anel do domínio; material = o ícone do tipo (pensamento, rascunho, conversa, artefato).
+ */
 export function NodeGlyph({ node, size }: { node: KnowledgeNode; size?: number }) {
   if (node.type === "THEME") {
+    const s = size ?? 34;
     return (
-      <span className={`kg kg-theme${node.virtual ? " is-virtual" : ""}`} style={{ width: size ?? 34, height: size ?? 34, ["--accent" as string]: node.color }} aria-hidden>
-        {node.virtual ? <Layers size={14} strokeWidth={1.8} /> : null}
+      <span className={`kg kg-theme${node.virtual ? " is-virtual" : ""}`} style={{ width: s, height: s, ["--accent" as string]: node.color }} aria-hidden>
+        <OwnIcon kind={node.virtual ? "grupo" : "pastas"} size={Math.max(10, Math.round(s * 0.6))} strokeWidth={s < 20 ? 2 : 1.6} />
       </span>
     );
   }
   if (node.type === "TOPIC" || node.type === "SUBTOPIC") return <span className={`kg kg-topic m-${node.mastery ?? "estudando"}`} style={{ width: size ?? 16, height: size ?? 16 }} aria-hidden />;
-  const Icon = iconOf(node);
   return (
     <span className="kg kg-doc" style={size ? { width: size, height: size } : undefined} aria-hidden>
-      <Icon size={13} strokeWidth={1.7} />
+      <OwnIcon kind={iconOf(node)} size={14} />
     </span>
   );
 }
 
-export function iconOf(node: KnowledgeNode) {
-  if (node.type === "POST") return node.draft ? PenLine : FileText;
-  if (node.type === "RESOURCE") return node.resource === "artefato" ? Sparkles : MessageCircle;
-  if (node.type === "NOTE") return NotebookPen;
-  if (node.type === "DOCUMENT") return Paperclip;
-  if (node.type === "THEME") return Folder;
-  return Waypoints;
+export function iconOf(node: KnowledgeNode): OwnIconKind {
+  if (node.type === "POST") return node.draft ? "rascunho" : "pensamentos";
+  if (node.type === "RESOURCE") return node.resource === "artefato" ? "artefatos" : "conversas";
+  if (node.type === "THEME") return "pastas";
+  if (node.type === "TOPIC" || node.type === "SUBTOPIC") return "topicos";
+  return "materiais";
 }
 
 /* --------------------------------- Explorador --------------------------------- */

@@ -4,6 +4,7 @@ import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
 import { layerDashed, layerPlain, sdfCircle, sdfDiamond } from "sigma/rendering";
 import { folderTone } from "@shared/color";
+import { ownIconSvg, type OwnIconKind } from "./own-icons";
 import { kindOf, passes, type GraphIndex, type KindFilter, type KnowledgeGraph } from "@/lib/knowledge";
 
 /**
@@ -76,7 +77,8 @@ function buildGraph(data: KnowledgeGraph, index: GraphIndex, kinds: Set<KindFilt
       x: Math.cos(a) * R + Math.cos(jitter) * spread,
       y: Math.sin(a) * R + Math.sin(jitter) * spread,
       size: isTheme ? 6.5 : isTopic ? 4.5 : 3.4,
-      color: isTheme ? tone : isTopic ? mastery : COLORS.material,
+      // A pasta é desenhada pelo ícone dentro da cápsula; o ponto do nó some nela (fica só como âncora das linhas).
+      color: isTheme ? COLORS.capsule : isTopic ? mastery : COLORS.material,
       shape: isTheme || isTopic ? "circle" : "diamond",
       label: n.label,
       labelColor: isTheme ? COLORS.label : isTopic ? COLORS.labelTopic : COLORS.labelFaint,
@@ -94,6 +96,10 @@ function buildGraph(data: KnowledgeGraph, index: GraphIndex, kinds: Set<KindFilt
       bdRadius: isTheme ? 15 : 7.5,
       tone,
       kind: n.type,
+      // Ícone próprio ao lado do nome: pasta (no tom dela) e o tipo de cada material. Tópico já é o anel do domínio.
+      attach: isTopic ? null : "icone",
+      iconKind: (isTheme ? (n.virtual ? "grupo" : "pastas") : n.type === "POST" ? (n.draft ? "rascunho" : "pensamentos") : n.resource === "artefato" ? "artefatos" : n.resource === "conversa" ? "conversas" : "materiais") as OwnIconKind,
+      iconColor: isTheme ? tone : COLORS.labelFaint,
     });
   }
   for (const e of data.edges) {
@@ -204,7 +210,16 @@ export default function RelationalMap(props: RelationalProps) {
 
     const renderer = new Sigma(g, container.current, {
       primitives: {
-        nodes: { shapes: [sdfCircle(), sdfDiamond()] },
+        nodes: {
+          shapes: [sdfCircle(), sdfDiamond()],
+          labelAttachments: {
+            icone: (ctx) => {
+              const a = ctx.attributes as { iconKind?: OwnIconKind; iconColor?: string; kind?: string };
+              const px = (a.kind === "THEME" ? 16 : 13) * ctx.pixelRatio;
+              return { type: "svg", svg: ownIconSvg(a.iconKind ?? "materiais", a.iconColor ?? COLORS.labelFaint, px, 1.8) };
+            },
+          },
+        },
         edges: {
           layers: [
             layerPlain({ color: { attribute: "color" } }),
@@ -223,6 +238,8 @@ export default function RelationalMap(props: RelationalProps) {
             labelSize: { attribute: "labelSize" },
             labelFont: "Instrument Sans, system-ui, sans-serif",
             labelPosition: { attribute: "labelPos", defaultValue: "below" },
+            labelAttachment: { attribute: "attach", defaultValue: null },
+            labelAttachmentPlacement: "left",
             backdropVisibility: { attribute: "bdVis", defaultValue: "hidden" },
             backdropArea: { attribute: "bdArea", defaultValue: "node" },
             backdropColor: { attribute: "bdColor", defaultValue: "rgba(0,0,0,0)" },
