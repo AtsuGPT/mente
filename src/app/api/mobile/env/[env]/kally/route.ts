@@ -195,8 +195,8 @@ export async function POST(request: Request, context: EnvContext) {
         .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
 
   // "Salva esse tópico numa pasta": a pessoa chama o cartão da pasta (decisão 2). Resposta curta, sem modelo.
-  if (requested === "auto" && !postCommand && !hasReviewPayload && !body.attachment && body.retry !== true && asksSaveTopic(message)) {
-    return saveTopicTurn({ conversation, message, environmentId: access.environment.id, userId, canCreate: access.permissions.manageContent });
+  if (requested === "auto" && !postCommand && !hasReviewPayload && !body.attachment && asksSaveTopic(message)) {
+    return saveTopicTurn({ conversation, message, retry: body.retry === true, environmentId: access.environment.id, userId, canCreate: access.permissions.manageContent });
   }
 
   // Artefatos (src/server/artifacts): pedido para criar, mudar, explicar ou listar um artefato segue um caminho próprio
@@ -1200,11 +1200,15 @@ function resumedNote(lastAt?: Date | string) {
  * Pedido de guardar o tópico numa pasta: responde no mesmo protocolo de eventos, sem modelo. O cartão vem como evento
  * `folderPrompt`; numa conversa salva, a pergunta e a resposta curta ficam no histórico como qualquer troca.
  */
-async function saveTopicTurn(input: { conversation: Awaited<ReturnType<typeof getConversation>>; message: string; environmentId: string; userId: string; canCreate: boolean }) {
+async function saveTopicTurn(input: { conversation: Awaited<ReturnType<typeof getConversation>>; message: string; retry: boolean; environmentId: string; userId: string; canCreate: boolean }) {
   const { conversation } = input;
   const reply = await saveTopicReply({ environmentId: input.environmentId, userId: input.userId, canCreate: input.canCreate, conversation });
   if (conversation) {
-    await addMessage(conversation.id, "user", input.message);
+    // Refazer: a pergunta já está gravada; troca só a resposta (e o cartão abre de novo).
+    const asked = conversation.messages.at(conversation.messages.at(-1)?.role === "assistant" ? -2 : -1);
+    const savedQuestion = asked?.role === "user" && asked.content === input.message;
+    if (input.retry) await dropLastAnswer(conversation.id);
+    if (!input.retry || !savedQuestion) await addMessage(conversation.id, "user", input.message);
     await addMessage(conversation.id, "assistant", reply.text, []);
   }
   const encoder = new TextEncoder();

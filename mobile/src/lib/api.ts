@@ -21,6 +21,7 @@ import type {
   KallyAttachment,
   KallyConversation,
   KallyDocument,
+  KallyFolderChoice,
   KallyImage,
   KallyMemoryItem,
   KallyMessage,
@@ -190,6 +191,8 @@ export function envApi(environmentId: string) {
     saveKallyConversation: (input: { mode?: string; messages: { role: "user" | "assistant"; content: string }[] }) =>
       request<{ id: string; title: string }>(`${base}/kally/salvar`, { method: "POST", json: input }),
     /** Botão "Parar": cancela no servidor a resposta em andamento de uma conversa salva. */
+    kallySaveFolder: (conversationId: string, choice: KallyFolderChoice) =>
+      request<{ category: Category | null; moved: number }>(`${base}/kally/${encodeURIComponent(conversationId)}/pasta`, { method: "POST", json: choice }),
     stopKally: (conversationId: string) => request<{ stopped: boolean }>(`${base}/kally/parar`, { method: "POST", json: { conversationId } }),
     /** Memória da Kally da própria pessoa neste ambiente. */
     kallyMemories: () => request<{ enabled: boolean; memories: KallyMemoryItem[] }>(`${base}/kally/memoria`),

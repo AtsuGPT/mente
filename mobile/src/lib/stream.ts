@@ -1,13 +1,14 @@
 import { fetch as streamingFetch } from "expo/fetch";
 import { authHeaders } from "./api";
 import { API_URL } from "./config";
+import type { KallyFolderPrompt } from "./types";
 
 /**
  * Lê as rotas de IA do backend (/api/thoughts/[slug]/insight e a Kally em /api/mobile/env/…/kally),
  * que respondem em Server-Sent Events: "data: {...}\n\n". Não altera a IA: só consome.
  */
 
-export type StreamEvent = { text?: string; error?: string; done?: boolean; status?: string; conversationId?: string | null; mode?: string; temporary?: boolean; searched?: boolean; review?: unknown; dev?: boolean; model?: string; stats?: unknown; sources?: { title: string; slug: string; href?: string; kind?: string; url?: string }[]; remembered?: string[]; offerSave?: boolean; file?: { id: string; name: string; format: "pdf" | "md" | "html"; bytes: number; pages: number | null } };
+export type StreamEvent = { text?: string; error?: string; done?: boolean; status?: string; conversationId?: string | null; mode?: string; temporary?: boolean; searched?: boolean; review?: unknown; dev?: boolean; model?: string; stats?: unknown; sources?: { title: string; slug: string; href?: string; kind?: string; url?: string }[]; remembered?: string[]; offerSave?: boolean; folderPrompt?: KallyFolderPrompt; file?: { id: string; name: string; format: "pdf" | "md" | "html"; bytes: number; pages: number | null } };
 
 export async function streamEvents(path: string, body: unknown, onEvent: (event: StreamEvent) => void, signal?: AbortSignal) {
   let response;

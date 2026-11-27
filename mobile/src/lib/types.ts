@@ -187,7 +187,11 @@ export type KallyReview = { resumo: string; sugestoes: KallySuggestion[]; trunca
 export type KallyAttachment = { name: string; kind: "pdf" | "imagem" | "texto" | "docx" | "csv" | "audio"; text: string; pages?: number; truncated?: boolean };
 export type KallyImage = { title: string; url: string; thumb: string; author: string; license: string; page: string };
 /** owner: só nas conversas de outra pessoa, que o dev da plataforma pode ler (nas próprias é null). */
-export type KallyConversation = { id: string; mode: KallyMode; title: string; createdAt: string; updatedAt: string; owner?: { username: string; displayName: string } | null };
+export type KallyConversation = { id: string; mode: KallyMode; title: string; categoryId?: string | null; folderDeclined?: boolean; createdAt: string; updatedAt: string; owner?: { username: string; displayName: string } | null };
+/** Cartão da pasta: um tópico nasceu numa conversa sem pasta, ou a pessoa pediu para guardar (evento folderPrompt). */
+export type KallyFolderPrompt = { conversationId: string; topicId: string | null; topicTitle: string; suggestedName: string; folders: { id: string; name: string; color: string }[]; canCreate: boolean };
+/** Resposta do cartão da pasta. */
+export type KallyFolderChoice = { kind: "existente"; categoryId: string } | { kind: "nova"; name: string } | { kind: "recusa" };
 /** Item da memória da Kally (o que a pessoa contou em conversas salvas). */
 export type KallyMemoryItem = { id: string; text: string; kind: "preferencia" | "fato" | "objetivo" | "contexto"; conversationId: string | null; uses: number; lastUsedAt: string | null; createdAt: string; updatedAt: string };
 export type KallyMessage = { id: string; role: "user" | "assistant"; content: string; sources: KallySource[]; createdAt: string };

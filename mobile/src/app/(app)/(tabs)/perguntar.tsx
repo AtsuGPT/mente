@@ -17,7 +17,7 @@ import { addStep, closeStep, formatElapsed, type ProgressStep } from "@/lib/prog
 import { formatDateShort, formatHandle } from "@/lib/format";
 import { pickImage, uploadablePart } from "@/lib/upload";
 import { getItem, setItem } from "@/lib/secure-storage";
-import type { KallyAttachment, KallyConversation, KallyImage, KallyMode, KallyReview, KallySource } from "@/lib/types";
+import type { KallyAttachment, KallyConversation, KallyFolderChoice, KallyFolderPrompt, KallyImage, KallyMode, KallyReview, KallySource } from "@/lib/types";
 import { Markdown } from "@/components/markdown/markdown";
 import { EnvironmentHeader, goToEnvironments, ROLE_LABEL } from "@/components/environment-header";
 import { VoiceButton } from "@/components/voice-button";
@@ -32,6 +32,7 @@ import { useGreeting, useKallyPhrase, type PhraseKey } from "@/lib/kally-phrases
 import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "@/components/ui/surface";
 import { Sheet } from "@/components/ui/sheet";
+import { FolderSheet } from "@/components/kally/folder-sheet";
 import { enter, exit, layoutTransition, spring, timing } from "@/theme/motion";
 import { maxWidths, useContainer, useLayout } from "@/theme/layout";
 import { QuizContext } from "@/components/markdown/quiz";
@@ -81,6 +82,8 @@ type Message = {
   offerSave?: boolean;
   /** resposta à oferta: salva ou dispensada */
   saveAnswered?: "salva" | "dispensada";
+  /** a conversa foi guardada nesta pasta pelo cartão da pasta (nome da pasta) */
+  folderSaved?: string;
   /** mensagem da pessoa esperando a vez (enviada enquanto a Kally respondia) */
   queued?: boolean;
   /** resposta interrompida pelo botão Parar */
@@ -203,6 +206,8 @@ function Kally() {
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
   const [historyAll, setHistoryAll] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Cartão da pasta: abre quando a resposta termina de aparecer, se o servidor mandou folderPrompt.
+  const [folderAsk, setFolderAsk] = useState<{ prompt: KallyFolderPrompt; messageId: string } | null>(null);
   // Conversa de outra pessoa aberta pelo dev da plataforma: só leitura (o servidor não deixa continuar).
   const [readingOwner, setReadingOwner] = useState<NonNullable<KallyConversation["owner"]> | null>(null);
   const [dev, setDevState] = useState<DevConfig>(DEV_OFF);
@@ -503,6 +508,21 @@ function Kally() {
     [api, mode, loadHistory],
   );
 
+  /** Resposta do cartão da pasta: grava e marca a mensagem ("Guardei na pasta X"). */
+  const answerFolder = useCallback(
+    async (prompt: KallyFolderPrompt, choice: KallyFolderChoice) => {
+      const result = await api.kallySaveFolder(prompt.conversationId, choice);
+      const messageId = folderAsk?.messageId;
+      if (result.category && messageId) {
+        const name = result.category.name;
+        setMessages((current) => current.map((m) => (m.id === messageId ? { ...m, folderSaved: name } : m)));
+      }
+      if (result.category) void loadHistory();
+      return result.category;
+    },
+    [api, folderAsk, loadHistory],
+  );
+
   // Última conversa salva deste ambiente: guardada no aparelho e reaberta quando a Kally abre de novo (a pessoa saiu e
   // voltou, mesmo no outro dia), para continuar o trabalho de onde parou. "Nova conversa" esquece.
   const lastKey = `minha-mente.kally-ultima.${environment.id}`;
@@ -723,6 +743,7 @@ function Kally() {
     /** conversa salva desta mensagem (já existente ou criada agora): com ela, a resposta continua mesmo se a conexão cair */
     let savedId: string | null = conversationId;
     let textStarted = false;
+    let folderPrompt: KallyFolderPrompt | null = null;
     const controller = new AbortController();
     abortRef.current = controller;
     stopRequested.current = false;
@@ -800,6 +821,7 @@ function Kally() {
         if (event.remembered?.length) update((m) => ({ ...m, remembered: event.remembered }));
         if (event.file) { const file = event.file; update((m) => ({ ...m, files: [...(m.files ?? []), file] })); }
         if (event.offerSave) update((m) => ({ ...m, offerSave: true }));
+        if (event.folderPrompt) folderPrompt = event.folderPrompt;
         const extra = event as { model?: string; stats?: DevStats };
         if (extra.model) update((m) => ({ ...m, model: extra.model }));
         if (extra.stats) update((m) => ({ ...m, stats: extra.stats }));
@@ -823,6 +845,11 @@ function Kally() {
         }
       }, controller.signal);
       await drain();
+      // A resposta já está toda na tela: agora o cartão da pasta (não interrompe a leitura no meio).
+      if (folderPrompt && !stopRequested.current) {
+        const prompt = folderPrompt;
+        setFolderAsk({ prompt, messageId: assistant.id });
+      }
     } catch (cause) {
       flushAll();
       // Parada pelo botão: fica o que já foi escrito, marcado como interrompido (o servidor também parou).
@@ -1162,6 +1189,8 @@ function Kally() {
       ) : null}
       </View>
 
+      <FolderSheet prompt={folderAsk?.prompt ?? null} onClose={() => setFolderAsk(null)} onAnswer={answerFolder} />
+
       <Sheet visible={modeMenu} onClose={() => setModeMenu(false)}>
             <AppText variant="label" color={colors.faint} style={{ marginBottom: space.sm }}>Como a Kally deve ajudar</AppText>
             <Touchable onPress={() => afterMenu(() => setAnswerSheet(true))} style={styles.modeRow}>
@@ -1444,6 +1473,12 @@ const Bubble = memo(function Bubble({ item, pending, technical, onSaveAnswer, on
         <View style={styles.memoryNote}>
           <Icon name="brain" size={13} color={colors.violet300} />
           <AppText variant="small" color={colors.violet300} style={{ flex: 1 }}>Guardei na memória: {item.remembered.join(" · ")}</AppText>
+        </View>
+      ) : null}
+      {item.folderSaved && !pending ? (
+        <View style={styles.memoryNote}>
+          <Icon name="folder" size={13} color={colors.violet300} />
+          <AppText variant="small" color={colors.violet300} style={{ flex: 1 }}>Guardei na pasta {item.folderSaved}. Os próximos assuntos desta conversa também ficam lá.</AppText>
         </View>
       ) : null}
       {item.offerSave && !pending && item.saveAnswered !== "dispensada" ? (
