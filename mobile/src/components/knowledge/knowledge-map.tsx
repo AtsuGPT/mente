@@ -6,7 +6,6 @@ import "@xyflow/react/dist/style.css";
 import "./knowledge.css";
 import { KIND_FILTERS, indexGraph, neighborhood, pathTo, visibleTree, type KindFilter, type KnowledgeGraph, type KnowledgeLink, type KnowledgeNode, type StudyLink } from "@/lib/knowledge";
 import { Explorer, Inspector } from "./parts";
-import { StructuredMap } from "./structured";
 import { Starfield } from "./starfield";
 import InstrumentSans400 from "@expo-google-fonts/instrument-sans/400Regular/InstrumentSans_400Regular.ttf";
 import InstrumentSans500 from "@expo-google-fonts/instrument-sans/500Medium/InstrumentSans_500Medium.ttf";
@@ -20,6 +19,8 @@ import Newsreader500 from "@expo-google-fonts/newsreader/500Medium/Newsreader_50
  */
 
 const RelationalMap = lazy(() => import("./relational"));
+// O Estruturado (React Flow + ELK, ~1,4 MB) também só baixa quando é escolhido: o padrão é o Relacional.
+const StructuredMap = lazy(() => import("./structured").then((m) => ({ default: m.StructuredMap })));
 
 type Mode = "estruturado" | "relacional";
 type CameraRequest = { seq: number; target: string | "all"; subtree?: boolean } | null;
@@ -143,7 +144,9 @@ export default function KnowledgeMap(props: {
       <div className="kcanvas">
         <Starfield />
         {mode === "estruturado" ? (
-          <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={insets} />
+          <Suspense fallback={<div className="kloading">Carregando o modo estruturado…</div>}>
+            <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={insets} />
+          </Suspense>
         ) : (
           <RelationalBoundary onFallback={() => setMode("estruturado")}>
             <Suspense fallback={<div className="kloading">Carregando o modo relacional…</div>}>

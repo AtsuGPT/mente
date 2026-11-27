@@ -1,5 +1,4 @@
 import { useEffect, useState, type ComponentProps, type ComponentType } from "react";
-import { LoadSkiaWeb } from "@shopify/react-native-skia/lib/module/web";
 import { KallyOrb } from "@/components/kally-orb";
 import type { KallyOrbitalSkia } from "./orbital-skia";
 import type { KallyOrbitalState } from "./activity";
@@ -16,7 +15,9 @@ type Props = ComponentProps<typeof KallyOrbitalSkia>;
 let loaded: Promise<ComponentType<Props>> | null = null;
 function loadOrbital() {
   if (!loaded) {
-    loaded = LoadSkiaWeb({ locateFile: (file) => `${process.env.EXPO_PUBLIC_WEB_BASE ?? ""}/${file}` })
+    // O carregador do Skia também vem sob demanda: fora do pacote comum que toda tela baixa.
+    loaded = import("@shopify/react-native-skia/lib/module/web")
+      .then(({ LoadSkiaWeb }) => LoadSkiaWeb({ locateFile: (file) => `${process.env.EXPO_PUBLIC_WEB_BASE ?? ""}/${file}` }))
       .then(() => import("./orbital-skia"))
       .then((module) => module.KallyOrbitalSkia as ComponentType<Props>);
   }
