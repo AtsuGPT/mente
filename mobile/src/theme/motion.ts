@@ -33,6 +33,8 @@ const system = { reduceMotion: ReduceMotion.System } as const;
 
 export const timing = {
   micro: { duration: duration.micro, easing: easing.standard, ...system },
+  /** Cor que muda (hover, seleção): devagar o bastante para se ver a transição. */
+  color: { duration: 220, easing: easing.standard, ...system },
   short: { duration: duration.short, easing: easing.standard, ...system },
   enter: { duration: duration.medium, easing: easing.decelerate, ...system },
   exit: { duration: duration.short, easing: easing.accelerate, ...system },
@@ -46,8 +48,8 @@ export const timing = {
 export const spring = {
   /** Afundar ao pressionar: chega quase no mesmo quadro do toque, sem rebote. */
   press: { duration: 110, dampingRatio: 1, ...system },
-  /** Voltar ao soltar: assenta sem passar do ponto (amortecimento alto). */
-  release: { duration: 260, dampingRatio: 0.86, ...system },
+  /** Voltar ao soltar: uma mola leve, que passa um fio do ponto e assenta (redesign de 27/11). */
+  release: { duration: 340, dampingRatio: 0.62, ...system },
   /** Indicadores de seleção (abas, chips) indo de um lugar a outro. */
   selection: { duration: 320, dampingRatio: 0.92, ...system },
   /** Folhas e diálogos entrando. */

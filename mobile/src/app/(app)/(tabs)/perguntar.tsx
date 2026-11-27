@@ -182,7 +182,8 @@ function Kally() {
   // O desenho ocupa ~72% do quadro; o resto é o halo e o espaço do voo das partículas.
   const orbSize = short ? 150 : width < 360 ? 184 : size === "compact" ? 210 : width >= 1100 ? 300 : 260;
   const wide = width >= 900;
-  const column = { flex: 1, width: "100%" as const, maxWidth: maxWidths.content + gutter * 2, alignSelf: "center" as const };
+  // No computador a conversa fica mais larga e mais junta, para caber mais mensagens na tela (pedido de 27/11).
+  const column = { flex: 1, width: "100%" as const, maxWidth: (wide ? 1000 : maxWidths.content) + gutter * 2, alignSelf: "center" as const };
   const { api, environment, permissions, role } = useCurrentEnvironment();
   const [mode, setMode] = useState<KallyMode>("auto");
   const [modeMenu, setModeMenu] = useState(false);
@@ -1031,7 +1032,7 @@ function Kally() {
         keyExtractor={(m) => m.id}
         // flexGrow só para centralizar o estado vazio: com mensagens, no react-native-web ele
         // prenderia o conteúdo na altura da tela (e a lista nunca saberia que cresceu).
-        contentContainerStyle={[{ padding: space.lg, gap: space.lg }, !messages.length && { flexGrow: 1 }]}
+        contentContainerStyle={[{ padding: space.lg, gap: wide ? space.md : space.lg }, !messages.length && { flexGrow: 1 }]}
         onScroll={onScroll}
         scrollEventThrottle={16}
         // Durante o streaming o fim avança sem animação (várias animações seguidas tremem).
@@ -2161,7 +2162,7 @@ const styles = StyleSheet.create({
   saveToggle: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg },
   check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet600, borderColor: colors.violet600 },
-  user: { alignSelf: "flex-end", maxWidth: "86%", paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: 22, borderBottomRightRadius: 6 },
+  user: { alignSelf: "flex-end", maxWidth: "78%", paddingHorizontal: space.lg, paddingVertical: space.sm + 2, borderRadius: 20, borderBottomRightRadius: 6 },
   userFill: { borderRadius: 22, borderBottomRightRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(165,139,247,0.3)" },
   userLabel: { fontSize: 10, lineHeight: 14, marginBottom: 2, opacity: 0.8 },
   assistant: { paddingRight: space.sm },

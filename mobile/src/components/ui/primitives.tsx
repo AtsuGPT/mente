@@ -16,6 +16,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import Animated, {
+  Easing,
   cancelAnimation,
   interpolate,
   interpolateColor,
@@ -99,11 +100,11 @@ export function Touchable({ style, onPressIn, onPressOut, onHoverIn, onHoverOut,
         onBlur?.(event);
       }}
       onHoverIn={(event) => {
-        if (hover) hover.value = withTiming(1, timing.micro);
+        if (hover) hover.value = withTiming(1, timing.color);
         onHoverIn?.(event);
       }}
       onHoverOut={(event) => {
-        if (hover) hover.value = withTiming(0, timing.short);
+        if (hover) hover.value = withTiming(0, timing.color);
         onHoverOut?.(event);
       }}
       onPress={(event) => {
@@ -123,6 +124,42 @@ export function Touchable({ style, onPressIn, onPressOut, onHoverIn, onHoverOut,
   );
 }
 
+/**
+ * Onda de luz do clique: um círculo claro nasce no ponto tocado e se abre até sumir. Fica dentro de uma camada
+ * recortada no formato do botão (o botão em si não corta nada: contorno de foco e brilho continuam por fora).
+ */
+function useRipple(size: number, color = "rgba(199,183,250,0.26)") {
+  const reduce = useReducedMotion();
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const t = useSharedValue(0);
+  const start = (event: { nativeEvent: { locationX?: number; locationY?: number; pageX?: number; pageY?: number }; currentTarget?: unknown }) => {
+    if (reduce) return;
+    let lx = event.nativeEvent.locationX ?? size / 2;
+    let ly = event.nativeEvent.locationY ?? size / 2;
+    // Na web o locationX vem do elemento tocado (pode ser o texto dentro do botão): mede pelo próprio botão.
+    const rect = Platform.OS === "web" ? (event.currentTarget as { getBoundingClientRect?: () => DOMRect } | null)?.getBoundingClientRect?.() : null;
+    if (rect && event.nativeEvent.pageX !== undefined && event.nativeEvent.pageY !== undefined) {
+      lx = event.nativeEvent.pageX - (rect.left + window.scrollX);
+      ly = event.nativeEvent.pageY - (rect.top + window.scrollY);
+    }
+    x.value = lx;
+    y.value = ly;
+    t.value = 0;
+    t.value = withTiming(1, { duration: 680, easing: Easing.bezier(0.16, 1, 0.3, 1) });
+  };
+  const wave = useAnimatedStyle(() => ({
+    opacity: t.value === 0 || t.value === 1 ? 0 : interpolate(t.value, [0, 0.5, 1], [0.95, 0.8, 0]),
+    transform: [{ translateX: x.value - size }, { translateY: y.value - size }, { scale: interpolate(t.value, [0, 1], [0.04, 1]) }],
+  }));
+  const layer = (radiusStyle: ViewStyle) => (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.rippleClip, radiusStyle]}>
+      <Animated.View style={[{ position: "absolute", left: 0, top: 0, width: size * 2, height: size * 2, borderRadius: size, backgroundColor: color }, wave]} />
+    </View>
+  );
+  return { start, layer };
+}
+
 function isKeyboardFocus(event: unknown): boolean {
   const target = (event as { target?: { matches?: (selector: string) => boolean } } | null)?.target;
   try {
@@ -133,7 +170,7 @@ function isKeyboardFocus(event: unknown): boolean {
 }
 
 /** 0 ↔ 1 seguindo um booleano, com a curva padrão (seleção, foco, erro, desabilitado). */
-function useToggle(on: boolean, config: WithTimingConfig = timing.short) {
+function useToggle(on: boolean, config: WithTimingConfig = timing.color) {
   const value = useSharedValue(on ? 1 : 0);
   useEffect(() => {
     value.value = withTiming(on ? 1 : 0, config);
@@ -187,12 +224,14 @@ export function Button({
   // O rótulo some e o indicador aparece no mesmo lugar: a largura do botão não muda.
   const content = useAnimatedStyle(() => ({ opacity: 1 - busy.value }));
   const spinner = useAnimatedStyle(() => ({ opacity: busy.value }));
+  const ripple = useRipple(compact ? 120 : 180, variant === "primary" ? "rgba(255,255,255,0.3)" : "rgba(199,183,250,0.2)");
   return (
     <Touchable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       disabled={inactive}
+      onPressIn={ripple.start}
       onPress={onPress}
       haptic
       press={press}
@@ -211,6 +250,7 @@ export function Button({
         <Text style={[type.uiMedium, { color: palette.fg }]}>{label}</Text>
       </Animated.View>
       {variant === "primary" ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip, styles.shade, shade]} /> : null}
+      {ripple.layer(styles.clip)}
       {loading ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center, spinner]}>
           <ActivityIndicator color={palette.fg} size="small" />
@@ -228,12 +268,14 @@ export function IconButton({ name, onPress, label, color = colors.text, active }
     backgroundColor: interpolateColor(on.value, [0, 1], [interpolateColor(Math.max(hover.value * 0.6, press.value), [0, 1], ["rgba(20,19,25,0.86)", "rgba(36,33,44,0.95)"]), tint.selected]),
     borderColor: interpolateColor(on.value, [0, 1], ["rgba(255,255,255,0.08)", tint.selectedBorder]),
   }));
+  const ripple = useRipple(44);
   return (
     <Touchable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: !!active }}
       hitSlop={4}
+      onPressIn={ripple.start}
       onPress={() => {
         feedback.tap();
         onPress();
@@ -243,6 +285,7 @@ export function IconButton({ name, onPress, label, color = colors.text, active }
       pressScale={0.9}
       style={[styles.iconButton, surface]}
     >
+      {ripple.layer(styles.iconButtonClip)}
       <Icon name={name} size={20} color={active ? colors.violet300 : color} />
     </Touchable>
   );
@@ -302,10 +345,12 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
     borderColor: interpolateColor(on.value, [0, 1], [interpolateColor(hover.value, [0, 1], [colors.line, colors.lineStrong]), tint.selectedBorder]),
   }));
   const text = useAnimatedStyle(() => ({ color: interpolateColor(on.value, [0, 1], [colors.muted, colors.violet200]) }));
+  const ripple = useRipple(90);
   return (
     <Touchable
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
+      onPressIn={ripple.start}
       onPress={
         onPress
           ? () => {
@@ -318,6 +363,7 @@ export function Chip({ label, selected, onPress, dot, count }: { label: string; 
       pressScale={0.95}
       style={[styles.chip, surface]}
     >
+      {ripple.layer(styles.chipClip)}
       {dot ? <View style={[styles.dot, { backgroundColor: dot }]} /> : null}
       <Animated.Text style={[type.small, { fontFamily: fonts.sansMedium }, text]}>{label}</Animated.Text>
       {count !== undefined ? <Text style={[type.small, { color: colors.faint }]}>{count}</Text> : null}
@@ -421,6 +467,9 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: 44, paddingHorizontal: space.lg },
   center: { alignItems: "center", justifyContent: "center" },
   clip: { borderRadius: radius.pill, overflow: "hidden" },
+  rippleClip: { overflow: "hidden" },
+  iconButtonClip: { borderRadius: radius.pill },
+  chipClip: { borderRadius: radius.pill },
   sheen: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
   shade: { backgroundColor: "#000000" },
   iconButton: {

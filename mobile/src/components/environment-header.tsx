@@ -2,7 +2,6 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCurrentEnvironment } from "@/lib/environment";
-import { EnvironmentGlyph } from "./environment-glyph";
 import { AppText, Touchable } from "./ui/primitives";
 import { Icon } from "./ui/icon";
 import { DashboardButton } from "./left-dashboard";
@@ -20,7 +19,7 @@ export function goToEnvironments() {
  * botão de vidro que leva à central para trocar de ambiente.
  */
 export function EnvironmentHeader({ title, subtitle }: { title?: string; subtitle?: string }) {
-  const { environment, role, session } = useCurrentEnvironment();
+  const { environment, role } = useCurrentEnvironment();
   return (
     <View style={styles.wrap}>
       <View style={styles.top}>
@@ -28,7 +27,6 @@ export function EnvironmentHeader({ title, subtitle }: { title?: string; subtitl
       <Touchable accessibilityRole="button" accessibilityLabel={`Trocar de ambiente (atual: ${environment.name})`} onPress={goToEnvironments} haptic pressScale={0.97} style={styles.chip}>
         <LinearGradient colors={gradients.border} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.chipBorder]} />
         <View style={styles.chipBody}>
-          <EnvironmentGlyph color={environment.color} icon={environment.icon} image={session.image} size={24} />
           <AppText variant="label" color={colors.violet200} numberOfLines={1} style={{ flexShrink: 1 }}>
             {environment.name}
           </AppText>
@@ -50,6 +48,6 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", gap: space.sm, marginBottom: space.sm },
   chip: { alignSelf: "flex-start", flexShrink: 1, borderRadius: radius.pill },
   chipBorder: { borderRadius: radius.pill },
-  chipBody: { flexDirection: "row", alignItems: "center", gap: space.sm, margin: 1, paddingLeft: 4, paddingRight: space.md, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.glass, maxWidth: 320 },
+  chipBody: { flexDirection: "row", alignItems: "center", gap: space.sm, margin: 1, paddingLeft: space.md, paddingRight: space.md, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.glass, maxWidth: 320 },
   title: { marginTop: 2 },
 });

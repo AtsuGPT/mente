@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
@@ -12,13 +12,16 @@ import { enter } from "@/theme/motion";
 import { AppText, Chip, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
-import { useContainer, useLayout } from "@/theme/layout";
+import { useLayout } from "@/theme/layout";
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
-  const container = useContainer("content");
-  const { gutter } = useLayout();
-  const { api, environment, permissions, session } = useCurrentEnvironment();
+  const { gutter, width, sidebar, size } = useLayout();
+  // No computador o feed ocupa a tela inteira, em colunas (pedido de 27/11); no celular, uma coluna.
+  const mainWidth = width - (!sidebar ? 0 : size === "expanded" ? 236 : 84);
+  const columns = mainWidth >= 1240 ? 3 : mainWidth >= 820 ? 2 : 1;
+  const container = useMemo(() => ({ width: "100%" as const, maxWidth: columns === 1 ? 840 + gutter * 2 : 1680, alignSelf: "center" as const, paddingHorizontal: columns === 1 ? gutter : gutter + space.lg }), [columns, gutter]);
+  const { api, environment, permissions } = useCurrentEnvironment();
   const [categories, setCategories] = useState<(Category & { count: number })[]>([]);
   const [selected, setSelected] = useState<string | undefined>();
   const feed = useFeed(api, { categoria: selected });
@@ -41,7 +44,6 @@ export default function FeedScreen() {
     }, [canWrite]),
   );
 
-  const author = environment.name;
   // Cada cartão entra animado uma vez; rolar a lista e voltar não repete a entrada.
   const entered = useRef(new Set<string>());
   // Onde começa a última página carregada: os cartões novos (rolar até o fim) também entram em sequência,
@@ -53,15 +55,30 @@ export default function FeedScreen() {
   return (
     <View style={{ flex: 1 }}>
       <FlatList
+        key={`colunas-${columns}`}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? { gap: space.xxl + space.lg } : undefined}
         data={feed.loading ? [] : feed.posts}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[{ paddingTop: insets.top + space.md, paddingBottom: space.xxxl + 40, gap: space.md }, container]}
+        contentContainerStyle={[{ paddingTop: insets.top + space.md, paddingBottom: space.xxxl + 40 }, container]}
         refreshControl={<RefreshControl refreshing={feed.refreshing} onRefresh={() => { loadCategories(); void feed.refresh(); }} tintColor={colors.violet400} />}
         onEndReachedThreshold={0.4}
         onEndReached={feed.loadMore}
         ListHeaderComponent={
-          <View style={{ gap: space.lg, marginBottom: space.xs }}>
+          <View style={{ gap: space.lg, marginBottom: space.sm }}>
             <EnvironmentHeader title="Feed" subtitle={environment.description || undefined} />
+            {canWrite ? (
+              <Touchable
+                accessibilityRole="button"
+                accessibilityLabel="Escrever um pensamento"
+                onPress={() => router.push({ pathname: "/editor/[id]", params: { id: "novo" } })}
+                pressScale={0.99}
+                style={styles.composer}
+              >
+                <AppText variant="body" color={colors.faint} numberOfLines={1} style={{ flex: 1 }}>Escreva um pensamento…</AppText>
+                <Icon name="plus" size={18} color={colors.muted} />
+              </Touchable>
+            ) : null}
 
             <View style={styles.headingRow}>
               <AppText variant="heading">{selected ? categories.find((c) => c.slug === selected)?.name ?? "Pasta" : "Recentes"}</AppText>
@@ -89,9 +106,8 @@ export default function FeedScreen() {
           entered.current.add(item.id);
           const slot = index - pages.current.start;
           return (
-          <Animated.View entering={first && slot >= 0 && slot < 8 ? enter.stagger(slot) : undefined}>
-            {/* Destaque ocasional: só o mais recente, e só no feed completo. */}
-            <PostCard post={item} author={author} avatar={session.image} featured={index === 0 && !selected} />
+          <Animated.View entering={first && slot >= 0 && slot < 8 ? enter.stagger(slot) : undefined} style={columns > 1 ? { flex: 1 / columns } : undefined}>
+            <PostCard post={item} />
           </Animated.View>
           );
         }}
@@ -114,7 +130,7 @@ export default function FeedScreen() {
         ListFooterComponent={feed.loadingMore ? <ActivityIndicator color={colors.violet400} style={{ marginVertical: space.lg }} /> : undefined}
       />
 
-      {canWrite ? (
+      {canWrite && !sidebar ? (
         <Touchable
           accessibilityRole="button"
           accessibilityLabel="Novo pensamento"
@@ -130,6 +146,7 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
+  composer: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(255,255,255,0.02)" },
   headingRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   fab: {
     position: "absolute",

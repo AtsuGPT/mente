@@ -20,7 +20,11 @@ export default function LoginScreen() {
   const { pending: intent } = useEnvironment();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const container = useContainer("form");
+  // No computador a tela de entrar cresce: título grande, campos e botões maiores (pedido de 27/11).
+  const wide = width >= 1024 && height >= 640;
+  const baseContainer = useContainer("form");
+  const container = wide ? { ...baseContainer, maxWidth: 680 } : baseContainer;
+  const big = wide ? styles.bigInput : undefined;
   const passwordRef = useRef<TextInputInstance>(null);
 
   const [username, setUsername] = useState("");
@@ -49,7 +53,7 @@ export default function LoginScreen() {
   }
 
   // Em telas baixas (celular deitado) a ilustração encolhe para o formulário caber.
-  const illustration = Math.max(120, Math.min(width - space.xxl * 2, 340, Math.round(height * 0.34)));
+  const illustration = Math.max(120, Math.min(width - space.xxl * 2, wide ? 300 : 340, Math.round(height * (wide ? 0.26 : 0.34))));
 
   return (
     <KeyboardScreen style={{ overflow: "hidden" }}>
@@ -64,13 +68,13 @@ export default function LoginScreen() {
 
         <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.brand}>
           <AppText variant="label" color={colors.violet300}>{intent ? `Entre para abrir ${intent.name}` : "Sua conta"}</AppText>
-          <AppText variant="display" style={styles.title}>
-            <AppText variant="display" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
+          <AppText variant="display" style={[styles.title, wide && styles.titleWide]}>
+            <AppText variant="display" style={[{ fontFamily: fonts.serifItalic, color: colors.violet200 }, wide && styles.titleWide]}>Mente</AppText>
           </AppText>
-          <AppText color={colors.muted} style={{ textAlign: "center" }}>Pensamentos guardados, ideias em movimento.</AppText>
+          <AppText color={colors.muted} style={[{ textAlign: "center" }, wide && styles.subtitleWide]}>Pensamentos guardados, ideias em movimento.</AppText>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.form}>
+        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={[styles.form, wide && styles.formWide]}>
           <TextField
             label="Usuário"
             value={username}
@@ -83,6 +87,7 @@ export default function LoginScreen() {
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
             maxLength={254}
+            style={big}
           />
           <View>
             <TextField
@@ -98,14 +103,14 @@ export default function LoginScreen() {
               returnKeyType="go"
               onSubmitEditing={() => void run()}
               maxLength={1024}
-              style={{ paddingRight: 52 }}
+              style={[{ paddingRight: 52 }, big]}
             />
             <Touchable
               accessibilityRole="button"
               accessibilityLabel={showPassword ? "Ocultar senha" : "Mostrar senha"}
               onPress={() => setShowPassword((value) => !value)}
               hitSlop={6}
-              style={styles.eye}
+              style={[styles.eye, wide && styles.eyeWide]}
             >
               <Icon name="eye" size={20} color={showPassword ? colors.violet300 : colors.faint} />
             </Touchable>
@@ -151,6 +156,11 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.xl },
   brand: { alignItems: "center", gap: space.sm, marginTop: space.lg },
   title: { textAlign: "center", marginTop: space.xs },
+  titleWide: { fontSize: 76, lineHeight: 82, letterSpacing: -1.5 },
+  subtitleWide: { fontSize: 18, lineHeight: 26 },
+  formWide: { padding: space.xxl, gap: space.xl, marginTop: space.xl },
+  bigInput: { minHeight: 58, fontSize: 17 },
+  eyeWide: { bottom: 7 },
   form: { marginTop: space.xxl, gap: space.lg, padding: space.xl, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.float },
   eye: { position: "absolute", right: 4, bottom: 3, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   error: {

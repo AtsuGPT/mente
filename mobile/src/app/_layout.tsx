@@ -52,7 +52,14 @@ function WebFrame({ children }: { children: React.ReactNode }) {
     // retangular aparecia por dentro da moldura arredondada, desalinhado dela.
     const style = document.createElement("style");
     style.id = "mm-focus";
-    style.textContent = "input:focus-visible:not([id^=frame-focus]),textarea:focus-visible:not([id^=frame-focus]){outline:2px solid " + colors.violet400 + ";outline-offset:2px}[id^=frame-focus]:focus{outline:none}";
+    style.textContent =
+      "input:focus-visible:not([id^=frame-focus]),textarea:focus-visible:not([id^=frame-focus]){outline:2px solid " + colors.violet400 + ";outline-offset:2px}[id^=frame-focus]:focus{outline:none}" +
+      // Barra de rolagem própria: fina, arredondada, lavanda discreta que acende quando é usada.
+      "::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-corner{background:transparent}" +
+      "::-webkit-scrollbar-thumb{border-radius:99px;border:3px solid transparent;background:linear-gradient(180deg,rgba(199,183,250,.32),rgba(132,97,240,.26)) padding-box}" +
+      "::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(199,183,250,.68),rgba(132,97,240,.6)) padding-box}::-webkit-scrollbar-thumb:active{background:" + colors.violet400 + " padding-box}" +
+      // Navegadores sem ::-webkit-scrollbar (Firefox): a versão padrão, fina e na mesma cor.
+      "@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:rgba(165,139,247,.35) transparent}}";
     if (!document.getElementById(style.id)) document.head.appendChild(style);
   }, []);
   return <>{children}</>;
