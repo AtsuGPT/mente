@@ -12,6 +12,7 @@ import { enter } from "@/theme/motion";
 import { AppText, Chip, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, radius, space } from "@/theme/tokens";
+import { RadialGlow } from "@/components/ui/surface";
 import { useLayout } from "@/theme/layout";
 
 export default function FeedScreen() {
@@ -53,11 +54,15 @@ export default function FeedScreen() {
   if (count !== pages.current.length) pages.current = { length: count, start: count > pages.current.length ? pages.current.length : 0 };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, overflow: "hidden" }}>
+      {/* Luz ambiente bem baixa atrás dos cartões de vidro (sem ela, o vidro sobre o preto puro não aparece). */}
+      <RadialGlow size={Math.max(900, width * 0.7)} color={colors.violet600} opacity={0.2} style={styles.glowTop} />
+      <RadialGlow size={Math.max(700, width * 0.5)} color={colors.orchid} opacity={0.1} style={styles.glowBottom} />
       <FlatList
         key={`colunas-${columns}`}
         numColumns={columns}
-        columnWrapperStyle={columns > 1 ? { gap: space.xxl + space.lg } : undefined}
+        columnWrapperStyle={columns > 1 ? { gap: space.lg } : undefined}
+        ItemSeparatorComponent={() => <View style={{ height: space.lg }} />}
         data={feed.loading ? [] : feed.posts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[{ paddingTop: insets.top + space.md, paddingBottom: space.xxxl + 40 }, container]}
@@ -146,6 +151,8 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
+  glowTop: { position: "absolute", top: "-35%", left: "-20%" },
+  glowBottom: { position: "absolute", bottom: "-30%", right: "-15%" },
   composer: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(255,255,255,0.02)" },
   headingRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   fab: {
