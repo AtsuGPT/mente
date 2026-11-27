@@ -61,6 +61,12 @@ export function nextReview(mastery: Mastery, now = new Date()) {
   return new Date(now.getTime() + (mastery === "dificuldade" ? 1 : mastery === "estudando" ? 3 : 7) * DAY);
 }
 
+/** A Kally pergunta em que pasta guardar só quando o tópico acabou de nascer, a conversa ainda não tem pasta
+ *  e a pessoa não recusou nesta conversa. Depois de "agora não", quem quiser guardar pede o cartão. */
+export function shouldAskFolder(created: boolean, hasFolder: boolean, declined: boolean): boolean {
+  return created && !hasFolder && !declined;
+}
+
 type Who = { environmentId: string; userId: string };
 
 async function topicFor(who: Who, title: string) {

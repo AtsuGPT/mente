@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { asksProgress, masteryOf, nextReview, progressBlock, quizResultFrom, topicFromMessage, topicKey } from "@/server/kally/learning";
+import { asksProgress, masteryOf, nextReview, progressBlock, quizResultFrom, shouldAskFolder, topicFromMessage, topicKey } from "@/server/kally/learning";
 
 test("chave do assunto ignora acento, caixa e artigo", () => {
   assert.equal(topicKey("A Lei de Ohm"), "lei de ohm");
@@ -53,4 +53,19 @@ test("pedido de progresso e cartão", () => {
   assert.match(block, /^```progresso\ntitulo: /);
   assert.match(block, /- \[x\] Lei de Ohm \| dominado \| 9 de 10 certas/);
   assert.match(block, /- \[ \] Mitose \| estudando \| explicado 2×/);
+});
+
+test("pergunta da pasta: só tópico novo, conversa sem pasta e sem recusa", () => {
+  // created, hasFolder, declined
+  assert.equal(shouldAskFolder(true, false, false), true);
+  // Tópico que já existia: não pergunta de novo.
+  assert.equal(shouldAskFolder(false, false, false), false);
+  // A conversa já tem pasta: o tópico vai direto para ela.
+  assert.equal(shouldAskFolder(true, true, false), false);
+  // A pessoa disse "agora não" nesta conversa: não insiste.
+  assert.equal(shouldAskFolder(true, false, true), false);
+  // As demais combinações também não perguntam.
+  for (const [created, hasFolder, declined] of [[false, true, false], [false, false, true], [true, true, true], [false, true, true]]) {
+    assert.equal(shouldAskFolder(created, hasFolder, declined), false);
+  }
 });
