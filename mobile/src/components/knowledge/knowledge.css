@@ -374,12 +374,23 @@ path.ke-related {
   -webkit-backdrop-filter: blur(14px);
 }
 .kseg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: 0;
   background: transparent;
-  padding: 6px 12px;
+  padding: 6px 12px 6px 10px;
   border-radius: 9px;
   font-size: 13px;
   color: var(--faint);
+  cursor: pointer;
+  transition: color 150ms, background 150ms, box-shadow 150ms, transform 120ms;
+}
+.kseg button:hover {
+  color: var(--text);
+}
+.kseg button:active {
+  transform: scale(0.96);
 }
 .kseg button.is-on {
   background: var(--sel);
@@ -819,7 +830,8 @@ path.ke-related {
   display: none;
 }
 .kmap.is-narrow .kseg button {
-  padding: 6px 10px;
+  padding: 6px 10px 6px 8px;
+  gap: 6px;
 }
 .kmap.is-narrow .kpill {
   max-width: 46vw;

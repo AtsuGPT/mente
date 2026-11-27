@@ -1,7 +1,7 @@
 "use dom";
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { Maximize2, Minus, PanelLeft, PanelRight, Plus, MapIcon } from "./icons";
+import { ChartNetwork, Maximize2, Minus, Network, PanelLeft, PanelRight, Plus, MapIcon } from "./icons";
 import "@xyflow/react/dist/style.css";
 import "./knowledge.css";
 import { KIND_FILTERS, indexGraph, neighborhood, pathTo, visibleTree, type KindFilter, type KnowledgeGraph, type KnowledgeLink, type KnowledgeNode, type StudyLink } from "@/lib/knowledge";
@@ -32,7 +32,8 @@ export default function KnowledgeMap(props: {
 }) {
   const { graph } = props;
   const index = useMemo(() => indexGraph(graph), [graph]);
-  const [mode, setMode] = useState<Mode>("estruturado");
+  // Relacional é o padrão (pedido do Atsu, 27/11): abre o grafo das conexões; o Estruturado fica a um clique.
+  const [mode, setMode] = useState<Mode>("relacional");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [kinds, setKinds] = useState<Set<KindFilter>>(() => new Set(KIND_FILTERS.map((k) => k.id)));
   const [selected, setSelected] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export default function KnowledgeMap(props: {
     );
   }
 
+  const insets = { left: explorerOpen && !narrow ? 292 : 0, right: selectedNode && inspectorOpen && !narrow ? 340 : 0 };
   const shared = {
     index,
     kinds,
@@ -139,10 +141,10 @@ export default function KnowledgeMap(props: {
     <div className={`kmap${narrow ? " is-narrow" : ""}`} data-mode={mode} data-nodes={stats?.nodes ?? 0} data-layout-ms={stats?.layoutMs ?? 0}>
       <div className="kcanvas">
         {mode === "estruturado" ? (
-          <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={{ left: explorerOpen && !narrow ? 292 : 0, right: selectedNode && inspectorOpen && !narrow ? 340 : 0 }} />
+          <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={insets} />
         ) : (
           <Suspense fallback={<div className="kloading">Carregando o modo relacional…</div>}>
-            <RelationalMap {...shared} graph={graph} />
+            <RelationalMap {...shared} graph={graph} insets={insets} />
           </Suspense>
         )}
       </div>
@@ -153,11 +155,15 @@ export default function KnowledgeMap(props: {
           <PanelLeft size={16} />
         </button>
         <div className="kseg" role="tablist" aria-label="Modo do mapa">
-          {(["estruturado", "relacional"] as const).map((m) => (
-            <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? "is-on" : ""} onClick={() => setMode(m)}>
-              {m === "estruturado" ? "Estruturado" : "Relacional"}
-            </button>
-          ))}
+          {(["relacional", "estruturado"] as const).map((m) => {
+            const Icon = m === "relacional" ? ChartNetwork : Network;
+            return (
+              <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? "is-on" : ""} onClick={() => setMode(m)}>
+                <Icon size={15} strokeWidth={1.8} aria-hidden />
+                <span>{m === "estruturado" ? "Estruturado" : "Relacional"}</span>
+              </button>
+            );
+          })}
         </div>
         {focusId ? (
           <button className="kpill" onClick={() => explore(null)}>

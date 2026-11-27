@@ -22,6 +22,8 @@ export type RelationalProps = {
   onNodeClick: (id: string) => void;
   onPaneClick: () => void;
   onReady: (api: { zoomIn: () => void; zoomOut: () => void; fit: () => void }) => void;
+  /** largura dos painéis abertos sobre o canvas: a câmera enquadra no espaço livre entre eles */
+  insets: { left: number; right: number };
   onStats?: (s: { nodes: number; layoutMs: number }) => void;
 };
 
@@ -120,6 +122,44 @@ export default function RelationalMap(props: RelationalProps) {
   const propsRef = useRef(props);
   propsRef.current = props;
 
+  /** Leva a câmera para enquadrar os nós (ou centrar um, com zoom fixo) no espaço livre entre os painéis. */
+  const frame = (renderer: Sigma, nodes: string[] | "all", options: { ratio?: number; duration?: number } = {}) => {
+    const keys = nodes === "all" ? renderer.getGraph().nodes() : nodes;
+    const points = keys.flatMap((k) => {
+      const d = renderer.getNodeDisplayData(k);
+      return d ? [{ x: d.x, y: d.y }] : [];
+    });
+    if (!points.length) return;
+    const { width, height } = renderer.getDimensions();
+    const { left, right } = propsRef.current.insets;
+    const free = { x0: left + 36, x1: width - right - 36, y0: 64, y1: height - 36 };
+    if (free.x1 - free.x0 < 80 || free.y1 - free.y0 < 80) return;
+    const view = (p: { x: number; y: number }, state: { x: number; y: number; ratio: number; angle: number }) => renderer.framedGraphToViewport(p, { cameraState: state });
+    const bbox = (state: { x: number; y: number; ratio: number; angle: number }) => {
+      const ps = points.map((p) => view(p, state));
+      const xs = ps.map((p) => p.x);
+      const ys = ps.map((p) => p.y);
+      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    };
+    let ratio = options.ratio;
+    if (ratio == null) {
+      const b = bbox({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
+      const k = Math.min((free.x1 - free.x0) / Math.max(1, b.x1 - b.x0), (free.y1 - free.y0) / Math.max(1, b.y1 - b.y0));
+      ratio = Math.min(4, Math.max(0.08, 1 / k));
+    }
+    const state = { x: 0.5, y: 0.5, ratio, angle: 0 };
+    const b = bbox(state);
+    // Pixels por unidade do grafo enquadrado, em cada eixo (o y da tela é invertido).
+    const o = view({ x: 0.5, y: 0.5 }, state);
+    const ux = (view({ x: 0.6, y: 0.5 }, state).x - o.x) / 0.1;
+    const uy = (view({ x: 0.5, y: 0.6 }, state).y - o.y) / 0.1;
+    state.x += ((b.x0 + b.x1) / 2 - (free.x0 + free.x1) / 2) / ux;
+    state.y += ((b.y0 + b.y1) / 2 - (free.y0 + free.y1) / 2) / uy;
+    const camera = renderer.getCamera();
+    if (options.duration) void camera.animate(state, { duration: options.duration });
+    else camera.setState(state);
+  };
+
   const kindsKey = [...props.kinds].sort().join(",");
   useEffect(() => {
     if (!container.current) return;
@@ -201,8 +241,9 @@ export default function RelationalMap(props: RelationalProps) {
     props.onReady({
       zoomIn: () => void camera.zoomIn({ duration: 220 }),
       zoomOut: () => void camera.zoomOut({ duration: 220 }),
-      fit: () => void camera.reset({ duration: 450 }),
+      fit: () => frame(renderer, "all", { duration: 450 }),
     });
+    frame(renderer, "all");
     setHighlight(props.selected && g.hasNode(props.selected) ? props.selected : null);
     return () => {
       renderer.kill();
@@ -228,11 +269,10 @@ export default function RelationalMap(props: RelationalProps) {
     if (!renderer || !props.camera) return;
     const camera = renderer.getCamera();
     if (props.camera.target === "all") {
-      void camera.reset({ duration: 450 });
+      frame(renderer, "all", { duration: 450 });
       return;
     }
-    const d = renderer.getNodeDisplayData(props.camera.target);
-    if (d) void camera.animate({ x: d.x, y: d.y, ratio: Math.min(camera.ratio, 0.6) }, { duration: 450 });
+    frame(renderer, [props.camera.target], { ratio: Math.min(camera.ratio, 0.6), duration: 450 });
   }, [props.camera?.seq]);
 
   return <div ref={container} className="ksigma" aria-label="Mapa relacional" role="img" />;

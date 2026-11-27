@@ -22,3 +22,5 @@ export { default as PanelLeft } from "lucide-react/icons/panel-left";
 export { default as PanelRight } from "lucide-react/icons/panel-right";
 export { default as Plus } from "lucide-react/icons/plus";
 export { default as MapIcon } from "lucide-react/icons/map";
+export { default as ChartNetwork } from "lucide-react/icons/chart-network";
+export { default as Network } from "lucide-react/icons/network";
