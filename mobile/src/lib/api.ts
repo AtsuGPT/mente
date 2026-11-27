@@ -30,6 +30,7 @@ import type {
   PostFull,
   User,
 } from "./types";
+import type { KnowledgeGraph } from "./knowledge";
 
 /** Erro com a mensagem do backend (já em português) e, quando houver, erros por campo. */
 export class ApiError extends Error {
@@ -155,6 +156,8 @@ export function envApi(environmentId: string) {
     categories: () => request<{ categories: (Category & { count: number })[] }>(`${base}/categories`),
     post: (slug: string) => request<{ post: PostFull; related: PostCard[]; canEdit: boolean }>(`${base}/posts/${encodeURIComponent(slug)}`),
     map: () => request<KnowledgeMap>(`${base}/map`),
+    /** Mapa de Conhecimento: temas, tópicos e materiais que a pessoa vê, com as relações reais (sem IA). */
+    knowledge: () => request<KnowledgeGraph>(`${base}/conhecimento`),
 
     managePosts: (params: { q?: string; status?: string; categoria?: string; pagina?: number } = {}) =>
       request<AdminPostsPage>(`${base}/manage/posts${query(params)}`),

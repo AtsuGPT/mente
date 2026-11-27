@@ -1,0 +1,823 @@
+/* Mapa de Conhecimento: tokens do app (mobile/src/theme/tokens.ts), preto como base, roxo só onde significa algo. */
+.kmap {
+  --bg: #000000;
+  --surface: #0b0a0e;
+  --raised: #131217;
+  --pressed: #1c1a22;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --v900: #1e1240;
+  --v800: #2f1c64;
+  --v600: #6236d4;
+  --v500: #8461f0;
+  --v400: #a58bf7;
+  --v300: #c7b7fa;
+  --v200: #e4dbfd;
+  --text: #f2effa;
+  --muted: #aaa4bf;
+  --faint: #867fa1;
+  --good: #8fddb0;
+  --warn: #e8c07d;
+  --sel: rgba(132, 97, 240, 0.16);
+  --sel-border: rgba(165, 139, 247, 0.38);
+  --glass: rgba(11, 10, 15, 0.78);
+  --sans: "Instrument Sans", "InstrumentSans_400Regular", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Newsreader", "Newsreader_500Medium", Georgia, serif;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.kmap *,
+.kmap *::before,
+.kmap *::after {
+  box-sizing: border-box;
+}
+.kmap button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.kmap :focus-visible {
+  outline: 2px solid var(--v400);
+  outline-offset: 2px;
+}
+
+.kcanvas {
+  position: absolute;
+  inset: 0;
+}
+.kflow,
+.ksigma {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+.kloading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--faint);
+}
+
+/* ------------------------------ React Flow ------------------------------ */
+.kflow.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: rgba(165, 139, 247, 0.28);
+}
+.kflow .react-flow__node {
+  transition: transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+}
+.kflow .react-flow__edge-path {
+  transition: stroke 180ms, stroke-opacity 180ms;
+}
+.kn-handle {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  pointer-events: none;
+}
+
+/* Nós: compactos, um glifo e o nome. */
+.kn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(19, 18, 23, 0.76);
+  color: var(--text);
+  transition: opacity 220ms, border-color 180ms, background 180ms, box-shadow 180ms;
+}
+.kn:hover {
+  border-color: var(--line-strong);
+  background: rgba(28, 26, 34, 0.9);
+}
+.kn-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.2;
+}
+.kn-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+.kn-topic .kn-label {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.kn-theme {
+  gap: 12px;
+  padding-left: 11px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(30, 18, 64, 0.5), rgba(13, 11, 20, 0.82));
+  border-color: rgba(165, 139, 247, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.kn-theme .kn-label {
+  font-size: 15px;
+  font-weight: 500;
+}
+.kn-theme.is-virtual {
+  background: rgba(19, 18, 23, 0.7);
+  border-style: dashed;
+}
+.kn-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+/* Progresso real do tema (só com tópicos): uma linha fina na base do cartão. */
+.kn-progress {
+  position: absolute;
+  left: 57px;
+  right: 16px;
+  bottom: 6px;
+  display: flex;
+  gap: 2px;
+  height: 2px;
+  opacity: 0.85;
+}
+.kn-theme {
+  position: relative;
+}
+.kn-progress i,
+.ki-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+}
+.m-dominado {
+  --m: var(--good);
+}
+.m-estudando {
+  --m: var(--v400);
+}
+.m-dificuldade {
+  --m: var(--warn);
+}
+.kn-progress i {
+  background: var(--m);
+  min-width: 4px;
+}
+.kn-more {
+  flex: none;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 99px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--v300);
+  background: var(--sel);
+  font-variant-numeric: tabular-nums;
+}
+.kn-more.is-open {
+  background: transparent;
+  color: var(--faint);
+}
+.kn.is-selected {
+  border-color: rgba(199, 183, 250, 0.72);
+  background: rgba(35, 26, 66, 0.92);
+  box-shadow: 0 0 0 3px rgba(132, 97, 240, 0.22), 0 8px 30px rgba(98, 54, 212, 0.25);
+}
+.kn.is-dim {
+  opacity: 0.3;
+}
+
+/* Glifos */
+.kg {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+}
+/* Tema: círculo roxo chapado, com uma luz suave por cima e halo discreto (nada de esfera brilhante). */
+.kg-theme {
+  color: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, #7650ea 0%, #5c33cd 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 0 0 1.5px color-mix(in srgb, var(--accent, #8461f0) 50%, transparent), 0 0 0 6px rgba(132, 97, 240, 0.08), 0 0 18px rgba(132, 97, 240, 0.22);
+}
+.kg-theme.is-virtual {
+  background: var(--pressed);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  color: var(--faint);
+}
+.kg-topic {
+  background: rgba(165, 139, 247, 0.32);
+  box-shadow: inset 0 0 0 1.5px var(--m, var(--v400));
+}
+.kg-doc {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Arestas: hierarquia contínua; relação entre conhecimentos tracejada e curva. */
+.ke .react-flow__edge-path,
+path.ke {
+  stroke: rgba(165, 139, 247, 0.28);
+  stroke-width: 1.25;
+  fill: none;
+}
+path.ke.is-active {
+  stroke: rgba(199, 183, 250, 0.9);
+  stroke-width: 1.6;
+}
+path.ke.is-dim {
+  stroke-opacity: 0.4;
+}
+path.ke-related {
+  stroke: rgba(199, 183, 250, 0.7);
+  stroke-width: 1.3;
+  stroke-dasharray: 4 5;
+}
+
+/* Crédito do React Flow (biblioteca MIT; a marca só some para assinantes do Pro): visível e discreto. */
+.kflow .react-flow__attribution {
+  background: transparent;
+  color: rgba(134, 127, 161, 0.55);
+  font-size: 9.5px;
+  padding: 2px 6px;
+}
+.kflow .react-flow__attribution a {
+  color: inherit;
+}
+.kmap:has(.kx-inspector) .kflow .react-flow__attribution {
+  right: 340px;
+}
+.kminimap.react-flow__minimap {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 0 0 14px 14px;
+}
+
+/* ---------------------------- Barras e botões ---------------------------- */
+.kbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+.kbar-top {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  pointer-events: none;
+}
+.kbar-top > * {
+  pointer-events: auto;
+}
+.kbar-zoom {
+  right: 14px;
+  bottom: 14px;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.kmap:has(.kx-inspector) .kbar-zoom {
+  right: 352px;
+}
+.kbtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  transition: background 150ms, color 150ms;
+}
+.kbar-top .kbtn {
+  background: var(--glass);
+  border-color: var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.kbtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+.kbtn.is-on {
+  color: var(--v300);
+}
+.kbtn-right {
+  margin-left: auto;
+}
+.kseg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.kseg button {
+  border: 0;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--faint);
+}
+.kseg button.is-on {
+  background: var(--sel);
+  color: var(--v200);
+  box-shadow: inset 0 0 0 1px var(--sel-border);
+}
+.kpill {
+  border: 1px solid var(--sel-border);
+  background: var(--glass);
+  color: var(--v300);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+  backdrop-filter: blur(14px);
+}
+.kpill.is-warn {
+  color: var(--warn);
+  border-color: rgba(232, 192, 125, 0.35);
+}
+
+/* -------------------------------- Painéis -------------------------------- */
+.kx-panel {
+  position: absolute;
+  top: 58px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: kx-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes kx-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.kx-explorer {
+  left: 12px;
+  width: 280px;
+}
+.kx-inspector {
+  right: 12px;
+  width: 328px;
+}
+.kx-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 6px 16px;
+}
+.kx-title,
+.kx-type {
+  font-size: 11.5px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 500;
+}
+.kx-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+}
+.kx-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+.kx-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 12px 8px;
+  padding: 0 10px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  color: var(--faint);
+}
+.kx-search:focus-within {
+  border-color: var(--sel-border);
+}
+.kx-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.kx-search input::placeholder {
+  color: var(--faint);
+}
+.kx-clear {
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  display: grid;
+  place-items: center;
+}
+.kx-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.kx-chip {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--faint);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.kx-chip.is-on {
+  color: var(--v200);
+  background: var(--sel);
+  border-color: var(--sel-border);
+}
+.kx-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 6px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pressed) transparent;
+}
+.kx-tree,
+.kx-tree ul,
+.kx-results,
+.ki-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kx-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--muted);
+}
+.kx-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+.kx-row.is-selected {
+  background: var(--sel);
+  color: var(--text);
+}
+.kx-row-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+}
+.kx-row-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13.5px;
+}
+.kx-row-type,
+.kx-count {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.kx-caret,
+.kx-caret-space {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  border-radius: 6px;
+}
+.kx-caret svg {
+  transition: transform 180ms;
+}
+.kx-caret.is-open svg {
+  transform: rotate(90deg);
+}
+.kx-row .kg-doc {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+.kx-row .kg-doc svg {
+  width: 11px;
+  height: 11px;
+}
+.kx-empty {
+  color: var(--faint);
+  font-size: 13px;
+  padding: 10px;
+  line-height: 1.45;
+}
+
+/* Inspetor */
+.ki-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px 6px;
+}
+.ki-title h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+.ki-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px;
+  margin: 4px 0 10px;
+}
+.ki-theme,
+.ki-mastery,
+.ki-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.ki-theme::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ki-mastery {
+  color: var(--m);
+  border-color: color-mix(in srgb, var(--m) 40%, transparent);
+}
+.ki-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+.ki-stats div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.ki-stats b {
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.ki-stats span {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.ki-excerpt {
+  margin: 0 10px 10px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.ki-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 12px;
+}
+.kx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 13px;
+}
+.kx-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.kx-btn.is-primary {
+  border-color: transparent;
+  background: linear-gradient(180deg, #7246e4, #5a30cb);
+  color: #fff;
+}
+.kx-btn.is-on {
+  border-color: var(--sel-border);
+  color: var(--v200);
+  background: var(--sel);
+}
+.ki-depth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 12px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.ki-depth input {
+  flex: 1;
+  accent-color: var(--v500);
+}
+.ki-depth b {
+  color: var(--text);
+  font-weight: 500;
+  width: 12px;
+}
+.ki-group {
+  border-top: 1px solid var(--line);
+  padding: 8px 0 4px;
+}
+.ki-group h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 10px 4px;
+  font-size: 11.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.kmap-empty {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+.kmap-empty h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 26px;
+}
+.kmap-empty p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 42ch;
+  line-height: 1.5;
+}
+
+/* ------------------------------ Telas pequenas ------------------------------ */
+.kmap.is-narrow .kx-explorer {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(86vw, 320px);
+  border-radius: 0 18px 18px 0;
+  z-index: 9;
+}
+.kmap.is-narrow .kx-inspector {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-height: 58%;
+  border-radius: 20px 20px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 8;
+  animation: kx-sheet 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.kmap.is-narrow .kx-inspector::before {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line-strong);
+  margin: 8px auto 0;
+}
+@keyframes kx-sheet {
+  from {
+    transform: translateY(40%);
+    opacity: 0;
+  }
+}
+.kmap.is-narrow .kbar-zoom {
+  right: 10px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+.kmap.is-narrow:has(.kx-inspector) .kbar-zoom {
+  display: none;
+}
+.kmap.is-narrow .kseg button {
+  padding: 6px 10px;
+}
+.kmap.is-narrow .kpill {
+  max-width: 46vw;
+}
+.kscrim {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  border: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kflow .react-flow__node,
+  .kx-panel,
+  .kn {
+    transition: none;
+    animation: none;
+  }
+}
