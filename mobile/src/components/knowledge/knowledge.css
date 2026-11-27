@@ -85,6 +85,19 @@ body,
   transition: transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1);
   cursor: pointer;
 }
+/* Mapa afastado: os nós menores ficam só com o glifo (sem nome, ícone nem sombra); os temas mantêm o nome. */
+.kflow.is-far .kn:not(.kn-theme) .kn-text,
+.kflow.is-far .kn:not(.kn-theme) .kn-more,
+.kflow.is-far .kg-doc svg {
+  visibility: hidden;
+}
+.kflow.is-far .kn:not(.is-selected),
+.kflow.is-far .kg-theme,
+.kflow.is-far .kg-topic,
+.kflow.is-far .kg-doc {
+  box-shadow: none;
+  transition: none;
+}
 .kflow .react-flow__edge-path {
   transition: stroke 180ms, stroke-opacity 180ms;
 }

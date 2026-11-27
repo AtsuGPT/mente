@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -9,6 +9,9 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  getViewportForBounds,
+  useStore,
+  useStoreApi,
   type Edge,
   type EdgeProps,
   type Node,
@@ -271,9 +274,15 @@ export type StructuredProps = {
   onStats?: (s: { nodes: number; layoutMs: number }) => void;
 };
 
+const FAR_ZOOM = 0.45;
+type Padding = Parameters<typeof getViewportForBounds>[5];
+
 function StructuredInner(props: StructuredProps) {
   const { index, tree, expanded, kinds, selected, focus, camera } = props;
   const flow = useReactFlow();
+  // Longe (nomes com menos de ~6 px): os nós menores viram só o glifo, sem texto nem ícone. Ninguém lê nesse zoom, e
+  // desenhar 500 nomes e ícones a cada quadro derrubava o arrasto para ~35 quadros por segundo.
+  const far = useStore((s) => s.transform[2] < FAR_ZOOM);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [layoutKey, setLayoutKey] = useState("");
   const pending = useRef(0);
@@ -337,36 +346,66 @@ function StructuredInner(props: StructuredProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, layoutKey, selected, props.relatedEdges]);
 
-  // Câmera: enquadra tudo na primeira vez e quando pedem; centraliza num nó quando a seleção vem de fora do canvas.
+  // Câmera. Não usa o fitView do React Flow: ele só roda na próxima mudança dos nós (que aqui são controlados), então o
+  // botão "Centralizar" ficava parado até outra interação. Calcula o enquadramento pelas posições do layout e move direto.
+  const storeApi = useStoreApi();
+  const layoutRef = useRef<Layout | null>(null);
+  layoutRef.current = layout;
+  const frame = useCallback((ids: string[] | "all", padding: Padding, opts: { minZoom?: number; maxZoom?: number; duration?: number } = {}) => {
+    const l = layoutRef.current;
+    if (!l) return;
+    const boxes = ids === "all" ? [...l.positions.values()] : ids.flatMap((id) => (l.positions.has(id) ? [l.positions.get(id)!] : []));
+    if (!boxes.length) return;
+    const x0 = Math.min(...boxes.map((b) => b.x));
+    const y0 = Math.min(...boxes.map((b) => b.y));
+    const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+    const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+    const { width, height, minZoom, maxZoom } = storeApi.getState();
+    if (!width || !height) return;
+    const viewport = getViewportForBounds({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, width, height, opts.minZoom ?? minZoom, opts.maxZoom ?? maxZoom, padding);
+    void flow.setViewport(viewport, { duration: opts.duration ?? 0 });
+  }, [flow, storeApi]);
+
+  // Enquadra tudo na primeira vez.
   const firstFit = useRef(false);
   useEffect(() => {
     if (!layout || firstFit.current) return;
     firstFit.current = true;
-    requestAnimationFrame(() => void flow.fitView({ padding: 0.2, maxZoom: 1.1, duration: 0 }));
-  }, [layout, flow]);
+    requestAnimationFrame(() => frame("all", 0.2, { maxZoom: 1.1 }));
+  }, [layout, frame]);
+
+  // Pedido de câmera: aplicado uma vez, assim que o alvo existe no layout (um nó revelado pela busca só aparece depois
+  // do próximo layout). Antes ele era reaplicado a cada layout, e abrir um grupo pelo explorador puxava a câmera de volta.
+  const doneSeq = useRef(0);
   useEffect(() => {
-    if (!camera || !layout) return;
+    if (!camera || !layout || camera.seq === doneSeq.current) return;
     if (camera.target === "all") {
-      void flow.fitView({ padding: 0.2, maxZoom: 1.1, duration: 450 });
+      doneSeq.current = camera.seq;
+      frame("all", 0.2, { maxZoom: 1.1, duration: 450 });
       return;
     }
+    if (!layout.positions.has(camera.target)) return;
+    // Grupo recém-aberto: espera o layout que já tem os filhos visíveis (o pedido chega antes dele).
+    const shown = new Set(tree.nodes);
+    const kids = camera.subtree ? (index.children.get(camera.target) ?? []).filter((id) => shown.has(id)) : [];
+    if (kids.some((id) => !layout.positions.has(id))) return;
+    doneSeq.current = camera.seq;
     if (camera.subtree) {
-      // Grupo recém-aberto: enquadra o nó e os filhos visíveis.
-      const ids = [camera.target, ...(index.children.get(camera.target) ?? [])].filter((id) => layout.positions.has(id));
+      // Enquadra o nó e os filhos visíveis. No celular só os primeiros: todos juntos acima da folha ficariam longe demais
+      // para ler (os nomes somem abaixo de FAR_ZOOM); o resto continua logo abaixo, a uma rolagem.
+      const ids = [camera.target, ...(props.narrow ? kids.slice(0, 6) : kids)];
       // No celular o inspetor é uma folha que cobre a metade de baixo: enquadra só na parte de cima da tela.
       const padding = props.narrow ? ({ top: "70px", bottom: "58%", left: "16px", right: "16px" } as const) : panelPadding(props.insets);
-      void flow.fitView({ nodes: ids.map((id) => ({ id })), padding, maxZoom: 1.05, duration: 450 });
+      frame(ids, padding, { maxZoom: 1.05, duration: 450 });
       return;
     }
-    const p = layout.positions.get(camera.target);
-    if (!p) return;
     if (props.narrow) {
-      void flow.fitView({ nodes: [{ id: camera.target }], padding: { top: "90px", bottom: "60%", left: "24px", right: "24px" }, maxZoom: 1, duration: 450 });
+      frame([camera.target], { top: "90px", bottom: "60%", left: "24px", right: "24px" }, { maxZoom: 1, duration: 450 });
       return;
     }
     // Desktop: centra no espaço livre entre os painéis abertos, mantendo o zoom.
     const zoom = Math.max(flow.getZoom(), 0.9);
-    void flow.fitView({ nodes: [{ id: camera.target }], padding: panelPadding(props.insets), minZoom: zoom, maxZoom: zoom, duration: 450 });
+    frame([camera.target], panelPadding(props.insets), { minZoom: zoom, maxZoom: zoom, duration: 450 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera?.seq, layoutKey]);
 
@@ -374,10 +413,10 @@ function StructuredInner(props: StructuredProps) {
     props.onReady({
       zoomIn: () => void flow.zoomIn({ duration: 200 }),
       zoomOut: () => void flow.zoomOut({ duration: 200 }),
-      fit: () => void flow.fitView({ padding: 0.2, maxZoom: 1.1, duration: 450 }),
+      fit: () => frame("all", 0.2, { maxZoom: 1.1, duration: 450 }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flow]);
+  }, [flow, frame]);
 
   return (
     <ReactFlow
@@ -394,7 +433,7 @@ function StructuredInner(props: StructuredProps) {
       maxZoom={2.2}
       zoomOnDoubleClick={false}
       colorMode="dark"
-      className="kflow"
+      className={`kflow${far ? " is-far" : ""}`}
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(199,183,250,0.07)" />
       {props.showMinimap ? (
