@@ -191,6 +191,21 @@ export type KallyConversation = { id: string; mode: KallyMode; title: string; ca
 /** Cartão da pasta: um tópico nasceu numa conversa sem pasta, ou a pessoa pediu para guardar (evento folderPrompt). */
 export type KallyFolderPrompt = { conversationId: string; topicId: string | null; topicTitle: string; suggestedName: string; folders: { id: string; name: string; color: string }[]; canCreate: boolean };
 /** Resposta do cartão da pasta. */
+/** Tópico de estudo da pessoa (kally/progresso): progresso e domínio separados; "dominado" só com quiz. */
+export type KallyLearningTopic = {
+  id: string;
+  title: string;
+  mastery: "estudando" | "dificuldade" | "dominado";
+  explanations: number;
+  doubts: number;
+  quizzes: number;
+  questions: number;
+  correct: number;
+  lastScore: number | null;
+  weakPoints: string[];
+  lastStudiedAt: string;
+  nextReviewAt: string | null;
+};
 export type KallyFolderChoice = { kind: "existente"; categoryId: string } | { kind: "nova"; name: string } | { kind: "recusa" };
 /** Item da memória da Kally (o que a pessoa contou em conversas salvas). */
 export type KallyMemoryItem = { id: string; text: string; kind: "preferencia" | "fato" | "objetivo" | "contexto"; conversationId: string | null; uses: number; lastUsedAt: string | null; createdAt: string; updatedAt: string };

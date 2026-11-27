@@ -7,11 +7,12 @@ import { useCurrentEnvironment } from "@/lib/environment";
 import { useFeed } from "@/lib/use-feed";
 import type { Category } from "@/lib/types";
 import { PostCard } from "@/components/post-card";
+import { FolderStudy } from "@/components/folder-study";
 import { AppText, StateView } from "@/components/ui/primitives";
 import { colors, space } from "@/theme/tokens";
 import { useContainer } from "@/theme/layout";
 
-/** Uma pasta (categoria) e seus pensamentos. */
+/** Uma pasta (categoria): o estudo da pessoa nela (progresso, tópicos, conversas) e os pensamentos. */
 export default function CategoryScreen() {
   const container = useContainer("content");
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -40,7 +41,13 @@ export default function CategoryScreen() {
               <AppText variant="label" color={readableAccent(category.color)}>Pasta</AppText>
               <AppText variant="display" style={{ marginTop: space.xs }}>{category.name}</AppText>
               {category.description ? <AppText color={colors.muted} style={{ marginTop: space.sm }}>{category.description}</AppText> : null}
-              {!feed.loading ? <AppText variant="label" color={colors.faint} style={{ marginTop: space.md }}>{feed.total} {feed.total === 1 ? "pensamento" : "pensamentos"}</AppText> : null}
+              <View style={{ marginTop: space.lg }}>
+                <FolderStudy api={api} category={category} />
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", paddingHorizontal: 2 }}>
+                <AppText variant="label" color={colors.faint}>Pensamentos</AppText>
+                {!feed.loading ? <AppText variant="small" color={colors.faint}>{feed.total}</AppText> : null}
+              </View>
             </View>
           ) : undefined
         }

@@ -206,6 +206,9 @@ function Kally() {
   const [history, setHistory] = useState<KallyConversation[] | null>(null);
   const [historyAll, setHistoryAll] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Conversa nova aberta pela tela da pasta: a primeira mensagem leva a pasta (a conversa nasce salva e já nela) e, vindo
+  // de um tópico, sai sozinha pedindo para estudar aquele tópico.
+  const [folderStart, setFolderStart] = useState<{ id: string; name: string; topic: string | null } | null>(null);
   // Cartão da pasta: abre quando a resposta termina de aparecer, se o servidor mandou folderPrompt.
   const [folderAsk, setFolderAsk] = useState<{ prompt: KallyFolderPrompt; messageId: string } | null>(null);
   // Conversa de outra pessoa aberta pelo dev da plataforma: só leitura (o servidor não deixa continuar).
@@ -410,6 +413,7 @@ function Kally() {
     void setItem(lastKey, "").catch(() => undefined);
     setConversationId(null);
     setReadingOwner(null);
+    setFolderStart(null);
     setMessages([]);
     setDraft("");
     setTranscribed(false);
@@ -532,7 +536,7 @@ function Kally() {
   const restored = useRef(false);
 
   // Conversa aberta pelo painel da Kally (/kally-painel → /perguntar?conversa=…).
-  const { conversa, rascunho, artefato } = useLocalSearchParams<{ conversa?: string; rascunho?: string; artefato?: string }>();
+  const { conversa, rascunho, artefato, pasta, pastaNome, topico } = useLocalSearchParams<{ conversa?: string; rascunho?: string; artefato?: string; pasta?: string; pastaNome?: string; topico?: string }>();
   // Vindo da biblioteca de artefatos: "Pedir à Kally" (texto pronto na caixa) e "Editar com a Kally" (o artefato salvo
   // fica em jogo nas próximas mensagens, até a pessoa tirá-lo).
   useEffect(() => {
@@ -556,8 +560,32 @@ function Kally() {
     router.setParams({ conversa: undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversa]);
+  // Vindo da pasta: começa uma conversa nova nela ("Nova conversa sobre X" manda o pedido sozinho, logo abaixo).
+  // Marca a pasta já tratada: o endereço pode continuar com ?pasta= (web), e o efeito roda de novo quando uma resposta
+  // termina; sem a marca, a conversa recém-criada seria zerada depois da primeira resposta.
+  const folderHandled = useRef<string | null>(null);
   useEffect(() => {
-    if (restored.current || conversa) return;
+    if (!pasta) {
+      folderHandled.current = null;
+      return;
+    }
+    if (loading || folderHandled.current === pasta) return;
+    folderHandled.current = pasta;
+    restored.current = true;
+    startNew();
+    setFolderStart({ id: pasta, name: pastaNome ?? "", topic: topico ?? null });
+    router.setParams({ pasta: undefined, pastaNome: undefined, topico: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pasta, loading]);
+  useEffect(() => {
+    if (!folderStart?.topic || conversationId || messages.length || loading) return;
+    const topic = folderStart.topic;
+    setFolderStart({ ...folderStart, topic: null });
+    void send(`Quero estudar ${topic}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderStart, conversationId, messages.length, loading]);
+  useEffect(() => {
+    if (restored.current || conversa || pasta) return;
     restored.current = true;
     void getItem(lastKey)
       .catch(() => null)
@@ -719,6 +747,8 @@ function Kally() {
       message,
       mode,
       conversationId,
+      // Primeira mensagem de uma conversa aberta pela pasta: o servidor cria a conversa já salva e nela.
+      categoryId: !conversationId && folderStart ? folderStart.id : undefined,
       // Modo aprofundado (esforço acima do normal): a conversa é salva sozinha desde a primeira mensagem, sem o
       // "Salvar esta conversa?" (pedido do dono do projeto); assim a resposta longa também continua se a pessoa sair.
       save: !conversationId && (save || deepSave),
@@ -930,7 +960,7 @@ function Kally() {
   const phrase = useKallyPhrase(phraseKey);
   const greeting = useGreeting(signedUser?.displayName);
   const engineLabel = `${answerCfg.model === "local" ? " · Kally 1.5" : answerCfg.model === "remote" ? " · Kally 32" : ""}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}`;
-  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_ENGINE_LABEL[dev.engine]}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : "Conversa temporária") : "Sua companhia neste ambiente";
+  const subtitle = readingOwner ? `Conversa de ${readingOwner.displayName}` : devOn ? `Modo desenvolvedor · ${DEV_ENGINE_LABEL[dev.engine]}${answerCfg.effort === "aprofundado" ? " · aprofundado" : answerCfg.effort === "maximo" ? " · máximo" : ""}` : engineLabel ? `Kally${engineLabel}` : started ? (conversationId ? "Conversa salva" : folderStart ? `Na pasta ${folderStart.name}` : "Conversa temporária") : folderStart ? `Nova conversa · ${folderStart.name}` : "Sua companhia neste ambiente";
   // A órbita fica no topo da conversa, com a frase de estado abaixo; vai para o meio (maior) quando a Kally escuta e
   // para o canto, acima da caixa de texto, quando o teclado do celular abre (orbit-dock.tsx).
   const presence = useKallyPresence({ keyboardInset, level: voiceLevel, listening, answering: loading, gutter, wide });
@@ -1028,6 +1058,15 @@ function Kally() {
                 </Animated.View>
               ) : null}
             </View>
+            {folderStart ? (
+              <Surface active contentStyle={styles.saveToggle} style={{ alignSelf: "stretch", marginTop: space.xl }}>
+                <Icon name="folder" size={18} color={colors.violet300} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="uiMedium">Nova conversa na pasta {folderStart.name}</AppText>
+                  <AppText variant="small" color={colors.faint}>Fica salva na pasta (só você vê), e a Kally procura primeiro nos pensamentos dela.</AppText>
+                </View>
+              </Surface>
+            ) : (
             <Touchable onPress={() => setSave((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: save }} aria-checked={save} pressScale={0.98} style={{ alignSelf: "stretch", marginTop: space.xl }}>
               <Surface active={save} contentStyle={styles.saveToggle}>
                 <View style={[styles.check, save && styles.checkOn]}>{save ? <Icon name="check" size={14} color="#FFFFFF" strokeWidth={2.4} /> : null}</View>
@@ -1037,6 +1076,7 @@ function Kally() {
                 </View>
               </Surface>
             </Touchable>
+            )}
           </Animated.View>
         }
         renderItem={renderItem}

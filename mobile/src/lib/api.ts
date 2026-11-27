@@ -22,6 +22,7 @@ import type {
   KallyConversation,
   KallyDocument,
   KallyFolderChoice,
+  KallyLearningTopic,
   KallyImage,
   KallyMemoryItem,
   KallyMessage,
@@ -184,6 +185,11 @@ export function envApi(environmentId: string) {
     /** Kally: o envio de mensagens é em tempo real (lib/stream) em kallyPath. */
     kallyPath: `${base}/kally`,
     kallyConversations: () => request<{ conversations: KallyConversation[]; allUsers?: boolean }>(`${base}/kally`),
+    /** Conversas da própria pessoa numa pasta, com quantos tópicos cada uma tem. */
+    kallyFolderConversations: (categoryId: string) =>
+      request<{ conversations: (KallyConversation & { topics?: number })[] }>(`${base}/kally${query({ pasta: categoryId })}`),
+    /** Progresso de estudo da pessoa; com categoryId, só os tópicos da pasta. */
+    kallyProgress: (categoryId?: string) => request<{ topics: KallyLearningTopic[] }>(`${base}/kally/progresso${categoryId ? query({ pasta: categoryId }) : ""}`),
     kallyConversation: (id: string) =>
       request<KallyConversation & { messages: KallyMessage[]; generating?: boolean }>(`${base}/kally/${encodeURIComponent(id)}`),
     deleteKallyConversation: (id: string) => request<{ ok: true }>(`${base}/kally/${encodeURIComponent(id)}`, { method: "DELETE" }),

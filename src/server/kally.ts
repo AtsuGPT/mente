@@ -541,11 +541,11 @@ export async function listConversations(environmentId: string, userId: string, a
   const rows = await db.kallyConversation.findMany({
     // Conversas de uma pasta: sempre só as da própria pessoa, mesmo numa pasta compartilhada.
     where: categoryId ? { environmentId, userId, categoryId } : allUsers ? { environmentId } : { environmentId, userId },
-    select: { ...conversationSelect, ...ownerSelect },
+    select: { ...conversationSelect, ...ownerSelect, ...(categoryId ? { _count: { select: { topics: true } } } : {}) },
     orderBy: { updatedAt: "desc" },
     take: allUsers ? 200 : 50,
   });
-  return rows.map((row) => withOwner(row, userId));
+  return rows.map(({ _count, ...row }: typeof rows[number] & { _count?: { topics: number } }) => ({ ...withOwner(row, userId), ...(_count ? { topics: _count.topics } : {}) }));
 }
 
 /**
