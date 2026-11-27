@@ -145,26 +145,6 @@ export type AdminPostsPage = { posts: AdminPostRow[]; total: number; page: numbe
 
 export type FieldErrors = Record<string, string[] | undefined>;
 
-export type MapNode =
-  | { id: string; kind: "pasta"; label: string; slug: string; color: string; description: string }
-  | {
-      id: string;
-      kind: "pensamento";
-      label: string;
-      slug: string;
-      number: number;
-      color: string | null;
-      excerpt: string;
-      publishedAt: string | null;
-      draft: boolean;
-      private: boolean;
-    }
-  | { id: string; kind: "imagem"; label: string; src: string };
-
-export type MapEdge = { source: string; target: string; kind: "pasta" | "imagem" | "mencao" };
-
-export type KnowledgeMap = { nodes: MapNode[]; edges: MapEdge[]; environment: { id: string; name: string; color: string; icon: string } };
-
 export type KallyMode = "auto" | "chat" | "ideia" | "revisar" | "aprender";
 /** kind: post/projeto/rascunho/conversa (do ambiente) ou web (externa, com url). */
 export type KallySource = { title: string; slug: string; kind?: "post" | "projeto" | "rascunho" | "conversa" | "web" | "documento" | "referencia"; url?: string };

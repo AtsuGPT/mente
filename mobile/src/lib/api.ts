@@ -14,7 +14,6 @@ import type {
   FieldErrors,
   Invite,
   InvitePreview,
-  KnowledgeMap,
   Member,
   MemberRole,
   PostCard,
@@ -155,7 +154,6 @@ export function envApi(environmentId: string) {
       request<FeedPage>(`${base}/feed${query(params)}`),
     categories: () => request<{ categories: (Category & { count: number })[] }>(`${base}/categories`),
     post: (slug: string) => request<{ post: PostFull; related: PostCard[]; canEdit: boolean }>(`${base}/posts/${encodeURIComponent(slug)}`),
-    map: () => request<KnowledgeMap>(`${base}/map`),
     /** Mapa de Conhecimento: temas, tópicos e materiais que a pessoa vê, com as relações reais (sem IA). */
     knowledge: () => request<KnowledgeGraph>(`${base}/conhecimento`),
 
