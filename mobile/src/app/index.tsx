@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
@@ -24,7 +24,11 @@ const ROLE_LABEL: Record<string, string> = { OWNER: "Proprietário", ADMIN: "Adm
 /** Central de ambientes: a primeira tela. Escolher um ambiente pede login quando ele exige. */
 export default function EnvironmentsScreen() {
   const insets = useSafeAreaInsets();
-  const container = useContainer("form");
+  // No computador a central cresce e fica no meio da tela (pedido de 27/11: estava pequena demais).
+  const { width: winW, height: winH } = useWindowDimensions();
+  const wide = winW >= 1024 && winH >= 640;
+  const baseContainer = useContainer("form");
+  const container = wide ? { ...baseContainer, maxWidth: 720 } : baseContainer;
   const { user, signOut, state } = useAuth();
   const { current, enter, exit, pending, setPending, lastEnvironmentId } = useEnvironment();
   const [data, setData] = useState<{ mine: EnvironmentCard[]; open: EnvironmentCard[]; dev?: EnvironmentCard[] } | null>(null);
@@ -112,15 +116,15 @@ export default function EnvironmentsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={[{ paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xxxl }, container]}
+        contentContainerStyle={[{ paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xxxl }, wide && styles.centered, container]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.violet400} />}
       >
         <Animated.View entering={appear.fade} style={styles.brandRow}>
-          <ConvergenceSymbol size={104} />
+          <ConvergenceSymbol size={wide ? 150 : 104} />
           <View style={{ flex: 1 }}>
             <AppText variant="label" color={colors.violet300}>Plataforma de ambientes</AppText>
-            <AppText variant="hero" style={{ marginTop: 2 }}>
-              <AppText variant="hero" style={{ fontFamily: fonts.serifItalic, color: colors.violet200 }}>Mente</AppText>
+            <AppText variant="hero" style={[{ marginTop: 2 }, wide && styles.heroWide]}>
+              <AppText variant="hero" style={[{ fontFamily: fonts.serifItalic, color: colors.violet200 }, wide && styles.heroWide]}>Mente</AppText>
             </AppText>
           </View>
         </Animated.View>
@@ -362,6 +366,8 @@ function AddEnvironmentSheet({
 
 const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  centered: { flexGrow: 1, justifyContent: "center", paddingTop: 72, paddingBottom: 96 },
+  heroWide: { fontSize: 64, lineHeight: 70, letterSpacing: -1.2 },
   account: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xl, padding: space.md, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.glass, ...elevation.card },
   avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.violet950, borderWidth: 1, borderColor: "rgba(165,139,247,0.35)" },
   accountAction: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.md },
