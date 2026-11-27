@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Alert } from "@/lib/alert";
-import { contrastRatio, HEX_COLOR, readableAccent } from "@shared/color";
+import { contrastRatio, FOLDER_TONES, HEX_COLOR, readableAccent } from "@shared/color";
 import { slugify } from "@shared/slug";
 import { ApiError } from "@/lib/api";
 import { useCurrentEnvironment } from "@/lib/environment";
@@ -12,7 +12,7 @@ import { useContainer } from "@/theme/layout";
 import { KeyboardScreen } from "@/components/keyboard-screen";
 
 type Draft = { name: string; slug: string; description: string; color: string; position: string };
-const empty: Draft = { name: "", slug: "", description: "", color: "#7C5CE0", position: "0" };
+const empty: Draft = { name: "", slug: "", description: "", color: "#8C7CF0", position: "0" };
 
 /** Categorias (pastas) do ambiente: criar, editar, ordenar e excluir. */
 export default function AdminCategoriesScreen() {
@@ -119,6 +119,22 @@ export default function AdminCategoriesScreen() {
         <TextField label="Nome" value={draft.name} error={err("name")} maxLength={60} onChangeText={(name) => setDraft((d) => ({ ...d, name, slug: editing === "nova" ? slugify(name, 60) : d.slug }))} />
         <TextField label="Endereço" value={draft.slug} error={err("slug")} autoCapitalize="none" maxLength={120} onChangeText={(slug) => setDraft((d) => ({ ...d, slug }))} />
         <TextField label="Descrição" value={draft.description} error={err("description")} multiline maxLength={280} onChangeText={(description) => setDraft((d) => ({ ...d, description }))} />
+        <View style={{ gap: space.sm }}>
+          <AppText variant="label" color={colors.muted}>Tom da pasta</AppText>
+          <View style={styles.tones}>
+            {FOLDER_TONES.map((tone) => (
+              <Touchable
+                key={tone.hex}
+                accessibilityRole="radio"
+                accessibilityLabel={tone.name}
+                accessibilityState={{ selected: draft.color.toLowerCase() === tone.hex.toLowerCase() }}
+                onPress={() => setDraft((d) => ({ ...d, color: tone.hex }))}
+                pressScale={0.9}
+                style={[styles.tone, { backgroundColor: tone.hex }, draft.color.toLowerCase() === tone.hex.toLowerCase() && styles.toneOn]}
+              />
+            ))}
+          </View>
+        </View>
         <View style={{ flexDirection: "row", gap: space.md }}>
           <TextField
             label="Cor"
@@ -153,6 +169,9 @@ export default function AdminCategoriesScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.glass },
+  tones: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  tone: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: "transparent" },
+  toneOn: { borderColor: colors.text },
   rowOpen: { borderColor: colors.violet700 },
   swatch: { width: 14, height: 14, borderRadius: 7 },
   form: { marginTop: space.sm, padding: space.lg, gap: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.violet800, backgroundColor: colors.violet950 },

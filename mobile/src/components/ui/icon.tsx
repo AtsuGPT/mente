@@ -53,16 +53,87 @@ export type IconName =
   | "star"
   | "starFilled"
   | "play"
-  | "estudos";
+  | "estudos"
+  | "pensamentos"
+  | "artefatos"
+  | "ambientes"
+  | "mapas"
+  | "pastas"
+  | "materiais"
+  | "conversas"
+  | "topicos"
+  | "participantes";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
+  // Ícones próprios em contorno (redesign de 27/11): o mesmo traço com um preenchimento quase transparente.
+  const f = { ...p, fill: color, fillOpacity: 0.08 };
+  const dot = { fill: color, fillOpacity: 0.9 };
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       {name === "home" && <Path d="m3.5 10 8.5-7 8.5 7v10.5h-6v-7h-5v7h-6V10Z" {...p} />}
+      {name === "pensamentos" && (
+        <>
+          <Path d="M12 4c4.4 0 7.5 3 7.5 7s-3.1 7.4-7.5 7.4c-1.2 0-2.3-.2-3.3-.6L5 19.5l1.1-3.4C5 14.8 4.5 13 4.5 11 4.5 7 7.6 4 12 4Z" {...f} />
+          <Circle cx={12} cy={11} r={1.6} {...dot} />
+        </>
+      )}
+      {name === "artefatos" && (
+        <>
+          <Path d="M12 3.5 19.5 7.6v8.8L12 20.5l-7.5-4.1V7.6Z" {...f} />
+          <Path d="M4.5 7.6 12 11.7l7.5-4.1M12 11.7v8.8" {...p} />
+        </>
+      )}
+      {name === "ambientes" && (
+        <>
+          <Path d="M12 20.5 4 16l8-4.5 8 4.5Z" {...f} />
+          <Path d="M4 16V7.5L12 3v8.5M12 3l8 4.5V16" {...p} />
+          <Circle cx={12} cy={15.9} r={1.5} {...dot} />
+        </>
+      )}
+      {name === "mapas" && (
+        <>
+          <Path d="M7.5 8 16.5 9.5 9 16.5Z" {...p} strokeOpacity={0.6} />
+          <Circle cx={7.5} cy={8} r={2.6} {...f} />
+          <Circle cx={16.5} cy={9.5} r={2.2} {...f} />
+          <Circle cx={9} cy={16.5} r={2.4} {...f} />
+        </>
+      )}
+      {name === "pastas" && (
+        <>
+          <Path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" {...f} />
+          <Path d="M3.5 10h17" {...p} />
+        </>
+      )}
+      {name === "materiais" && (
+        <>
+          <Path d="M8 3.5h8.5a2 2 0 0 1 2 2V16" {...p} />
+          <Path d="M7 6h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" {...f} />
+          <Path d="M8 11h5M8 14h5M8 17h3" {...p} />
+        </>
+      )}
+      {name === "conversas" && (
+        <>
+          <Path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h8A2.5 2.5 0 0 1 17 6.5v4a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 4 10.5Z" {...f} />
+          <Path d="M19 9.5a2 2 0 0 1 1 1.8v3.2a2 2 0 0 1-2 2h-.5V19L15 16.5h-3" {...p} />
+        </>
+      )}
+      {name === "topicos" && (
+        <>
+          <Circle cx={12} cy={12} r={7.5} {...f} />
+          <Circle cx={12} cy={12} r={2.6} {...dot} />
+        </>
+      )}
+      {name === "participantes" && (
+        <>
+          <Circle cx={9} cy={8.5} r={3} {...f} />
+          <Path d="M3.5 19a5.5 5.5 0 0 1 11 0Z" {...f} />
+          <Path d="M15.5 6a3 3 0 0 1 0 5.6M17 13.6a5.5 5.5 0 0 1 3.5 5.4" {...p} />
+        </>
+      )}
       {name === "estudos" && (
         <>
-          <Path d="M12 4 3.5 8.3 12 12.6l8.5-4.3Z" {...p} />
+          <Path d="M12 4 3.5 8.3 12 12.6l8.5-4.3Z" {...f} />
           <Path d="m3.5 12.2 8.5 4.3 8.5-4.3M3.5 16l8.5 4.3 8.5-4.3" {...p} />
         </>
       )}

@@ -1,3 +1,4 @@
+import { folderTone } from "@shared/color";
 import { API_URL, REQUEST_TIMEOUT_MS } from "./config";
 import type {
   AdminPost,
@@ -105,7 +106,25 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     if (response.status === 401 && authToken) onUnauthorized?.();
     throw new ApiError(payload.error || `Erro ${response.status} no servidor.`, response.status, payload.fieldErrors, Array.isArray(payload.details) ? payload.details.map(String) : undefined);
   }
-  return data as T;
+  return toneFolders(data) as T;
+}
+
+/**
+ * Cores das pastas na paleta da Mente (folderTone): troca a cor de toda pasta (objeto com nome, slug e cor) e de todo
+ * tema do mapa, em qualquer resposta. Feito aqui, num ponto só, vale para o feed, os estudos, o painel e o mapa.
+ */
+function toneFolders(value: unknown, depth = 0): unknown {
+  if (depth > 8 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    for (const item of value) toneFolders(item, depth + 1);
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.color === "string" && ((typeof record.slug === "string" && typeof record.name === "string") || record.type === "THEME")) {
+    record.color = folderTone(record.color);
+  }
+  for (const key in record) if (record[key] && typeof record[key] === "object") toneFolders(record[key], depth + 1);
+  return value;
 }
 
 type TokenResponse = { token: string; user: User; expiresIn: number };

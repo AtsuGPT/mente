@@ -9,6 +9,7 @@ import { formatAgo } from "@/lib/format";
 import { EnvironmentHeader } from "@/components/environment-header";
 import { AppText, Button, SectionLabel, Skeleton, StateView, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
+import { GlassIcon } from "@/components/ui/glass-icon";
 import { enter } from "@/theme/motion";
 import { colors, fonts, radius, space } from "@/theme/tokens";
 import { useLayout } from "@/theme/layout";
@@ -104,7 +105,7 @@ export default function StudiesScreen() {
         <View style={styles.sectionRow}>
           <SectionLabel>Pastas</SectionLabel>
           <Touchable onPress={() => router.push("/conhecimento")} pressScale={0.96} style={styles.mapLink} accessibilityLabel="Abrir o mapa de conhecimento">
-            <Icon name="flow" size={16} color={colors.violet300} />
+            <Icon name="mapas" size={17} color={colors.violet300} />
             <AppText variant="small" color={colors.violet300} style={{ fontFamily: fonts.sansMedium }}>Mapa de conhecimento</AppText>
           </Touchable>
         </View>
@@ -140,8 +141,13 @@ function FolderCard({ folder }: { folder: Folder }) {
   return (
     <Touchable onPress={() => router.push({ pathname: "/categoria/[slug]", params: { slug: folder.slug } })} pressScale={0.985} style={styles.folder} accessibilityLabel={`Pasta ${folder.name}`}>
       <View style={styles.folderHead}>
-        <View style={[styles.folderDot, { backgroundColor: folder.color }]} />
-        <AppText variant="title" numberOfLines={1} style={styles.folderName}>{folder.name}</AppText>
+        <GlassIcon name="pastas" size={44} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            <View style={[styles.folderDot, { backgroundColor: folder.color }]} />
+            <AppText variant="title" numberOfLines={1} style={styles.folderName}>{folder.name}</AppText>
+          </View>
+        </View>
       </View>
       <AppText variant="small" color={colors.faint}>
         {folder.topics} {folder.topics === 1 ? "tópico" : "tópicos"} · {folder.count} {folder.count === 1 ? "pensamento" : "pensamentos"}

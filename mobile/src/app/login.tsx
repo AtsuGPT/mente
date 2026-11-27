@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useEnvironment } from "@/lib/environment";
 import { ApiError } from "@/lib/api";
 import { API_SOURCE, API_URL } from "@/lib/config";
-import { ConvergenceSymbol } from "@/components/convergence-symbol";
+import { KallyOrbital } from "@/components/kally/orbital";
 import { AppText, Button, TextField, Touchable } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { colors, elevation, fonts, radius, space } from "@/theme/tokens";
@@ -63,7 +63,8 @@ export default function LoginScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }, container]}
       >
         <Animated.View entering={FadeIn.duration(900)} style={{ alignItems: "center" }}>
-          <ConvergenceSymbol size={Math.round(illustration * 0.82)} breathe />
+          {/* A Kally em movimento recebe quem entra (redesign de 27/11). */}
+          <KallyOrbital size={Math.round(illustration * 0.92)} state="idle" />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.brand}>

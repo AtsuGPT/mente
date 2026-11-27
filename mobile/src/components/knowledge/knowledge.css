@@ -241,8 +241,9 @@ body,
 /* Tema: círculo roxo chapado, com uma luz suave por cima e halo discreto (nada de esfera brilhante). */
 .kg-theme {
   color: rgba(255, 255, 255, 0.85);
-  background: linear-gradient(180deg, #7650ea 0%, #5c33cd 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 0 0 1.5px color-mix(in srgb, var(--accent, #8461f0) 50%, transparent), 0 0 0 6px rgba(132, 97, 240, 0.08), 0 0 18px rgba(132, 97, 240, 0.22);
+  /* No tom da pasta (redesign de 27/11): obsidiana com luz da cor da pasta, em vez do roxo fixo. */
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent, #8c7cf0) 85%, white 15%) 0%, color-mix(in srgb, var(--accent, #8c7cf0) 55%, #0b0a10 45%) 60%, #0b0a10 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1.5px color-mix(in srgb, var(--accent, #8c7cf0) 45%, transparent), 0 0 14px color-mix(in srgb, var(--accent, #8c7cf0) 30%, transparent);
 }
 .kg-theme.is-virtual {
   background: var(--pressed);

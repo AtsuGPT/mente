@@ -57,14 +57,18 @@ const HALO = [0.45, 0.6, 0.85, 0.75, 0.6, 0.6, 0.6, 0.65, 0.25];
 /** Raio da órbita em fração do tamanho (sobra espaço para o halo e o voo das partículas). */
 const RADIUS = 0.36;
 /** Duração da troca: linhas acendem entre LINE_IN e as partículas somem até PART_OUT (s). */
-const LINE_IN = [0.7, 1.15] as const;
-const PART_OUT = [0.95, 1.4] as const;
+const LINE_IN = [0.8, 1.3] as const;
+const PART_OUT = [1.05, 1.6] as const;
 /** Instante desenhado quando a órbita está parada (reduzir movimento, fora de foco). */
 const STILL_T = 2.2;
 
 type Kit = {
   stroke: SkPaint;
   sphere: SkPaint;
+  /** Núcleo de vidro: borda de luz e reflexo (retoque de 27/11). */
+  rim: SkPaint;
+  spec: SkPaint;
+  trail: SkPaint;
   dot: SkPaint;
   glow: SkPaint;
   halo: SkPaint;
@@ -102,6 +106,24 @@ function makeKit(): Kit {
       TileMode.Clamp,
     ),
   );
+  // Borda de luz do núcleo: acesa no alto, à esquerda (de onde vem a luz), apagando para baixo.
+  const rim = Skia.Paint();
+  rim.setAntiAlias(true);
+  rim.setStyle(PaintStyle.Stroke);
+  rim.setStrokeWidth(0.014);
+  rim.setBlendMode(BlendMode.Plus);
+  rim.setShader(Skia.Shader.MakeLinearGradient({ x: -SPHERE, y: -SPHERE }, { x: SPHERE, y: SPHERE }, [Skia.Color("rgba(228,219,253,0.85)"), Skia.Color("rgba(165,139,247,0.25)"), Skia.Color("rgba(98,54,212,0)")], [0, 0.5, 1], TileMode.Clamp));
+  // Reflexo: um brilho pequeno e macio no alto do núcleo, como numa esfera de vidro.
+  const spec = Skia.Paint();
+  spec.setAntiAlias(true);
+  spec.setBlendMode(BlendMode.Plus);
+  spec.setShader(Skia.Shader.MakeRadialGradient({ x: -SPHERE * 0.36, y: -SPHERE * 0.42 }, SPHERE * 0.5, [Skia.Color("rgba(255,255,255,0.55)"), Skia.Color("rgba(228,219,253,0.12)"), Skia.Color("rgba(228,219,253,0)")], [0, 0.45, 1], TileMode.Clamp));
+  // Rastro das partículas em movimento (um traço curto na direção da velocidade).
+  const trail = Skia.Paint();
+  trail.setAntiAlias(true);
+  trail.setStyle(PaintStyle.Stroke);
+  trail.setStrokeCap(StrokeCap.Round);
+  trail.setBlendMode(BlendMode.Plus);
   const halo = Skia.Paint();
   halo.setAntiAlias(true);
   halo.setShader(
@@ -116,6 +138,9 @@ function makeKit(): Kit {
   return {
     stroke,
     sphere,
+    rim,
+    spec,
+    trail,
     dot,
     glow,
     halo,
@@ -144,8 +169,12 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
       kit.halo.setAlphaf(Math.min(1, orb.halo));
       canvas.drawCircle(0, 0, 1.38, kit.halo);
       if (orb.shape === 0 && lineA > 0.01) {
-        kit.sphere.setAlphaf(0.85 * lineA);
+        kit.sphere.setAlphaf(0.9 * lineA);
         canvas.drawCircle(0, 0, SPHERE, kit.sphere);
+        kit.rim.setAlphaf(lineA);
+        canvas.drawCircle(0, 0, SPHERE - 0.007, kit.rim);
+        kit.spec.setAlphaf(lineA);
+        canvas.drawCircle(0, 0, SPHERE, kit.spec);
       }
 
       if (lineA > 0.01) {
@@ -190,6 +219,7 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
         const unit = 1 / R;
         const base = Math.max(0.8, Math.min(1.5, size / 160)) * unit;
         const builders: ReturnType<typeof Skia.PathBuilder.Make>[] = [];
+        const trails: ReturnType<typeof Skia.PathBuilder.Make>[] = [];
         for (let i = 0; i < p.n; i++) {
           const bb = p.b[i] * partA;
           if (bb < 0.02) continue;
@@ -200,6 +230,26 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
             builders[slot] = builder;
           }
           builder.addCircle(p.x[i], p.y[i], base * p.size[i] * (0.9 + bb * 0.7));
+          // Rastro: só quando a partícula anda rápido (na troca), um traço curto para trás, na cor dela.
+          const vx = p.vx[i];
+          const vy = p.vy[i];
+          if (vx * vx + vy * vy > 0.04) {
+            let tb = trails[p.col[i]];
+            if (!tb) {
+              tb = Skia.PathBuilder.Make();
+              trails[p.col[i]] = tb;
+            }
+            tb.moveTo(p.x[i] - vx * 0.045, p.y[i] - vy * 0.045);
+            tb.lineTo(p.x[i], p.y[i]);
+          }
+        }
+        for (let c = 0; c < trails.length; c++) {
+          const tb = trails[c];
+          if (!tb) continue;
+          kit.trail.setColor(kit.dots[c]);
+          kit.trail.setStrokeWidth(base * 1.5);
+          kit.trail.setAlphaf(0.3 * partA);
+          canvas.drawPath(tb.detach(), kit.trail);
         }
         for (let slot = 0; slot < builders.length; slot++) {
           const builder = builders[slot];
@@ -221,8 +271,12 @@ function paint(orb: Orb, strokes: Stroke[], size: number, lineA: number, partA: 
   );
 }
 
-/** No repouso já assentado (sem partículas), a órbita gira devagar: 30 quadros por segundo bastam e poupam bateria. */
+/**
+ * No repouso já assentado (sem partículas), a órbita gira devagar. A grande (tela da Kally, entrar) roda a 60 quadros
+ * por segundo para o giro sair liso (retoque de 27/11); as pequenas, a 30, e poupam bateria.
+ */
 const IDLE_STEP = 1 / 30;
+const IDLE_STEP_LARGE = 1 / 90;
 
 /**
  * Um quadro da órbita `id`. still: parada no desenho do estado (sem partículas nem tempo correndo). null: este quadro
@@ -253,7 +307,7 @@ function frame(id: string, shapeNow: number, lvlNow: number, actNow: number, siz
     orb.since = t;
   }
   const since = t - orb.since;
-  if (orb.shape === 0 && since > PART_OUT[1] + 1 && t - orb.drawn < IDLE_STEP && t >= orb.drawn) return null;
+  if (orb.shape === 0 && since > PART_OUT[1] + 1 && t - orb.drawn < (size >= 140 ? IDLE_STEP_LARGE : IDLE_STEP) && t >= orb.drawn) return null;
   orb.drawn = t;
   const lineA = smoothstep(LINE_IN[0], LINE_IN[1], since);
   const partA = 1 - smoothstep(PART_OUT[0], PART_OUT[1], since);

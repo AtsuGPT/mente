@@ -41,3 +41,51 @@ export function readableAccent(hex: string, minContrast = 4.5): string {
   }
   return toHex(rgb);
 }
+
+/**
+ * Tons das pastas (redesign de 27/11): no lugar de amarelo, azul e verde puros, dez tons foscos que conversam com o
+ * preto e o roxo da Mente. A cor salva continua a mesma no banco; na tela ela vira o tom da paleta mais próximo pelo
+ * matiz (cores quase cinza viram ardósia).
+ */
+export const FOLDER_TONES = [
+  { name: "Coral", hex: "#E0A090", hue: 12 },
+  { name: "Âmbar", hex: "#D4B07A", hue: 38 },
+  { name: "Sálvia", hex: "#9CC4A4", hue: 120 },
+  { name: "Jade", hex: "#7FC1B8", hue: 172 },
+  { name: "Azul aço", hex: "#8FA9D9", hue: 215 },
+  { name: "Íris", hex: "#8C7CF0", hue: 248 },
+  { name: "Lavanda", hex: "#B9A6F0", hue: 266 },
+  { name: "Orquídea", hex: "#C98BE0", hue: 290 },
+  { name: "Rosa antigo", hex: "#D99AB2", hue: 338 },
+] as const;
+const SLATE = "#A3A0B8";
+
+function hsl(hex: string): { h: number; s: number; l: number } {
+  const [r, g, b] = parse(hex).map((v) => v / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s, l };
+}
+
+/** O tom da paleta das pastas mais próximo da cor salva. */
+export function folderTone(hex: string): string {
+  if (!HEX_COLOR.test(hex)) return SLATE;
+  if (FOLDER_TONES.some((t) => t.hex.toLowerCase() === hex.toLowerCase())) return hex;
+  const { h, s } = hsl(hex);
+  if (s < 0.14) return SLATE;
+  let best: string = SLATE;
+  let gap = Infinity;
+  for (const tone of FOLDER_TONES) {
+    const d = Math.min(Math.abs(tone.hue - h), 360 - Math.abs(tone.hue - h));
+    if (d < gap) {
+      gap = d;
+      best = tone.hex;
+    }
+  }
+  return best;
+}

@@ -393,25 +393,31 @@ export function stepParticles(p: Particles, strokes: Stroke[], since: number, t:
   "worklet";
   sample(strokes, true, p.core, 0, p);
   sample(strokes, false, p.n - p.core, p.core, p);
-  const K = 58;
-  const D = 2 * Math.sqrt(K) * 0.7;
+  // Retoque de 27/11: mola um pouco mais macia e mais amortecida (sem tremida) e integração em passos de até 1/120 s,
+  // para a partícula andar igual mesmo quando um quadro atrasa.
+  const K = 48;
+  const D = 2 * Math.sqrt(K) * 0.82;
+  const steps = Math.max(1, Math.ceil(dt * 120));
+  const h = dt / steps;
   for (let i = 0; i < p.n; i++) {
     const tau = since - p.delay[i];
-    const q = Math.min(1, Math.max(0, tau / 0.6));
+    const q = Math.min(1, Math.max(0, tau / 0.75));
     const m = tau <= 0 ? 0.03 : 0.03 + 0.97 * q * q * (3 - 2 * q);
     if (m > 0.5) p.col[i] = p.colGoal[i];
     const s = p.seed[i];
     const k = K * m * (0.75 + s * 0.5);
-    const x = p.x[i];
-    const y = p.y[i];
     const dm = D * Math.sqrt(m);
-    const drift = (1 - m) * 1.4;
-    const ax = k * (p.tx[i] - x) - dm * p.vx[i] + Math.sin(y * 4 + t * 1.7 + s * 6.28) * drift - (1 - m) * 0.9 * p.vx[i];
-    const ay = k * (p.ty[i] - y) - dm * p.vy[i] + Math.cos(x * 4 - t * 1.3 + s * 3.1) * drift - (1 - m) * 0.9 * p.vy[i];
-    p.vx[i] += ax * dt;
-    p.vy[i] += ay * dt;
-    p.x[i] += p.vx[i] * dt;
-    p.y[i] += p.vy[i] * dt;
+    const drift = (1 - m) * 1.2;
+    for (let j = 0; j < steps; j++) {
+      const x = p.x[i];
+      const y = p.y[i];
+      const ax = k * (p.tx[i] - x) - dm * p.vx[i] + Math.sin(y * 4 + t * 1.7 + s * 6.28) * drift - (1 - m) * 0.9 * p.vx[i];
+      const ay = k * (p.ty[i] - y) - dm * p.vy[i] + Math.cos(x * 4 - t * 1.3 + s * 3.1) * drift - (1 - m) * 0.9 * p.vy[i];
+      p.vx[i] += ax * h;
+      p.vy[i] += ay * h;
+      p.x[i] += p.vx[i] * h;
+      p.y[i] += p.vy[i] * h;
+    }
   }
 }
 

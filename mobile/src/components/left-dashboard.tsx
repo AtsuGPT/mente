@@ -282,8 +282,8 @@ export function DashboardPanel({ onNavigate, docked = false }: { onNavigate?: ()
             )}
 
             <SectionLabel style={styles.section}>Atalhos</SectionLabel>
-            <Shortcut icon="flow" label="Mapa de conhecimento" onPress={() => go("/conhecimento")} />
-            <Shortcut icon="folder" label="Todas as pastas" onPress={() => go("/pastas")} />
+            <Shortcut icon="mapas" label="Mapa de conhecimento" onPress={() => go("/conhecimento")} />
+            <Shortcut icon="estudos" label="Estudos e pastas" onPress={() => go("/estudos")} />
           </ScrollView>
         </Animated.View>
       )}

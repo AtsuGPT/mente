@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
-import { router, useFocusEffect } from "expo-router";
-import type { EnvApi } from "@/lib/api";
+import { router } from "expo-router";
 import { formatAgo } from "@/lib/format";
 import type { Category, KallyConversation, KallyLearningTopic } from "@/lib/types";
 import { AppText, Touchable } from "@/components/ui/primitives";
@@ -40,56 +39,26 @@ export function nextReviewOf(topics: KallyLearningTopic[], now = new Date()) {
     .sort((a, b) => new Date(a.nextReviewAt!).getTime() - new Date(b.nextReviewAt!).getTime())[0] ?? null;
 }
 
-export function FolderStudy({ api, category }: { api: EnvApi; category: Category }) {
-  const [topics, setTopics] = useState<KallyLearningTopic[] | null>(null);
-  const [conversations, setConversations] = useState<Conversation[] | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
+export type FolderConversation = Conversation;
 
-  const load = useCallback(() => {
-    let alive = true;
-    api.kallyProgress(category.id).then((r) => alive && setTopics(r.topics), () => alive && setTopics([]));
-    api.kallyFolderConversations(category.id).then((r) => alive && setConversations(r.conversations), () => alive && setConversations([]));
-    return () => {
-      alive = false;
-    };
-  }, [api, category.id]);
-  // Volta da Kally com tópico novo ou conversa nova: recarrega ao voltar para a tela.
-  useFocusEffect(load);
-
-  const openKally = (params: Record<string, string>) => router.push({ pathname: "/perguntar", params: { pasta: category.id, pastaNome: category.name, ...params } });
-
-  if (topics === null || conversations === null) return <View style={{ height: space.xl }} />;
-
+/** Contagem por domínio (a barra do cabeçalho da pasta). */
+export function masteryCounts(topics: KallyLearningTopic[]) {
   const counts = { dominado: 0, estudando: 0, dificuldade: 0 };
   for (const t of topics) counts[t.mastery] += 1;
+  return counts;
+}
+
+export const MASTERY_STYLE = MASTERY;
+
+export function FolderStudy({ category, topics, conversations }: { category: Category; topics: KallyLearningTopic[]; conversations: Conversation[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const openKally = (params: Record<string, string>) => router.push({ pathname: "/perguntar", params: { pasta: category.id, pastaNome: category.name, ...params } });
   const review = nextReviewOf(topics);
 
   return (
-    <View style={{ gap: space.md, marginBottom: space.lg }}>
+    <View style={{ gap: space.md }}>
       {topics.length ? (
         <>
-          <Surface contentStyle={{ padding: space.lg }}>
-            <View style={styles.sumHead}>
-              <AppText variant="label" color={colors.faint}>Seu progresso</AppText>
-              <AppText variant="small" color={colors.faint}>{topics.length} {topics.length === 1 ? "tópico" : "tópicos"}</AppText>
-            </View>
-            <View style={styles.bar} accessibilityLabel={`${counts.dominado} dominado, ${counts.estudando} estudando, ${counts.dificuldade} com dificuldade`}>
-              {(["dominado", "estudando", "dificuldade"] as const).map((m) =>
-                counts[m] ? <View key={m} style={[styles.seg, { flex: counts[m], backgroundColor: m === "estudando" ? colors.violet500 : MASTERY[m].color }]} /> : null,
-              )}
-            </View>
-            <View style={styles.legend}>
-              {(["dominado", "estudando", "dificuldade"] as const).map((m) => (
-                <View key={m} style={styles.legendItem}>
-                  <View style={[styles.dot, { backgroundColor: m === "estudando" ? colors.violet500 : MASTERY[m].color }]} />
-                  <AppText variant="small" color={colors.muted}>
-                    <AppText variant="small" style={{ fontWeight: "600" }}>{counts[m]}</AppText> {MASTERY[m].label}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-          </Surface>
-
           {review ? (
             <Touchable onPress={() => openKally({ topico: review.title })} style={styles.review} accessibilityLabel={`Revisar ${review.title}`}>
               <View style={styles.cal}>
@@ -107,7 +76,7 @@ export function FolderStudy({ api, category }: { api: EnvApi; category: Category
 
           <View style={styles.sect}>
             <AppText variant="label" color={colors.faint}>Tópicos</AppText>
-            <AppText variant="small" color={colors.faint}>toque para estudar</AppText>
+            <AppText variant="small" color={colors.faint}>{topics.length} · toque para ver onde ainda erra</AppText>
           </View>
           <Animated.View layout={LinearTransition} style={styles.list}>
             {topics.map((t, i) => {
@@ -123,6 +92,10 @@ export function FolderStudy({ api, category }: { api: EnvApi; category: Category
                     <View style={[styles.pill, { borderColor: m.border, backgroundColor: m.bg }]}>
                       <AppText variant="small" color={m.color} style={{ fontSize: 11.5 }}>{m.label}</AppText>
                     </View>
+                    <Touchable onPress={() => openKally({ topico: t.title })} pressScale={0.92} hitSlop={6} style={styles.newChat} accessibilityLabel={`Nova conversa sobre ${t.title}`}>
+                      <Icon name="plus" size={14} color={colors.violet200} />
+                      <AppText variant="small" color={colors.violet200} style={{ fontSize: 12 }}>Nova conversa</AppText>
+                    </Touchable>
                   </Touchable>
                   {isOpen ? (
                     <View style={styles.openArea}>
@@ -163,9 +136,7 @@ export function FolderStudy({ api, category }: { api: EnvApi; category: Category
           <View style={styles.list}>
             {conversations.map((c, i) => (
               <Touchable key={c.id} onPress={() => router.push({ pathname: "/perguntar", params: { conversa: c.id } })} style={[styles.row, i < conversations.length - 1 && styles.divider]} pressScale={0.99}>
-                <View style={styles.convIcon}>
-                  <Icon name="sparkle" size={13} color={colors.violet300} />
-                </View>
+                <Icon name="conversas" size={22} color={colors.muted} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <AppText variant="uiMedium" numberOfLines={1}>{c.title}</AppText>
                   <AppText variant="small" color={colors.faint}>
@@ -200,5 +171,5 @@ const styles = StyleSheet.create({
   openArea: { paddingHorizontal: 14, paddingBottom: 14, gap: 6 },
   weak: { paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: "rgba(232,192,125,0.45)" },
   study: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm, marginTop: space.sm, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: tint.selectedBorder, backgroundColor: tint.selected },
-  convIcon: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: tint.selected, borderWidth: 1, borderColor: tint.selectedBorder },
+  newChat: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: tint.selectedBorder, backgroundColor: tint.selected },
 });

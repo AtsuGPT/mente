@@ -2,13 +2,15 @@ import { useEffect, useRef } from "react";
 import Graph from "graphology";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
-import { layerDashed, layerPlain, sdfCircle, sdfSquare } from "sigma/rendering";
+import { layerDashed, layerPlain, sdfCircle, sdfDiamond } from "sigma/rendering";
+import { folderTone } from "@shared/color";
 import { kindOf, passes, type GraphIndex, type KindFilter, type KnowledgeGraph } from "@/lib/knowledge";
 
 /**
- * Modo Relacional (carregado só quando escolhido): agrupamentos orgânicos por tema, como no Obsidian. Temas maiores,
- * tópicos menores, materiais como quadradinhos discretos; hierarquia em linha contínua, relação entre conhecimentos
- * tracejada. O layout (ForceAtlas2) roda um número fixo de iterações e para: nada fica se mexendo depois. Rótulos dos
+ * Modo Relacional (carregado só quando escolhido): agrupamentos orgânicos por tema, como no Obsidian. No tema novo
+ * (27/11): cada pasta é uma cápsula de vidro escuro com borda e brilho no tom dela; tópicos são um ponto com o anel do
+ * domínio (sálvia, lavanda, âmbar); materiais, losangos pequenos cor de ardósia. Hierarquia em linha fina tingida pelo
+ * tom da pasta, relação entre conhecimentos tracejada. O layout (ForceAtlas2) roda um número fixo de iterações e para: nada fica se mexendo depois. Rótulos dos
  * tópicos e materiais aparecem conforme a aproximação.
  */
 
@@ -28,17 +30,22 @@ export type RelationalProps = {
 };
 
 const COLORS = {
-  theme: "#8461F0",
-  topic: "#B9A6F9",
-  material: "#8A84A3",
-  label: "#E9E4F7",
-  labelFaint: "#AAA4BF",
-  tree: "rgba(165,139,247,0.22)",
+  material: "#8F8AA6",
+  label: "#F2EFFA",
+  labelTopic: "#C9C3DA",
+  labelFaint: "#948EAA",
+  capsule: "rgba(16,14,22,0.92)",
   related: "rgba(199,183,250,0.75)",
   dim: "rgba(60,56,72,0.35)",
-  dimEdge: "rgba(60,56,72,0.12)",
   transparent: "rgba(0,0,0,0)",
 };
+/** Domínio do tópico: os mesmos tons da aba Estudos. */
+const MASTERY_TONE: Record<string, string> = { dominado: "#9CC4A4", estudando: "#B9A6F0", dificuldade: "#D4B07A" };
+
+function withAlpha(hex: string, a: number) {
+  const h = /^#[0-9a-f]{6}$/i.test(hex) ? hex : "#A3A0B8";
+  return `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
+}
 
 /** Posições guardadas por recorte do grafo: trocar de modo e voltar não reorganiza tudo. */
 const positionCache = new Map<string, Map<string, { x: number; y: number }>>();
@@ -61,24 +68,41 @@ function buildGraph(data: KnowledgeGraph, index: GraphIndex, kinds: Set<KindFilt
     // Ponto de partida: cada tema no seu setor do círculo, os filhos perto dele (determinístico, sem Math.random).
     const spread = n.type === "THEME" ? 0 : 22 + hash01(n.id, 2) * 34;
     const jitter = hash01(n.id, 3) * Math.PI * 2;
+    const tone = folderTone(index.byId.get(n.themeId)?.color ?? n.color);
+    const isTheme = n.type === "THEME";
+    const isTopic = kind === "topic";
+    const mastery = MASTERY_TONE[n.mastery ?? "estudando"];
     g.addNode(n.id, {
       x: Math.cos(a) * R + Math.cos(jitter) * spread,
       y: Math.sin(a) * R + Math.sin(jitter) * spread,
-      size: n.type === "THEME" ? 12 : kind === "topic" ? 5.5 : 3.2,
-      color: n.type === "THEME" ? COLORS.theme : kind === "topic" ? COLORS.topic : COLORS.material,
-      shape: n.type === "THEME" || kind === "topic" ? "circle" : "square",
+      size: isTheme ? 6.5 : isTopic ? 4.5 : 3.4,
+      color: isTheme ? tone : isTopic ? mastery : COLORS.material,
+      shape: isTheme || isTopic ? "circle" : "diamond",
       label: n.label,
-      labelColor: n.type === "THEME" ? COLORS.label : COLORS.labelFaint,
-      labelSize: n.type === "THEME" ? 14 : 12,
+      labelColor: isTheme ? COLORS.label : isTopic ? COLORS.labelTopic : COLORS.labelFaint,
+      labelSize: isTheme ? 14 : isTopic ? 12.5 : 11.5,
+      labelPos: isTheme ? "right" : "below",
+      // Cápsula de vidro (pasta) e anel do domínio (tópico): o fundo do nó desenhado pelo Sigma.
+      bdVis: isTheme || isTopic ? "visible" : "hidden",
+      bdArea: isTheme ? "both" : "node",
+      bdColor: isTheme ? COLORS.capsule : COLORS.transparent,
+      bdBorder: isTheme ? withAlpha(tone, 0.55) : withAlpha(mastery, 0.6),
+      bdBorderWidth: isTheme ? 1.2 : 1.4,
+      bdShadow: isTheme ? withAlpha(tone, 0.32) : COLORS.transparent,
+      bdBlur: isTheme ? 18 : 0,
+      bdPadding: isTheme ? 7 : 3,
+      bdRadius: isTheme ? 15 : 7.5,
+      tone,
       kind: n.type,
     });
   }
   for (const e of data.edges) {
     if (!g.hasNode(e.source) || !g.hasNode(e.target) || g.hasEdge(e.source, e.target)) continue;
     const related = e.type === "RELATED_TO" || e.type === "PREREQUISITE";
+    const tone = (g.getNodeAttribute(e.source, "tone") as string) ?? "#A3A0B8";
     g.addEdge(e.source, e.target, {
       related,
-      color: related ? COLORS.transparent : COLORS.tree,
+      color: related ? COLORS.transparent : withAlpha(tone, 0.22),
       dashColor: related ? COLORS.related : COLORS.transparent,
       dash: related ? 4 : 0,
       gap: related ? 4 : 0,
@@ -180,7 +204,7 @@ export default function RelationalMap(props: RelationalProps) {
 
     const renderer = new Sigma(g, container.current, {
       primitives: {
-        nodes: { shapes: [sdfCircle(), sdfSquare()] },
+        nodes: { shapes: [sdfCircle(), sdfDiamond()] },
         edges: {
           layers: [
             layerPlain({ color: { attribute: "color" } }),
@@ -198,7 +222,18 @@ export default function RelationalMap(props: RelationalProps) {
             labelColor: { attribute: "labelColor" },
             labelSize: { attribute: "labelSize" },
             labelFont: "Instrument Sans, system-ui, sans-serif",
-            labelPosition: "below",
+            labelPosition: { attribute: "labelPos", defaultValue: "below" },
+            backdropVisibility: { attribute: "bdVis", defaultValue: "hidden" },
+            backdropArea: { attribute: "bdArea", defaultValue: "node" },
+            backdropColor: { attribute: "bdColor", defaultValue: "rgba(0,0,0,0)" },
+            backdropBorderColor: { attribute: "bdBorder", defaultValue: "rgba(0,0,0,0)" },
+            backdropBorderWidth: { attribute: "bdBorderWidth", defaultValue: 0 },
+            backdropShadowColor: { attribute: "bdShadow", defaultValue: "rgba(0,0,0,0)" },
+            backdropShadowBlur: { attribute: "bdBlur", defaultValue: 0 },
+            backdropPadding: { attribute: "bdPadding", defaultValue: 0 },
+            // O raio não pode passar da metade da altura do fundo: maior que isso, o Sigma incha a caixa em vez de arredondá-la.
+            backdropCornerRadius: { attribute: "bdRadius", defaultValue: 0 },
+            backdropLabelPadding: 6,
           },
         ],
         edges: [{ color: { attribute: "color" }, size: { attribute: "size" } }],
@@ -218,15 +253,16 @@ export default function RelationalMap(props: RelationalProps) {
         // O contêiner pode nascer sem altura (webview do app, troca de tela): sem isto o Sigma lança erro e o mapa fica preto.
         allowInvalidContainer: true,
       },
-      nodeReducer: (key, computed) => {
+      nodeReducer: (key, computed, attrs) => {
         const h = highlight.current;
         const inFocus = !h.focus || h.focus.has(key);
-        if (!inFocus) return { ...computed, color: COLORS.dim, label: "", labelVisibility: "hidden" };
-        if (!h.set) return computed;
-        if (key === h.center) return { ...computed, labelVisibility: "visible", depth: "topNodes", size: (computed.size ?? 6) * 1.25 };
+        if (!inFocus) return { ...computed, color: COLORS.dim, label: "", labelVisibility: "hidden", backdropVisibility: "hidden" };
+        if (!h.set) return attrs.kind === "THEME" ? { ...computed, labelVisibility: "visible" } : computed;
+        // Pasta em foco fica na camada dela: subindo, a cápsula cobria o próprio nome.
+        if (key === h.center) return attrs.kind === "THEME" ? { ...computed, labelVisibility: "visible", size: (computed.size ?? 6) * 1.25 } : { ...computed, labelVisibility: "visible", depth: "topNodes", size: (computed.size ?? 6) * 1.25 };
         // Vizinhos: tema e tópico com nome sempre; material só com zoom (senão os nomes se encavalam).
         if (h.set.has(key)) return { ...computed, labelVisibility: (computed.size ?? 0) >= 5 ? "visible" : "auto", depth: "topNodes" };
-        return { ...computed, color: COLORS.dim, labelVisibility: "hidden" };
+        return { ...computed, color: COLORS.dim, labelVisibility: "hidden", backdropVisibility: "hidden" };
       },
       edgeReducer: (key, computed, _attrs, _state, _gs, graph) => {
         const h = highlight.current;

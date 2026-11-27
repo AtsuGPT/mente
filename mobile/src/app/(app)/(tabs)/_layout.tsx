@@ -13,11 +13,11 @@ import { useLayout } from "@/theme/layout";
  * de 27/11 (pastas com o progresso e os tópicos para continuar). Buscar fica no painel da esquerda (left-dashboard.tsx).
  */
 const tabs: { name: string; title: string; icon: IconName }[] = [
-  { name: "feed", title: "Feed", icon: "home" },
+  { name: "feed", title: "Feed", icon: "pensamentos" },
   { name: "estudos", title: "Estudos", icon: "estudos" },
   { name: "perguntar", title: "Kally", icon: "kally" },
-  { name: "artefatos", title: "Artefatos", icon: "cube" },
-  { name: "conta", title: "Ambiente", icon: "settings" },
+  { name: "artefatos", title: "Artefatos", icon: "artefatos" },
+  { name: "conta", title: "Ambiente", icon: "ambientes" },
 ];
 /** O ambiente abre na Kally (também quando o grupo de abas é aberto sem uma aba escolhida). */
 export const unstable_settings = { initialRouteName: "perguntar" };
