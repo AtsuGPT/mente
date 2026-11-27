@@ -1,6 +1,6 @@
 "use dom";
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChartNetwork, Maximize2, Minus, Network, PanelLeft, PanelRight, Plus, MapIcon } from "./icons";
 import "@xyflow/react/dist/style.css";
 import "./knowledge.css";
@@ -143,9 +143,11 @@ export default function KnowledgeMap(props: {
         {mode === "estruturado" ? (
           <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={insets} />
         ) : (
-          <Suspense fallback={<div className="kloading">Carregando o modo relacional…</div>}>
-            <RelationalMap {...shared} graph={graph} insets={insets} />
-          </Suspense>
+          <RelationalBoundary onFallback={() => setMode("estruturado")}>
+            <Suspense fallback={<div className="kloading">Carregando o modo relacional…</div>}>
+              <RelationalMap {...shared} graph={graph} insets={insets} />
+            </Suspense>
+          </RelationalBoundary>
         )}
       </div>
 
@@ -227,6 +229,25 @@ export default function KnowledgeMap(props: {
       ) : null}
     </div>
   );
+}
+
+/** Se o modo relacional falhar (WebGL indisponível, erro do Sigma), mostra o motivo e oferece o estruturado. */
+class RelationalBoundary extends Component<{ children: ReactNode; onFallback: () => void }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="kloading" role="alert">
+        <div style={{ display: "grid", gap: 12, justifyItems: "center", textAlign: "center", maxWidth: 360 }}>
+          <span>O modo relacional não abriu neste aparelho.</span>
+          <button className="kpill" onClick={() => { this.setState({ error: null }); this.props.onFallback(); }}>Abrir o Estruturado</button>
+        </div>
+      </div>
+    );
+  }
 }
 
 const NARROW = 760;

@@ -108,6 +108,11 @@ function layout(g: Graph, key: string) {
     // distribuídos (temas no centro, materiais num anel) e 0,22 com estes valores, cada tema cercado dos seus itens.
     settings: { ...settings, linLogMode: false, gravity: 0.3, scalingRatio: 20, slowDown: 3, adjustSizes: false, barnesHutOptimize: g.order > 300, outboundAttractionDistribution: false },
   });
+  let i = 0;
+  g.forEachNode((n, a) => {
+    if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) g.mergeNodeAttributes(n, { x: Math.cos(i) * 10, y: Math.sin(i) * 10 });
+    i += 1;
+  });
   const positions = new Map<string, { x: number; y: number }>();
   g.forEachNode((n, a) => positions.set(n, { x: a.x, y: a.y }));
   if (positionCache.size > 12) positionCache.delete(positionCache.keys().next().value!);
@@ -127,7 +132,7 @@ export default function RelationalMap(props: RelationalProps) {
     const keys = nodes === "all" ? renderer.getGraph().nodes() : nodes;
     const points = keys.flatMap((k) => {
       const d = renderer.getNodeDisplayData(k);
-      return d ? [{ x: d.x, y: d.y }] : [];
+      return d && Number.isFinite(d.x) && Number.isFinite(d.y) ? [{ x: d.x, y: d.y }] : [];
     });
     if (!points.length) return;
     const { width, height } = renderer.getDimensions();
@@ -156,6 +161,11 @@ export default function RelationalMap(props: RelationalProps) {
     state.x += ((b.x0 + b.x1) / 2 - (free.x0 + free.x1) / 2) / ux;
     state.y += ((b.y0 + b.y1) / 2 - (free.y0 + free.y1) / 2) / uy;
     const camera = renderer.getCamera();
+    // Conta que não fechou (tela sem tamanho, nó único): volta ao enquadramento padrão em vez de sumir com o mapa.
+    if (![state.x, state.y, state.ratio].every(Number.isFinite)) {
+      void camera.reset({ duration: options.duration ?? 0 });
+      return;
+    }
     if (options.duration) void camera.animate(state, { duration: options.duration });
     else camera.setState(state);
   };
@@ -205,6 +215,8 @@ export default function RelationalMap(props: RelationalProps) {
         maxCameraRatio: 4,
         stagePadding: 40,
         zoomDuration: 220,
+        // O contêiner pode nascer sem altura (webview do app, troca de tela): sem isto o Sigma lança erro e o mapa fica preto.
+        allowInvalidContainer: true,
       },
       nodeReducer: (key, computed) => {
         const h = highlight.current;
@@ -243,9 +255,25 @@ export default function RelationalMap(props: RelationalProps) {
       zoomOut: () => void camera.zoomOut({ duration: 220 }),
       fit: () => frame(renderer, "all", { duration: 450 }),
     });
-    frame(renderer, "all");
+    // O Sigma só se redimensiona com a janela; aqui ele acompanha o próprio contêiner e enquadra quando ganha tamanho.
+    let framed = false;
+    const fitIfSized = () => {
+      const { width, height } = renderer.getDimensions();
+      if (!framed && width > 80 && height > 80) {
+        framed = true;
+        frame(renderer, "all");
+      }
+    };
+    fitIfSized();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+      renderer.resize();
+      renderer.refresh();
+      fitIfSized();
+    }) : null;
+    if (container.current) observer?.observe(container.current);
     setHighlight(props.selected && g.hasNode(props.selected) ? props.selected : null);
     return () => {
+      observer?.disconnect();
       renderer.kill();
       sigmaRef.current = null;
     };
