@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import Graph from "graphology";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
+import { animateNodes } from "sigma/utils";
 import { layerDashed, layerPlain, sdfCircle, sdfDiamond } from "sigma/rendering";
 import { folderTone } from "@shared/color";
 import { ownIconSvg, type OwnIconKind } from "./own-icons";
@@ -152,6 +153,7 @@ function layout(g: Graph, key: string) {
 
 export default function RelationalMap(props: RelationalProps) {
   const container = useRef<HTMLDivElement>(null);
+  const pulsesRef = useRef<HTMLCanvasElement>(null);
   const sigmaRef = useRef<Sigma | null>(null);
   const highlight = useRef<{ center: string | null; set: Set<string> | null; focus: Set<string> | null }>({ center: null, set: null, focus: null });
   const propsRef = useRef(props);
@@ -310,11 +312,24 @@ export default function RelationalMap(props: RelationalProps) {
     });
     // O Sigma só se redimensiona com a janela; aqui ele acompanha o próprio contêiner e enquadra quando ganha tamanho.
     let framed = false;
+    const reduce = typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
     const fitIfSized = () => {
       const { width, height } = renderer.getDimensions();
       if (!framed && width > 80 && height > 80) {
         framed = true;
         frame(renderer, "all");
+        if (!reduce) {
+          // Entrada: a câmera chega de um pouco mais longe e os nós crescem do zero (redesign de 27/11).
+          const target = camera.getState();
+          camera.setState({ ...target, ratio: target.ratio * 1.35 });
+          void camera.animate(target, { duration: 850, easing: "cubicOut" });
+          const sizes: Record<string, { size: number }> = {};
+          g.forEachNode((n, a) => {
+            sizes[n] = { size: a.size as number };
+            g.setNodeAttribute(n, "size", 0.01);
+          });
+          animateNodes(g, sizes, { duration: 750, easing: "cubicOut" });
+        }
       }
     };
     fitIfSized();
@@ -325,7 +340,74 @@ export default function RelationalMap(props: RelationalProps) {
     }) : null;
     if (container.current) observer?.observe(container.current);
     setHighlight(props.selected && g.hasNode(props.selected) ? props.selected : null);
+
+    // Sinapses: de tempos em tempos, um pulso de luz corre da pasta até um tópico ou material, no tom da pasta.
+    // Com um item em foco, só das ligações dele. Canvas próprio por cima do Sigma; para com a aba escondida.
+    let raf = 0;
+    const pulseCanvas = pulsesRef.current;
+    const pctx = pulseCanvas?.getContext("2d") ?? null;
+    const tree = g.filterEdges((_e, a) => !a.related);
+    type Pulse = { edge: string; born: number; dur: number };
+    let pulses: Pulse[] = [];
+    let spawnAt = 0;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      if (!pulseCanvas || !pctx || document.hidden || !tree.length) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = pulseCanvas.clientWidth;
+      const h = pulseCanvas.clientHeight;
+      if (pulseCanvas.width !== Math.round(w * dpr) || pulseCanvas.height !== Math.round(h * dpr)) {
+        pulseCanvas.width = Math.round(w * dpr);
+        pulseCanvas.height = Math.round(h * dpr);
+      }
+      const hl = highlight.current;
+      if (now > spawnAt && pulses.length < 14) {
+        const pool = hl.center ? g.edges(hl.center).filter((e) => !g.getEdgeAttribute(e, "related")) : hl.focus ? tree.filter((e) => g.extremities(e).every((n) => hl.focus!.has(n))) : tree;
+        if (pool.length) pulses.push({ edge: pool[Math.floor(Math.random() * pool.length)], born: now, dur: 900 + Math.random() * 700 });
+        spawnAt = now + (hl.center ? 260 : 150) + Math.random() * 260;
+      }
+      pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      pctx.clearRect(0, 0, w, h);
+      pulses = pulses.filter((p) => now - p.born < p.dur && g.hasEdge(p.edge));
+      for (const p of pulses) {
+        const [s, t] = g.extremities(p.edge);
+        const ds = renderer.getNodeDisplayData(s);
+        const dt = renderer.getNodeDisplayData(t);
+        if (!ds || !dt) continue;
+        const a = renderer.framedGraphToViewport(ds);
+        const b = renderer.framedGraphToViewport(dt);
+        const k = (now - p.born) / p.dur;
+        const e = k * k * (3 - 2 * k);
+        const x = a.x + (b.x - a.x) * e;
+        const y = a.y + (b.y - a.y) * e;
+        const back = Math.max(0, e - 0.16);
+        const tx = a.x + (b.x - a.x) * back;
+        const ty = a.y + (b.y - a.y) * back;
+        const life = Math.sin(Math.PI * k);
+        const tone = (g.getNodeAttribute(s, "tone") as string) ?? "#C7B7FA";
+        const trail = pctx.createLinearGradient(tx, ty, x, y);
+        trail.addColorStop(0, withAlpha(tone, 0));
+        trail.addColorStop(1, withAlpha(tone, 0.55 * life));
+        pctx.strokeStyle = trail;
+        pctx.lineWidth = 1.6;
+        pctx.lineCap = "round";
+        pctx.beginPath();
+        pctx.moveTo(tx, ty);
+        pctx.lineTo(x, y);
+        pctx.stroke();
+        const glow = pctx.createRadialGradient(x, y, 0, x, y, 7);
+        glow.addColorStop(0, `rgba(255,255,255,${0.85 * life})`);
+        glow.addColorStop(0.35, withAlpha(tone, 0.45 * life));
+        glow.addColorStop(1, withAlpha(tone, 0));
+        pctx.fillStyle = glow;
+        pctx.beginPath();
+        pctx.arc(x, y, 7, 0, Math.PI * 2);
+        pctx.fill();
+      }
+    };
+    if (!reduce) raf = requestAnimationFrame(tick);
     return () => {
+      cancelAnimationFrame(raf);
       observer?.disconnect();
       renderer.kill();
       sigmaRef.current = null;
@@ -356,5 +438,10 @@ export default function RelationalMap(props: RelationalProps) {
     frame(renderer, [props.camera.target], { ratio: Math.min(camera.ratio, 0.6), duration: 450 });
   }, [props.camera?.seq]);
 
-  return <div ref={container} className="ksigma" aria-label="Mapa relacional" role="img" />;
+  return (
+    <>
+      <div ref={container} className="ksigma" aria-label="Mapa relacional" role="img" />
+      <canvas ref={pulsesRef} className="kpulses" aria-hidden />
+    </>
+  );
 }

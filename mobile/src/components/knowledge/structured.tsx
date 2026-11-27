@@ -1,7 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background,
-  BackgroundVariant,
   BaseEdge,
   Handle,
   MiniMap,
@@ -435,7 +433,6 @@ function StructuredInner(props: StructuredProps) {
       colorMode="dark"
       className={`kflow${far ? " is-far" : ""}`}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(199,183,250,0.07)" />
       {props.showMinimap ? (
         <MiniMap pannable zoomable className="kminimap" maskColor="rgba(0,0,0,0.72)" nodeColor={(n) => ((n.data as NodeData).node.type === "THEME" ? "#6236D4" : "#2F1C64")} nodeStrokeWidth={0} position="bottom-left" />
       ) : null}

@@ -7,6 +7,7 @@ import "./knowledge.css";
 import { KIND_FILTERS, indexGraph, neighborhood, pathTo, visibleTree, type KindFilter, type KnowledgeGraph, type KnowledgeLink, type KnowledgeNode, type StudyLink } from "@/lib/knowledge";
 import { Explorer, Inspector } from "./parts";
 import { StructuredMap } from "./structured";
+import { Starfield } from "./starfield";
 import InstrumentSans400 from "@expo-google-fonts/instrument-sans/400Regular/InstrumentSans_400Regular.ttf";
 import InstrumentSans500 from "@expo-google-fonts/instrument-sans/500Medium/InstrumentSans_500Medium.ttf";
 import Newsreader500 from "@expo-google-fonts/newsreader/500Medium/Newsreader_500Medium.ttf";
@@ -140,6 +141,7 @@ export default function KnowledgeMap(props: {
   return (
     <div className={`kmap${narrow ? " is-narrow" : ""}`} data-mode={mode} data-nodes={stats?.nodes ?? 0} data-layout-ms={stats?.layoutMs ?? 0}>
       <div className="kcanvas">
+        <Starfield />
         {mode === "estruturado" ? (
           <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={insets} />
         ) : (
