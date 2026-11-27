@@ -1,6 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { asksSaveTopic, suggestedFolderName } from "@/server/kally/folder-prompt";
+import { asksSaveTopic, folderChoiceFrom, suggestedFolderName } from "@/server/kally/folder-prompt";
+
+test("resposta do cartão: só as três formas, validadas", () => {
+  assert.deepEqual(folderChoiceFrom({ kind: "recusa" }), { kind: "recusa" });
+  assert.deepEqual(folderChoiceFrom({ kind: "existente", categoryId: "abc" }), { kind: "existente", categoryId: "abc" });
+  assert.deepEqual(folderChoiceFrom({ kind: "nova", name: "  Física   moderna " }), { kind: "nova", name: "Física moderna" });
+  assert.equal(folderChoiceFrom({ kind: "nova", name: "   " }), null);
+  assert.equal(folderChoiceFrom({ kind: "nova", name: "x".repeat(61) }), null);
+  assert.equal(folderChoiceFrom({ kind: "existente" }), null);
+  assert.equal(folderChoiceFrom({ kind: "apagar" }), null);
+  assert.equal(folderChoiceFrom(null), null);
+});
 
 test("pedido de guardar o tópico abre o cartão da pasta", () => {
   for (const m of [
