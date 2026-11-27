@@ -25,7 +25,7 @@ export class ArtifactError extends Error {
 }
 
 /** Filtro de visibilidade dentro do ambiente. */
-function visibleWhere(access: Access): Prisma.ArtifactWhereInput {
+export function visibleWhere(access: Access): Prisma.ArtifactWhereInput {
   if (access.scope.canSeePrivate) return { environmentId: access.environment.id };
   return { environmentId: access.environment.id, OR: [{ private: false }, ...(access.userId ? [{ authorId: access.userId }] : [])] };
 }
