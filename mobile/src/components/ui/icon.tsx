@@ -52,13 +52,20 @@ export type IconName =
   | "code"
   | "star"
   | "starFilled"
-  | "play";
+  | "play"
+  | "estudos";
 
 export function Icon({ name, size = 22, color = colors.text, strokeWidth = 1.6 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       {name === "home" && <Path d="m3.5 10 8.5-7 8.5 7v10.5h-6v-7h-5v7h-6V10Z" {...p} />}
+      {name === "estudos" && (
+        <>
+          <Path d="M12 4 3.5 8.3 12 12.6l8.5-4.3Z" {...p} />
+          <Path d="m3.5 12.2 8.5 4.3 8.5-4.3M3.5 16l8.5 4.3 8.5-4.3" {...p} />
+        </>
+      )}
       {name === "search" && (
         <>
           <Circle cx={10.8} cy={10.8} r={6.8} {...p} />

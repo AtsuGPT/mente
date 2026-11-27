@@ -9,11 +9,12 @@ import type { IconName } from "@/components/ui/icon";
 import { useLayout } from "@/theme/layout";
 
 /**
- * Quatro abas, nesta ordem: Feed, Kally, Artefatos e Ambiente; o ambiente abre na Kally. Buscar e as pastas ficam no painel da
- * esquerda (left-dashboard.tsx), e o mapa de conexões virou uma tela própria, aberta por ele.
+ * Cinco abas, nesta ordem: Feed, Estudos, Kally, Artefatos e Ambiente; o ambiente abre na Kally. Estudos entrou no redesign
+ * de 27/11 (pastas com o progresso e os tópicos para continuar). Buscar fica no painel da esquerda (left-dashboard.tsx).
  */
 const tabs: { name: string; title: string; icon: IconName }[] = [
   { name: "feed", title: "Feed", icon: "home" },
+  { name: "estudos", title: "Estudos", icon: "estudos" },
   { name: "perguntar", title: "Kally", icon: "kally" },
   { name: "artefatos", title: "Artefatos", icon: "cube" },
   { name: "conta", title: "Ambiente", icon: "settings" },
@@ -49,7 +50,7 @@ const crossfade = { animation: "timing" as const, config: { duration: 260, easin
  * a troca passa por um quadro preto. Depois que a primeira tela (a Kally) assenta, as outras são
  * pré-carregadas em segundo plano, uma de cada vez, sem pesar na abertura do ambiente.
  */
-const PREFETCH = ["/feed", "/artefatos", "/conta"] as const;
+const PREFETCH = ["/feed", "/estudos", "/artefatos", "/conta"] as const;
 
 export default function TabsLayout() {
   // Celular: abas embaixo. Tablet deitado e telas maiores: barra lateral (com rótulos ao lado
