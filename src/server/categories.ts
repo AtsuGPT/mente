@@ -79,6 +79,11 @@ async function belongs(id: string, environmentId: string) {
   return !!(await db.category.findFirst({ where: { id, environmentId }, select: { id: true } }));
 }
 
+/** A pasta, se for deste ambiente (id de outro ambiente conta como inexistente). */
+export function findCategory(id: string, environmentId: string): Promise<CategorySummary | null> {
+  return db.category.findFirst({ where: { id, environmentId }, select: summarySelect });
+}
+
 export async function createCategory(input: CategoryInput, environmentId = DEFAULT_ENVIRONMENT_ID): Promise<MutationResult<CategorySummary>> {
   try {
     const created = await db.category.create({ data: { ...input, environmentId }, select: summarySelect });

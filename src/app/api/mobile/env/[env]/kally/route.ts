@@ -21,7 +21,7 @@ import { asksOpinionOnly, competenceFor, competenceMode, EVAL_CONFIGS, evalPipel
 import { competenceOfKind, fastRoute, needsInterpreter, referentGuide, settle } from "@/server/kally/understand";
 import { planResponse } from "@/server/kally/plan";
 import { canEditPost } from "@/server/environments";
-import { listCategories } from "@/server/categories";
+import { findCategory, listCategories } from "@/server/categories";
 import { getAdminPost, getPublishedPostBySlug } from "@/server/posts";
 import {
   addMessage,
@@ -119,10 +119,16 @@ function allowed(userId: string) {
  * Conversas SALVAS da pessoa neste ambiente (as temporárias não existem no servidor).
  * O dev da plataforma recebe as de todos no ambiente, com a dona em owner.
  */
-export async function GET(_request: Request, context: EnvContext) {
+export async function GET(request: Request, context: EnvContext) {
   const access = await envAccess(context);
   if (access instanceof Response) return access;
   if (!access.userId) return error("Entre com sua conta para conversar com a Kally.", 401);
+  // ?pasta=<id>: as conversas da pessoa naquela pasta (tela da pasta). Só as próprias, também para o dev da plataforma.
+  const folder = new URL(request.url).searchParams.get("pasta");
+  if (folder) {
+    if (!(await findCategory(folder, access.environment.id))) return error("Pasta não encontrada.", 404);
+    return json({ conversations: await listConversations(access.environment.id, access.userId, false, folder), allUsers: false });
+  }
   return json({ conversations: await listConversations(access.environment.id, access.userId, access.platformDev), allUsers: access.platformDev });
 }
 
@@ -180,6 +186,14 @@ export async function POST(request: Request, context: EnvContext) {
   const dev = platformAdmin ? parseDevSettings(body.dev) : null;
   // Administrador da plataforma e proprietários do ambiente usam a Kally sem o limite por pessoa.
   if (!platformAdmin && access.role !== "OWNER" && !allowed(userId)) return error("Muitas mensagens em pouco tempo. Tente de novo em alguns minutos.", 429);
+
+  // Conversa nova aberta pela pasta (conversa derivada): nasce salva e já na pasta, então nunca pergunta a pasta.
+  if (!conversation && typeof body.categoryId === "string") {
+    const folder = await findCategory(body.categoryId, access.environment.id);
+    if (!folder) return error("Pasta não encontrada.", 404);
+    const created = await createConversation(access.environment.id, userId, mode, message, folder.id);
+    conversation = { ...created, owner: null, messages: [] };
+  }
 
   // Histórico: do banco (conversa salva) ou do app (temporária, validado e limitado). Refazer numa conversa salva: a
   // pergunta já está gravada e seria lida duas vezes (no histórico e como a mensagem atual).

@@ -162,8 +162,9 @@ export async function recordQuiz(who: Who, result: QuizResult, conversationId: s
   return { mastery, folder: found.folder };
 }
 
-export async function listLearning(who: Who) {
-  return db.kallyLearningTopic.findMany({ where: { environmentId: who.environmentId, userId: who.userId }, orderBy: { lastStudiedAt: "desc" }, take: 60 });
+/** Progresso da pessoa; com categoryId, só os tópicos daquela pasta (tela da pasta). */
+export async function listLearning(who: Who, categoryId: string | null = null) {
+  return db.kallyLearningTopic.findMany({ where: { environmentId: who.environmentId, userId: who.userId, ...(categoryId ? { categoryId } : {}) }, orderBy: { lastStudiedAt: "desc" }, take: 60 });
 }
 
 export async function clearLearning(who: Who) {

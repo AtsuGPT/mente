@@ -537,9 +537,10 @@ type Owned = { userId: string; user: { username: string; displayName: string } }
 const withOwner = <T extends Owned>({ userId: ownerId, user, ...rest }: T, viewerId: string) => ({ ...rest, owner: ownerId === viewerId ? null : user });
 
 /** Conversas da pessoa; com allUsers (só o dev da plataforma), as de todos neste ambiente. */
-export async function listConversations(environmentId: string, userId: string, allUsers = false) {
+export async function listConversations(environmentId: string, userId: string, allUsers = false, categoryId: string | null = null) {
   const rows = await db.kallyConversation.findMany({
-    where: allUsers ? { environmentId } : { environmentId, userId },
+    // Conversas de uma pasta: sempre só as da própria pessoa, mesmo numa pasta compartilhada.
+    where: categoryId ? { environmentId, userId, categoryId } : allUsers ? { environmentId } : { environmentId, userId },
     select: { ...conversationSelect, ...ownerSelect },
     orderBy: { updatedAt: "desc" },
     take: allUsers ? 200 : 50,
@@ -563,9 +564,9 @@ export async function getConversation(environmentId: string, userId: string, id:
   };
 }
 
-export function createConversation(environmentId: string, userId: string, mode: KallyMode, firstMessage: string) {
+export function createConversation(environmentId: string, userId: string, mode: KallyMode, firstMessage: string, categoryId: string | null = null) {
   const title = firstMessage.replace(/\s+/g, " ").trim().slice(0, 60) || "Nova conversa";
-  return db.kallyConversation.create({ data: { environmentId, userId, mode, title }, select: conversationSelect });
+  return db.kallyConversation.create({ data: { environmentId, userId, mode, title, categoryId }, select: conversationSelect });
 }
 
 export async function addMessage(conversationId: string, role: "user" | "assistant", content: string, sources: Source[] = []) {
