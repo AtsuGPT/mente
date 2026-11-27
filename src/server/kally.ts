@@ -529,7 +529,7 @@ export async function reviewText(text: string, environmentName: string): Promise
 
 // ---------- Conversas ----------
 
-const conversationSelect = { id: true, mode: true, title: true, createdAt: true, updatedAt: true } as const;
+const conversationSelect = { id: true, mode: true, title: true, categoryId: true, folderDeclined: true, createdAt: true, updatedAt: true } as const;
 
 const ownerSelect = { userId: true, user: { select: { username: true, displayName: true } } } as const;
 type Owned = { userId: string; user: { username: string; displayName: string } };

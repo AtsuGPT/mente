@@ -48,7 +48,8 @@ import { maybeArtifactTurn } from "@/server/artifacts/turn";
 import { asksVerdict, examGuide, examKey, findExamQuestion } from "@/server/kally/exam-solve";
 import { checkQuizzes } from "@/server/kally/quiz-check";
 import { normalizeBlocks, recentInteractive } from "@/server/kally/blocks";
-import { asksProgress, learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage } from "@/server/kally/learning";
+import { asksProgress, learningContext, quizResultFrom, recordDoubt, recordExplanation, recordQuiz, topicFromMessage, type FolderQuestion } from "@/server/kally/learning";
+import { asksSaveTopic, folderPromptFor, saveTopicReply } from "@/server/kally/folder-prompt";
 import { DEV_ENGINE_LABEL, parseDevSettings } from "@/server/kally-dev";
 import { findUserById } from "@/server/users";
 import { envAccess, error, json, readJson, type EnvContext } from "../../../_lib/http";
@@ -192,6 +193,11 @@ export async function POST(request: Request, context: EnvContext) {
         .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && typeof (m as { content?: unknown }).content === "string")
         .slice(-10)
         .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, MAX_MESSAGE_LENGTH) }));
+
+  // "Salva esse tópico numa pasta": a pessoa chama o cartão da pasta (decisão 2). Resposta curta, sem modelo.
+  if (requested === "auto" && !postCommand && !hasReviewPayload && !body.attachment && body.retry !== true && asksSaveTopic(message)) {
+    return saveTopicTurn({ conversation, message, environmentId: access.environment.id, userId, canCreate: access.permissions.manageContent });
+  }
 
   // Artefatos (src/server/artifacts): pedido para criar, mudar, explicar ou listar um artefato segue um caminho próprio
   // (geração, validação e montagem do bloco ```artefato), com o mesmo protocolo de eventos. O resto não muda.
@@ -486,6 +492,8 @@ export async function POST(request: Request, context: EnvContext) {
   const quizResult = quizResultFrom(body.quizResult);
   const theme = quizResult?.tema ?? understanding.topic ?? (studying ? topicFromMessage(message) : null);
   let progressCard: string | null = null;
+  // Pergunta da pasta: o tópico que acabou de nascer nesta conversa sem pasta (learning.ts → folder-prompt.ts).
+  let folderQuestion: FolderQuestion | null = null;
   // Refazer (botão do app): a pergunta já está gravada; sai só a última resposta, que vai ser gerada de novo.
   if (conversationId && body.retry === true) await dropLastAnswer(conversationId);
   else if (conversationId) await addMessage(conversationId, "user", message);
@@ -642,7 +650,10 @@ export async function POST(request: Request, context: EnvContext) {
           const exam = examPromise ? await examPromise : null;
           // Aprendizagem (learning.ts): o resultado de quiz que o app mandou vira evidência (só em conversa salva); e o
           // histórico de estudo ligado a esta mensagem entra no guia, curto, só em pedidos de estudo ou de progresso.
-          if (conversationId && quizResult) await recordQuiz(who, quizResult, conversationId).catch((e) => console.warn("Kally aprendizagem:", e));
+          if (conversationId && quizResult) {
+            const recorded = await recordQuiz(who, quizResult, conversationId).catch((e) => (console.warn("Kally aprendizagem:", e), null));
+            folderQuestion = recorded?.folder ?? null;
+          }
           const learning = await learningContext(who, { message, theme, studying, lastAssistant: history.filter((m) => m.role === "assistant").at(-1)?.content ?? null }).catch(() => ({ guide: null, block: null }));
           progressCard = learning.block;
           // Contra excesso: escolhas ou quiz nas duas últimas respostas → não repetir agora, a menos que ela peça.
@@ -1065,7 +1076,12 @@ ${progressCard}` });
         // Conversa salva: a explicação ou a dúvida entram no progresso de estudo (sem modelo; o domínio só vem de quiz).
         if (conversationId && answer && theme && !quizResult) {
           const save = understanding.kind === "esclarecimento" ? recordDoubt(who, theme, message, conversationId) : studying && understanding.kind !== "prova" ? recordExplanation(who, theme, conversationId) : null;
-          await save?.catch((e) => console.warn("Kally aprendizagem:", e));
+          folderQuestion = (await save?.catch((e) => (console.warn("Kally aprendizagem:", e), null))) ?? folderQuestion;
+        }
+        // Tópico novo numa conversa sem pasta (e sem "agora não"): o app mostra o cartão para guardar na pasta.
+        if (conversationId && conversation && folderQuestion && answer && !cancel.signal.aborted) {
+          const folderPrompt = await folderPromptFor({ environmentId: access.environment.id, userId, canCreate: access.permissions.manageContent, conversation, question: folderQuestion }).catch(() => null);
+          if (folderPrompt) send({ folderPrompt });
         }
         // Conversa salva: o que a mensagem traz de duradouro sobre a pessoa vai para a memória (aviso na tela).
         // A extração segue em segundo plano: se acabar em até 6 s, a tela avisa; senão guarda sem segurar o fim.
@@ -1178,6 +1194,37 @@ function resumedNote(lastAt?: Date | string) {
   const days = Math.round(hours / 24);
   const gap = hours < 20 ? `${Math.round(hours)} horas` : days <= 1 ? "um dia (a conversa é de ontem)" : `${days} dias`;
   return `RETOMADA: a pessoa voltou a esta conversa depois de ${gap}. Continue o trabalho de onde vocês pararam, usando o que já foi conversado acima. Se ajudar, lembre em uma frase onde a conversa estava; não repita o que já foi dito e não se apresente de novo.`;
+}
+
+/**
+ * Pedido de guardar o tópico numa pasta: responde no mesmo protocolo de eventos, sem modelo. O cartão vem como evento
+ * `folderPrompt`; numa conversa salva, a pergunta e a resposta curta ficam no histórico como qualquer troca.
+ */
+async function saveTopicTurn(input: { conversation: Awaited<ReturnType<typeof getConversation>>; message: string; environmentId: string; userId: string; canCreate: boolean }) {
+  const { conversation } = input;
+  const reply = await saveTopicReply({ environmentId: input.environmentId, userId: input.userId, canCreate: input.canCreate, conversation });
+  if (conversation) {
+    await addMessage(conversation.id, "user", input.message);
+    await addMessage(conversation.id, "assistant", reply.text, []);
+  }
+  const encoder = new TextEncoder();
+  const events: Record<string, unknown>[] = [
+    { conversationId: conversation?.id ?? null, temporary: !conversation, mode: "chat", searched: false, dev: false },
+    { text: reply.text },
+    ...(reply.folderPrompt ? [{ folderPrompt: reply.folderPrompt }] : []),
+    { done: true },
+  ];
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const event of events) controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      controller.close();
+    },
+  });
+  const headers = new Headers(json(null).headers);
+  headers.set("Cache-Control", "no-store, no-transform");
+  headers.set("Content-Type", "text/event-stream; charset=utf-8");
+  headers.set("X-Accel-Buffering", "no");
+  return new Response(stream, { headers });
 }
 
 export { preflight as OPTIONS } from "../../../_lib/http";
