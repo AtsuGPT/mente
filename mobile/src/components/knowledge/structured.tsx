@@ -15,7 +15,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import ELK, { type ElkExtendedEdge, type ElkNode } from "elkjs/lib/elk.bundled.js";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "./icons";
 import { childCount, type GraphIndex, type KindFilter, type KnowledgeNode } from "@/lib/knowledge";
 import { NodeGlyph } from "./parts";
 
@@ -86,11 +86,67 @@ export const themeSummary = (n: KnowledgeNode) => {
 };
 
 type Layout = { positions: Map<string, { x: number; y: number; w: number; h: number }>; routes: Map<string, { x: number; y: number }[]> };
-const layoutCache = new Map<string, Layout>();
+type Band = Layout & { width: number; height: number };
+const bandCache = new Map<string, Band>();
+/** Espaço vertical entre os temas empilhados. */
+const BAND_GAP = 26;
+/** Espaço entre as colunas de temas. */
+const COLUMN_GAP = 64;
 
-async function runLayout(index: GraphIndex, ids: string[], edges: { id: string; source: string; target: string }[]): Promise<Layout> {
+/**
+ * Layout por tema: cada tema (com o que está aberto dentro dele) é uma faixa com o seu próprio ELK, e as faixas são
+ * empilhadas. Abrir um tema recalcula só aquela faixa (rápido: ~40 nós no pior tema de 500) e os outros temas mantêm
+ * a forma, só deslizando para baixo ou para cima. Sem sobreposição: cada faixa ocupa a sua altura.
+ * Um material em dois temas fica na faixa do primeiro; a ligação com o outro tema é desenhada por cima (curva).
+ */
+async function runLayout(index: GraphIndex, ids: string[], edges: { id: string; source: string; target: string }[], maxColumns: number): Promise<Layout> {
+  // Faixa de cada nó: o primeiro tema que o alcança na árvore visível (a mesma ordem da busca em largura).
+  const visible = new Set(ids);
+  const bandOf = new Map<string, string>();
+  const roots = ids.filter((id) => index.byId.get(id)?.type === "THEME");
+  const out = new Map<string, string[]>();
+  for (const e of edges) out.set(e.source, [...(out.get(e.source) ?? []), e.target]);
+  for (const root of roots) {
+    const queue = [root];
+    bandOf.set(root, root);
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const child of out.get(id) ?? []) if (visible.has(child) && !bandOf.has(child)) {
+        bandOf.set(child, root);
+        queue.push(child);
+      }
+    }
+  }
+  // Nós sem tema alcançável (o recorte de "explorar conexões"): uma faixa só para eles.
+  for (const id of ids) if (!bandOf.has(id)) bandOf.set(id, "__solta");
+  const bandIds = [...roots, ...(ids.some((id) => bandOf.get(id) === "__solta") ? ["__solta"] : [])];
+
+  // Colunas: cada tema fica sempre na mesma (pela ordem), para abrir um tema só mexer nos de baixo daquela coluna.
+  const columns = Math.min(maxColumns, bandIds.length <= 4 ? 1 : bandIds.length <= 9 ? 2 : 3);
+  const bands = await Promise.all(bandIds.map((band) => {
+    const members = ids.filter((id) => bandOf.get(id) === band);
+    const inner = edges.filter((e) => bandOf.get(e.source) === band && bandOf.get(e.target) === band);
+    return layoutBand(index, members, inner);
+  }));
+  const colWidth = Array.from({ length: columns }, (_, c) => Math.max(0, ...bands.filter((_, i) => i % columns === c).map((b) => b.width)));
+  const colX = colWidth.map((_, c) => colWidth.slice(0, c).reduce((sum, w) => sum + w + COLUMN_GAP, 0));
+  const colY = new Array(columns).fill(0);
+  const positions = new Map<string, { x: number; y: number; w: number; h: number }>();
+  const routes = new Map<string, { x: number; y: number }[]>();
+  bands.forEach((layout, i) => {
+    const c = i % columns;
+    const dx = colX[c];
+    const dy = colY[c];
+    for (const [id, p] of layout.positions) positions.set(id, { ...p, x: p.x + dx, y: p.y + dy });
+    for (const [id, pts] of layout.routes) routes.set(id, pts.map((p) => ({ x: p.x + dx, y: p.y + dy })));
+    colY[c] += layout.height + BAND_GAP;
+  });
+  return { positions, routes };
+}
+
+async function layoutBand(index: GraphIndex, ids: string[], edges: { id: string; source: string; target: string }[]): Promise<Band> {
   const key = ids.join("|") + "#" + edges.map((e) => e.id).join("|");
-  const cached = layoutCache.get(key);
+  const cached = bandCache.get(key);
   if (cached) return cached;
   await fontsReady();
   const graph: ElkNode = {
@@ -109,10 +165,16 @@ async function runLayout(index: GraphIndex, ids: string[], edges: { id: string; 
     const s = e.sections?.[0];
     if (s) routes.set(e.id, [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]);
   }
-  const layout = { positions, routes };
-  if (layoutCache.size > 40) layoutCache.delete(layoutCache.keys().next().value!);
-  layoutCache.set(key, layout);
-  return layout;
+  let height = 0;
+  let width = 0;
+  for (const p of positions.values()) {
+    height = Math.max(height, p.y + p.h);
+    width = Math.max(width, p.x + p.w);
+  }
+  const band = { positions, routes, width, height };
+  if (bandCache.size > 120) bandCache.delete(bandCache.keys().next().value!);
+  bandCache.set(key, band);
+  return band;
 }
 
 type NodeData = { node: KnowledgeNode; expanded: boolean; hidden: number; selected: boolean; dim: boolean; summary: string };
@@ -158,10 +220,12 @@ const RoutedEdge = memo(function RoutedEdge({ id, sourceX, sourceY, targetX, tar
   } else if (data?.points && data.points.length >= 2) {
     path = roundedPolyline(data.points, 8);
   } else {
-    const mx = (sourceX + targetX) / 2;
-    path = `M${sourceX},${sourceY} H${mx} V${targetY} H${targetX}`;
+    // Ligação com um material que está na faixa de outro tema: curva discreta por cima, sem rota do ELK.
+    const dx = Math.max(60, Math.abs(targetX - sourceX) / 2);
+    path = `M${sourceX},${sourceY} C${sourceX + dx},${sourceY} ${targetX - dx},${targetY} ${targetX},${targetY}`;
   }
-  const cls = data?.related ? "ke ke-related" : `ke${data?.active ? " is-active" : ""}${data?.dim ? " is-dim" : ""}`;
+  const cross = !data?.related && !(data?.points && data.points.length >= 2);
+  const cls = data?.related ? "ke ke-related" : `ke${cross ? " ke-cross" : ""}${data?.active ? " is-active" : ""}${data?.dim ? " is-dim" : ""}`;
   return <BaseEdge id={id} path={path} className={cls} />;
 });
 
@@ -179,6 +243,10 @@ function roundedPolyline(points: { x: number; y: number }[], r: number) {
   return d + ` L${last.x},${last.y}`;
 }
 
+/** Folga do enquadramento: os painéis flutuam sobre o canvas, então a câmera enquadra só o espaço livre entre eles. */
+const panelPadding = (insets: { left: number; right: number }) =>
+  ({ top: "80px", bottom: "40px", left: `${insets.left + 32}px`, right: `${insets.right + 32}px` }) as const;
+
 const nodeTypes = { knowledge: KnowledgeFlowNode };
 const edgeTypes = { routed: RoutedEdge };
 
@@ -191,6 +259,10 @@ export type StructuredProps = {
   selected: string | null;
   focus: Set<string> | null;
   showMinimap: boolean;
+  /** largura dos painéis abertos sobre o canvas (explorador à esquerda, inspetor à direita) */
+  insets: { left: number; right: number };
+  /** tela estreita (celular): uma coluna de temas, para os nomes ficarem legíveis */
+  narrow: boolean;
   /** pedido de câmera: centralizar num nó, ou enquadrar tudo */
   camera: { seq: number; target: string | "all"; subtree?: boolean } | null;
   onNodeClick: (id: string) => void;
@@ -211,14 +283,14 @@ function StructuredInner(props: StructuredProps) {
   useEffect(() => {
     const ticket = ++pending.current;
     const started = performance.now();
-    void runLayout(index, tree.nodes, tree.edges).then((l) => {
+    void runLayout(index, tree.nodes, tree.edges, props.narrow ? 1 : 3).then((l) => {
       if (ticket !== pending.current) return;
       setLayout(l);
       setLayoutKey(visibleKey);
       props.onStats?.({ nodes: tree.nodes.length, layoutMs: Math.round(performance.now() - started) });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleKey, index]);
+  }, [visibleKey, index, props.narrow]);
 
   const neighborsOfSelected = useMemo(() => (selected ? index.neighbors.get(selected) ?? new Set<string>() : null), [selected, index]);
 
@@ -281,11 +353,20 @@ function StructuredInner(props: StructuredProps) {
     if (camera.subtree) {
       // Grupo recém-aberto: enquadra o nó e os filhos visíveis.
       const ids = [camera.target, ...(index.children.get(camera.target) ?? [])].filter((id) => layout.positions.has(id));
-      void flow.fitView({ nodes: ids.map((id) => ({ id })), padding: 0.25, maxZoom: 1.05, duration: 450 });
+      // No celular o inspetor é uma folha que cobre a metade de baixo: enquadra só na parte de cima da tela.
+      const padding = props.narrow ? ({ top: "70px", bottom: "58%", left: "16px", right: "16px" } as const) : panelPadding(props.insets);
+      void flow.fitView({ nodes: ids.map((id) => ({ id })), padding, maxZoom: 1.05, duration: 450 });
       return;
     }
     const p = layout.positions.get(camera.target);
-    if (p) void flow.setCenter(p.x + p.w / 2, p.y + p.h / 2, { zoom: Math.max(flow.getZoom(), 0.9), duration: 450 });
+    if (!p) return;
+    if (props.narrow) {
+      void flow.fitView({ nodes: [{ id: camera.target }], padding: { top: "90px", bottom: "60%", left: "24px", right: "24px" }, maxZoom: 1, duration: 450 });
+      return;
+    }
+    // Desktop: centra no espaço livre entre os painéis abertos, mantendo o zoom.
+    const zoom = Math.max(flow.getZoom(), 0.9);
+    void flow.fitView({ nodes: [{ id: camera.target }], padding: panelPadding(props.insets), minZoom: zoom, maxZoom: zoom, duration: 450 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera?.seq, layoutKey]);
 

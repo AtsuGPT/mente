@@ -263,6 +263,9 @@ path.ke.is-active {
 path.ke.is-dim {
   stroke-opacity: 0.4;
 }
+path.ke.ke-cross {
+  stroke: rgba(165, 139, 247, 0.16);
+}
 path.ke-related {
   stroke: rgba(199, 183, 250, 0.7);
   stroke-width: 1.3;
@@ -758,6 +761,7 @@ path.ke-related {
 
 /* ------------------------------ Telas pequenas ------------------------------ */
 .kmap.is-narrow .kx-explorer {
+  background: rgba(11, 10, 15, 0.97);
   top: 0;
   bottom: 0;
   left: 0;
@@ -766,6 +770,8 @@ path.ke-related {
   z-index: 9;
 }
 .kmap.is-narrow .kx-inspector {
+  /* Folha quase opaca no celular: o mapa por trás não pode atrapalhar a leitura. */
+  background: rgba(11, 10, 15, 0.97);
   top: auto;
   left: 0;
   right: 0;

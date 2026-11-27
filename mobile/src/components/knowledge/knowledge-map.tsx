@@ -1,10 +1,10 @@
 "use dom";
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { Maximize2, Minus, PanelLeft, PanelRight, Plus, Map as MapIcon } from "lucide-react";
+import { Maximize2, Minus, PanelLeft, PanelRight, Plus, MapIcon } from "./icons";
 import "@xyflow/react/dist/style.css";
 import "./knowledge.css";
-import { KIND_FILTERS, indexGraph, neighborhood, pathTo, visibleTree, type KindFilter, type KnowledgeGraph, type KnowledgeLink, type KnowledgeNode } from "@/lib/knowledge";
+import { KIND_FILTERS, indexGraph, neighborhood, pathTo, visibleTree, type KindFilter, type KnowledgeGraph, type KnowledgeLink, type KnowledgeNode, type StudyLink } from "@/lib/knowledge";
 import { Explorer, Inspector } from "./parts";
 import { StructuredMap } from "./structured";
 import InstrumentSans400 from "@expo-google-fonts/instrument-sans/400Regular/InstrumentSans_400Regular.ttf";
@@ -27,7 +27,7 @@ export default function KnowledgeMap(props: {
   graph: KnowledgeGraph;
   environmentName: string;
   /** abre o material de verdade (pensamento, pasta, conversa, artefato) no app */
-  onOpen: (link: KnowledgeLink) => Promise<void>;
+  onOpen: (link: KnowledgeLink | StudyLink) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
 }) {
   const { graph } = props;
@@ -92,6 +92,16 @@ export default function KnowledgeMap(props: {
     moveCamera(id ?? "all");
   }, [moveCamera]);
 
+  // Só em desenvolvimento: abrir e fechar tudo de uma vez, para as baterias de desempenho com 500 nós.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    (window as unknown as Record<string, unknown>).__kmap = {
+      expandAll: () => setExpanded(new Set([...index.children.keys()])),
+      collapseAll: () => setExpanded(new Set()),
+      setMode,
+    };
+  }, [index]);
+
   useEffect(() => {
     // Seleção que sumiu com um filtro: limpa, para o inspetor não mostrar algo que não está no mapa.
     if (selected && !index.byId.has(selected)) setSelected(null);
@@ -129,7 +139,7 @@ export default function KnowledgeMap(props: {
     <div className={`kmap${narrow ? " is-narrow" : ""}`} data-mode={mode} data-nodes={stats?.nodes ?? 0} data-layout-ms={stats?.layoutMs ?? 0}>
       <div className="kcanvas">
         {mode === "estruturado" ? (
-          <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} />
+          <StructuredMap {...shared} tree={tree} expanded={expanded} relatedEdges={relatedEdges} showMinimap={minimap && !narrow} narrow={narrow} insets={{ left: explorerOpen && !narrow ? 292 : 0, right: selectedNode && inspectorOpen && !narrow ? 340 : 0 }} />
         ) : (
           <Suspense fallback={<div className="kloading">Carregando o modo relacional…</div>}>
             <RelationalMap {...shared} graph={graph} />
@@ -204,6 +214,7 @@ export default function KnowledgeMap(props: {
           onDepth={setDepth}
           onSelect={(id) => select(id, "inspector")}
           onOpen={open}
+          onStudy={(link) => void props.onOpen(link)}
           onExplore={explore}
           onClose={() => (narrow ? setSelected(null) : setInspectorOpen(false))}
         />

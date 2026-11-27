@@ -7,6 +7,8 @@ export type KnowledgeNodeType = "THEME" | "TOPIC" | "SUBTOPIC" | "DOCUMENT" | "N
 export type KnowledgeEdgeType = "CONTAINS" | "HAS_RESOURCE" | "RELATED_TO" | "PREREQUISITE";
 export type Mastery = "estudando" | "dificuldade" | "dominado";
 export type KnowledgeLink = { kind: "pasta"; slug: string } | { kind: "pensamento"; slug: string } | { kind: "conversa"; id: string } | { kind: "artefato"; id: string };
+/** Ação do app (não vem do servidor): conversa nova com a Kally sobre um tópico, já na pasta do tema. */
+export type StudyLink = { kind: "estudo"; categoryId: string; folderName: string; topic: string };
 
 export type KnowledgeNode = {
   id: string;

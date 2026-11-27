@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from "react";
-import { ChevronRight, FileText, Folder, Layers, MessageCircle, NotebookPen, Paperclip, Search, Sparkles, Waypoints, X, ExternalLink, Lock, PenLine } from "lucide-react";
+import { ChevronRight, FileText, Folder, Layers, MessageCircle, NotebookPen, Paperclip, Search, Sparkles, Waypoints, X, ExternalLink, Lock, PenLine } from "./icons";
 import {
   KIND_FILTERS,
   MASTERY_LABEL,
@@ -13,6 +13,7 @@ import {
   type KindFilter,
   type KnowledgeGraph,
   type KnowledgeNode,
+  type StudyLink,
 } from "@/lib/knowledge";
 
 /** Glifo de cada tipo: tema = círculo roxo com halo; tópico = círculo menor com o domínio no anel; material = ícone. */
@@ -122,7 +123,7 @@ function TreeItem(props: { id: string; depth: number; index: GraphIndex; kinds: 
   const count = node.type === "THEME" ? (node.counts?.materials ?? 0) + (node.counts?.topics ?? 0) : childCount(props.index, props.id, props.kinds);
   return (
     <li role="treeitem" aria-expanded={kids.length ? open : undefined} aria-selected={props.selected === props.id}>
-      <div className={`kx-row${props.selected === props.id ? " is-selected" : ""}`} style={{ paddingLeft: 6 + props.depth * 14 }}>
+      <div className={`kx-row${props.selected === props.id ? " is-selected" : ""}`} style={{ paddingLeft: 6 + props.depth * 14 }} ref={props.selected === props.id ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}>
         {kids.length ? (
           <button className={`kx-caret${open ? " is-open" : ""}`} onClick={() => props.onToggle(props.id)} aria-label={open ? `Recolher ${node.label}` : `Expandir ${node.label}`}>
             <ChevronRight size={13} strokeWidth={2} />
@@ -158,6 +159,7 @@ export function Inspector(props: {
   onDepth: (d: number) => void;
   onSelect: (id: string) => void;
   onOpen: (node: KnowledgeNode) => void;
+  onStudy: (link: StudyLink) => void;
   onExplore: (id: string | null) => void;
   onClose: () => void;
 }) {
@@ -198,6 +200,11 @@ export function Inspector(props: {
         ) : null}
         {node.excerpt ? <p className="ki-excerpt">{node.excerpt}</p> : null}
         <div className="ki-actions">
+          {node.type === "TOPIC" && theme && !theme.virtual && theme.link?.kind === "pasta" ? (
+            <button className="kx-btn is-primary" onClick={() => props.onStudy({ kind: "estudo", categoryId: theme.id.slice(2), folderName: theme.label, topic: node.label })}>
+              <Sparkles size={14} /> Estudar com a Kally
+            </button>
+          ) : null}
           {node.link ? (
             <button className="kx-btn is-primary" onClick={() => props.onOpen(node)}>
               <ExternalLink size={14} /> {openLabel(node)}

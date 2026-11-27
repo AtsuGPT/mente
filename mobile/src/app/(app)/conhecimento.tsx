@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { useCurrentEnvironment } from "@/lib/environment";
-import type { KnowledgeGraph, KnowledgeLink } from "@/lib/knowledge";
+import type { KnowledgeGraph, KnowledgeLink, StudyLink } from "@/lib/knowledge";
 import { StateView } from "@/components/ui/primitives";
 import { colors } from "@/theme/tokens";
 import KnowledgeMap from "@/components/knowledge/knowledge-map";
@@ -22,8 +22,10 @@ export default function KnowledgeScreen() {
   }, [api]);
   useEffect(load, [load]);
 
-  const open = useCallback(async (link: KnowledgeLink) => {
-    if (link.kind === "pasta") router.push({ pathname: "/categoria/[slug]", params: { slug: link.slug } });
+  const open = useCallback(async (link: KnowledgeLink | StudyLink) => {
+    // Estudar um tópico: conversa nova na pasta (a mesma ação da tela da pasta).
+    if (link.kind === "estudo") router.push({ pathname: "/perguntar", params: { pasta: link.categoryId, pastaNome: link.folderName, topico: link.topic } });
+    else if (link.kind === "pasta") router.push({ pathname: "/categoria/[slug]", params: { slug: link.slug } });
     else if (link.kind === "pensamento") router.push({ pathname: "/post/[slug]", params: { slug: link.slug } });
     else if (link.kind === "conversa") router.push({ pathname: "/perguntar", params: { conversa: link.id } });
     else router.push({ pathname: "/artefato/[id]", params: { id: link.id } });

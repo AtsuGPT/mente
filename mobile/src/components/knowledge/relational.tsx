@@ -32,7 +32,7 @@ const COLORS = {
   label: "#E9E4F7",
   labelFaint: "#AAA4BF",
   tree: "rgba(165,139,247,0.22)",
-  related: "rgba(199,183,250,0.55)",
+  related: "rgba(199,183,250,0.75)",
   dim: "rgba(60,56,72,0.35)",
   dimEdge: "rgba(60,56,72,0.12)",
   transparent: "rgba(0,0,0,0)",
@@ -80,7 +80,7 @@ function buildGraph(data: KnowledgeGraph, index: GraphIndex, kinds: Set<KindFilt
       dashColor: related ? COLORS.related : COLORS.transparent,
       dash: related ? 4 : 0,
       gap: related ? 4 : 0,
-      size: related ? 1.2 : 1,
+      size: related ? 1.5 : 1,
       // Hierarquia puxa mais (mantém o agrupamento); relação entre temas puxa pouco (aproxima sem misturar).
       weight: related ? 0.25 : 1,
     });
