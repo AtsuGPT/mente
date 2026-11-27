@@ -56,8 +56,8 @@ export default function FeedScreen() {
   return (
     <View style={{ flex: 1, overflow: "hidden" }}>
       {/* Luz ambiente bem baixa atrás dos cartões de vidro (sem ela, o vidro sobre o preto puro não aparece). */}
-      <RadialGlow size={Math.max(900, width * 0.7)} color={colors.violet600} opacity={0.2} style={styles.glowTop} />
-      <RadialGlow size={Math.max(700, width * 0.5)} color={colors.orchid} opacity={0.1} style={styles.glowBottom} />
+      <RadialGlow size={Math.max(900, width * 0.7)} color={colors.violet600} opacity={0.11} style={styles.glowTop} />
+      <RadialGlow size={Math.max(700, width * 0.5)} color={colors.orchid} opacity={0.05} style={styles.glowBottom} />
       <FlatList
         key={`colunas-${columns}`}
         numColumns={columns}

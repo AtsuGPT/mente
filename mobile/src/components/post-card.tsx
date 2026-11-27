@@ -34,13 +34,17 @@ export function Avatar({ src, size = 36 }: { src?: string | null; size?: number 
   );
 }
 
-/** Desfoque do que está atrás (só na web; no celular o vidro é a camada translúcida com o brilho). */
-const webBlur = Platform.OS === "web" ? ({ backdropFilter: "blur(18px) saturate(150%)", WebkitBackdropFilter: "blur(18px) saturate(150%)" } as unknown as ViewStyle) : null;
+/** Desfoque forte do que está atrás (só na web; no celular o vidro é a camada escura com a borda de luz). */
+const webGlass = Platform.OS === "web" ? ({ backdropFilter: "blur(28px) saturate(160%)", WebkitBackdropFilter: "blur(28px) saturate(160%)", boxShadow: "0 24px 48px -28px rgba(0,0,0,0.95)" } as unknown as ViewStyle) : null;
+
+/** Borda de luz (como o vidro da Apple): clara no alto, à esquerda, e se apaga para baixo. */
+const RIM = ["rgba(255,255,255,0.15)", "rgba(255,255,255,0.05)", "rgba(255,255,255,0.025)"] as const;
+const RIM_LIT = ["rgba(255,255,255,0.32)", "rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"] as const;
 
 /**
- * Pensamento no feed como cartão de vidro (pedido de 27/11): camada escura translúcida (com desfoque na web), um fio
- * de luz no alto, um toque do tom da pasta no canto e a borda que acende no mouse por cima ou no toque. Dentro, o
- * mesmo texto de antes: número na cor da pasta, pasta e data, título em serifa e duas linhas.
+ * Pensamento no feed como cartão de vidro escuro (refeito em 27/11 com referência no material "thick" da Apple e nas
+ * superfícies do Obsidian): camada quase opaca e neutra, borda de luz fina, um reflexo leve no alto e nenhuma cor no
+ * vidro; a cor da pasta fica só no número e no ponto. No mouse por cima, a borda clareia e o cartão sobe um pouco.
  */
 export const PostCard = memo(function PostCard({ post }: { post: PostCardData; author?: string; avatar?: string | null; featured?: boolean }) {
   const hover = useSharedValue(0);
@@ -48,9 +52,8 @@ export const PostCard = memo(function PostCard({ post }: { post: PostCardData; a
   const lit = useAnimatedStyle(() => ({ opacity: Math.max(hover.value, press.value) }));
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: -2 * hover.value }] }));
   const category = post.categories[0];
-  const tone = category?.color ?? colors.violet400;
   // A cor da pasta (legível sobre o preto) marca o número: diferencia os pensamentos sem imagem.
-  const accent = readableAccent(tone);
+  const accent = readableAccent(category?.color ?? colors.violet400);
   return (
     <Animated.View style={lift}>
       <Touchable
@@ -61,13 +64,14 @@ export const PostCard = memo(function PostCard({ post }: { post: PostCardData; a
         hover={hover}
         press={press}
         pressScale={0.985}
-        style={styles.card}
+        style={[styles.card, webGlass]}
       >
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glass, webBlur]} />
-        <LinearGradient pointerEvents="none" colors={["rgba(255,255,255,0.07)", "rgba(255,255,255,0.012)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
-        <LinearGradient pointerEvents="none" colors={[`${tone}26`, `${tone}00`]} start={{ x: 0, y: 0 }} end={{ x: 0.55, y: 0.75 }} style={StyleSheet.absoluteFill} />
-        <View pointerEvents="none" style={styles.topLight} />
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.lit, lit]} />
+        <LinearGradient pointerEvents="none" colors={RIM} start={{ x: 0.15, y: 0 }} end={{ x: 0.6, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, lit]}>
+          <LinearGradient colors={RIM_LIT} start={{ x: 0.15, y: 0 }} end={{ x: 0.6, y: 1 }} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+        <View pointerEvents="none" style={styles.body} />
+        <LinearGradient pointerEvents="none" colors={["rgba(255,255,255,0.045)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 0.45 }} style={styles.sheen} />
         <View style={styles.meta}>
           <AppText style={[styles.numeral, { color: accent }]}>Nº {formatNumber(post.number)}</AppText>
           {category ? (
@@ -90,7 +94,8 @@ export const PostCard = memo(function PostCard({ post }: { post: PostCardData; a
 /** Mesma silhueta do pensamento, enquanto o feed carrega (a lista não "salta" ao chegar). */
 export function PostCardSkeleton() {
   return (
-    <View style={[styles.card, styles.glass, { gap: space.sm }]}>
+    <View style={[styles.card, { gap: space.sm }]}>
+      <View pointerEvents="none" style={styles.body} />
       <View style={styles.meta} aria-hidden>
         <Skeleton style={{ width: 52, height: 12 }} />
         <Skeleton style={{ width: 96, height: 12 }} />
@@ -103,10 +108,10 @@ export function PostCardSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  card: { paddingVertical: space.lg + 2, paddingHorizontal: space.lg + 4, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
-  glass: { backgroundColor: "rgba(20,18,28,0.55)", borderRadius: 20 },
-  topLight: { position: "absolute", top: 0, left: 22, right: 22, height: 1, backgroundColor: "rgba(255,255,255,0.14)" },
-  lit: { borderRadius: 20, borderWidth: 1, borderColor: "rgba(199,183,250,0.42)", backgroundColor: "rgba(255,255,255,0.025)" },
+  card: { paddingVertical: space.lg + 2, paddingHorizontal: space.lg + 4, borderRadius: 20, overflow: "hidden" },
+  // Corpo do vidro: 1 px para dentro, deixando a borda de luz à mostra; escuro e neutro (material "thick").
+  body: { position: "absolute", top: 1, left: 1, right: 1, bottom: 1, borderRadius: 19, backgroundColor: "rgba(13,12,17,0.84)" },
+  sheen: { position: "absolute", top: 1, left: 1, right: 1, height: "55%", borderTopLeftRadius: 19, borderTopRightRadius: 19 },
   folder: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   meta: { flexDirection: "row", alignItems: "center", gap: space.sm },
   numeral: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 19, letterSpacing: 0.2 },
