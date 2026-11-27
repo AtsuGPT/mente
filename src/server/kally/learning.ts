@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@/generated/prisma";
 import { db } from "@/lib/db";
 
 /**
@@ -69,39 +70,67 @@ export function shouldAskFolder(created: boolean, hasFolder: boolean, declined: 
 
 type Who = { environmentId: string; userId: string };
 
-async function topicFor(who: Who, title: string) {
+/** Tópico que acabou de nascer numa conversa sem pasta: a rota manda o cartão da pasta ao app (pasta como centro). */
+export type FolderQuestion = { topicId: string; topicTitle: string };
+
+const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
+/**
+ * O tópico do assunto, criado se ainda não existir. Ao nascer, herda a pasta da conversa e guarda de que conversa veio
+ * (é por ela que, no sim do cartão, todos os tópicos da conversa vão para a pasta). Procura e cria em dois passos, em
+ * vez de upsert, porque é preciso saber se o tópico nasceu agora: só aí cabe perguntar a pasta.
+ */
+async function topicFor(who: Who, title: string, conversationId: string | null) {
   const key = topicKey(title);
   if (!key) return null;
   const clean = title.trim().slice(0, 60);
-  const topic = await db.kallyLearningTopic.upsert({
-    where: { environmentId_userId_key: { environmentId: who.environmentId, userId: who.userId, key } },
-    create: { environmentId: who.environmentId, userId: who.userId, key, title: clean, nextReviewAt: nextReview("estudando") },
-    update: {},
-  });
+  const conversation = conversationId
+    ? await db.kallyConversation.findFirst({ where: { id: conversationId, environmentId: who.environmentId, userId: who.userId }, select: { id: true, categoryId: true, folderDeclined: true } })
+    : null;
+  const where = { environmentId_userId_key: { environmentId: who.environmentId, userId: who.userId, key } };
+  let topic = await db.kallyLearningTopic.findUnique({ where });
+  let created = false;
+  if (!topic) {
+    try {
+      topic = await db.kallyLearningTopic.create({
+        data: { environmentId: who.environmentId, userId: who.userId, key, title: clean, nextReviewAt: nextReview("estudando"), conversationId: conversation?.id ?? null, categoryId: conversation?.categoryId ?? null },
+      });
+      created = true;
+    } catch (error) {
+      // Duas mensagens criando o mesmo assunto ao mesmo tempo: a outra criou primeiro; usa o dela.
+      if (!isUniqueViolation(error)) throw error;
+      topic = await db.kallyLearningTopic.findUniqueOrThrow({ where });
+    }
+  }
   // O nome tirado do pedido vem em minúsculas ("lei de ohm"); o do quiz ou do interpretador ("Lei de Ohm") prevalece.
-  if (topic.title === topic.title.toLowerCase() && clean !== clean.toLowerCase()) return db.kallyLearningTopic.update({ where: { id: topic.id }, data: { title: clean } });
-  return topic;
+  if (topic.title === topic.title.toLowerCase() && clean !== clean.toLowerCase()) topic = await db.kallyLearningTopic.update({ where: { id: topic.id }, data: { title: clean } });
+  const askFolder = conversation ? shouldAskFolder(created, conversation.categoryId !== null, conversation.folderDeclined) : false;
+  return { topic, folder: askFolder ? { topicId: topic.id, topicTitle: topic.title } : null };
 }
 
-/** A Kally explicou o assunto (progresso, não domínio). */
-export async function recordExplanation(who: Who, title: string, conversationId: string | null) {
-  const t = await topicFor(who, title);
-  if (!t) return;
+/** A Kally explicou o assunto (progresso, não domínio). Devolve a pergunta da pasta, quando couber. */
+export async function recordExplanation(who: Who, title: string, conversationId: string | null): Promise<FolderQuestion | null> {
+  const found = await topicFor(who, title, conversationId);
+  if (!found) return null;
+  const t = found.topic;
   await db.$transaction([
     db.kallyLearningEvent.create({ data: { topicId: t.id, kind: "explicacao", conversationId } }),
     db.kallyLearningTopic.update({ where: { id: t.id }, data: { explanations: { increment: 1 }, lastStudiedAt: new Date() } }),
   ]);
+  return found.folder;
 }
 
-/** A pessoa não entendeu algo do assunto. */
-export async function recordDoubt(who: Who, title: string, detail: string, conversationId: string | null) {
-  const t = await topicFor(who, title);
-  if (!t) return;
+/** A pessoa não entendeu algo do assunto. Devolve a pergunta da pasta, quando couber. */
+export async function recordDoubt(who: Who, title: string, detail: string, conversationId: string | null): Promise<FolderQuestion | null> {
+  const found = await topicFor(who, title, conversationId);
+  if (!found) return null;
+  const t = found.topic;
   const mastery = masteryOf({ ...t, doubts: t.doubts + 1 });
   await db.$transaction([
     db.kallyLearningEvent.create({ data: { topicId: t.id, kind: "duvida", detail: detail.slice(0, 300), conversationId } }),
     db.kallyLearningTopic.update({ where: { id: t.id }, data: { doubts: { increment: 1 }, mastery, lastStudiedAt: new Date(), nextReviewAt: nextReview(mastery) } }),
   ]);
+  return found.folder;
 }
 
 export type QuizResult = { tema: string; total: number; correct: number; wrong: string[] };
@@ -119,9 +148,10 @@ export function quizResultFrom(value: unknown): QuizResult | null {
 }
 
 /** Resultado de um quiz: a evidência que move o domínio. */
-export async function recordQuiz(who: Who, result: QuizResult, conversationId: string | null) {
-  const t = await topicFor(who, result.tema);
-  if (!t) return null;
+export async function recordQuiz(who: Who, result: QuizResult, conversationId: string | null): Promise<{ mastery: Mastery; folder: FolderQuestion | null } | null> {
+  const found = await topicFor(who, result.tema, conversationId);
+  if (!found) return null;
+  const t = found.topic;
   const next = { quizzes: t.quizzes + 1, questions: t.questions + result.total, correct: t.correct + result.correct, lastScore: result.correct / result.total, doubts: t.doubts };
   const mastery = masteryOf(next);
   const weak = [...result.wrong, ...t.weakPoints.split("\n").filter(Boolean)].filter((w, i, all) => all.indexOf(w) === i).slice(0, 5).join("\n");
@@ -129,7 +159,7 @@ export async function recordQuiz(who: Who, result: QuizResult, conversationId: s
     db.kallyLearningEvent.create({ data: { topicId: t.id, kind: "quiz", correct: result.correct, total: result.total, detail: result.wrong.join("\n").slice(0, 1_000), conversationId } }),
     db.kallyLearningTopic.update({ where: { id: t.id }, data: { ...next, mastery, weakPoints: weak, lastStudiedAt: new Date(), nextReviewAt: nextReview(mastery) } }),
   ]);
-  return mastery;
+  return { mastery, folder: found.folder };
 }
 
 export async function listLearning(who: Who) {
